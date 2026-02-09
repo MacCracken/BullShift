@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/rust_trading_engine.dart';
 import '../modules/core_trading/trading_provider.dart';
 import '../widgets/notes_panel.dart';
+import '../widgets/advanced_charting_widget.dart';
 
 class BullShiftApp extends StatelessWidget {
   const BullShiftApp({super.key});

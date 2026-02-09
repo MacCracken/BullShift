@@ -18,8 +18,16 @@ class CoreTradingView extends StatelessWidget {
               child: Column(
                 children: [
                   Expanded(
-                    flex: 2,
+                    flex: 1,
                     child: OrderPanel(tradingProvider: tradingProvider),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    flex: 2,
+                    child: AdvancedChartingWidget(
+                      symbol: tradingProvider.currentSymbol.isEmpty ? 'AAPL' : tradingProvider.currentSymbol,
+                      timeframe: '1D',
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Expanded(
