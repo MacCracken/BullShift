@@ -1,0 +1,41 @@
+[package]
+name = "bullshift-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "bullshift_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Core
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+
+# Trading & Market Data
+tungstenite = "0.20"
+reqwest = { version = "0.11", features = ["json"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Security
+ring = "0.17"
+aes-gcm = "0.10"
+
+# Database
+objectbox = "0.16.0"
+
+# gRPC
+tonic = "0.10"
+prost = "0.12"
+
+# FFI
+ffi = "0.1"
+
+# Logging
+log = "0.4"
+env_logger = "0.10"
+
+[build-dependencies]
+tonic-build = "0.10"

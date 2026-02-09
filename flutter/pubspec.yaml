@@ -1,0 +1,54 @@
+name: bullshift
+description: High-performance cross-platform trading ecosystem
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  
+  # State Management
+  provider: ^6.1.1
+  riverpod: ^2.4.9
+  
+  # Networking & Real-time
+  web_socket_channel: ^2.4.0
+  dio: ^5.4.0
+  grpc: ^3.2.2
+  
+  # Security
+  flutter_secure_storage: ^9.0.0
+  crypto: ^3.0.3
+  
+  # Database
+  objectbox: ^2.5.0
+  objectbox_flutter_libs: ^2.5.0
+  
+  # UI
+  material_design_icons_flutter: ^7.0.7296
+  charts_flutter: ^0.12.0
+  
+  # FFI for Rust integration
+  ffi: ^2.1.0
+  
+  # Utilities
+  intl: ^0.19.0
+  logger: ^2.0.2+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.7
+  objectbox_generator: ^2.5.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/images/
