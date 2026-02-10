@@ -1,37 +1,22 @@
-import 'package:flutter/foundation.dart';
 import 'dart:math';
+import '../../services/base_provider.dart';
 
-class BearlyManagedProvider extends ChangeNotifier {
+class BearlyManagedProvider extends BaseProvider {
   List<Map<String, dynamic>> _aiProviders = [];
   List<Map<String, dynamic>> _tradingStrategies = [];
   List<Map<String, dynamic>> _aiPrompts = [];
   List<Map<String, dynamic>> _aiResponses = [];
-  bool _isLoading = false;
-  String? _errorMessage;
 
   // Getters
   List<Map<String, dynamic>> get aiProviders => _aiProviders;
   List<Map<String, dynamic>> get tradingStrategies => _tradingStrategies;
   List<Map<String, dynamic>> get aiPrompts => _aiPrompts;
   List<Map<String, dynamic>> get aiResponses => _aiResponses;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
-
-  // Setters
-  void setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  void setError(String? error) {
-    _errorMessage = error;
-    notifyListeners();
-  }
 
   // Initialize with sample data
   void initialize() {
     _generateSampleData();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // AI Provider Management
@@ -41,32 +26,27 @@ class BearlyManagedProvider extends ChangeNotifier {
     required String apiEndpoint,
     required String modelName,
   }) async {
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        final provider = {
+          'id': _generateId(),
+          'name': name,
+          'type': type,
+          'apiEndpoint': apiEndpoint,
+          'modelName': modelName,
+          'isConfigured': false,
+          'isActive': false,
+          'maxTokens': 4096,
+          'temperature': 0.7,
+          'createdAt': DateTime.now(),
+          'lastUsed': null,
+        };
 
-    try {
-      final provider = {
-        'id': _generateId(),
-        'name': name,
-        'type': type,
-        'apiEndpoint': apiEndpoint,
-        'modelName': modelName,
-        'isConfigured': false,
-        'isActive': false,
-        'maxTokens': 4096,
-        'temperature': 0.7,
-        'createdAt': DateTime.now(),
-        'lastUsed': null,
-      };
-
-      _aiProviders.add(provider);
-      notifyListeners();
-
-    } catch (e) {
-      setError('Failed to add provider: $e');
-    } finally {
-      setLoading(false);
-    }
+        _aiProviders.add(provider);
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Adding provider...',
+    );
   }
 
   Future<void> configureProvider({
@@ -74,71 +54,61 @@ class BearlyManagedProvider extends ChangeNotifier {
     required String apiKey,
     String? organizationId,
   }) async {
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        final providerIndex = _aiProviders.indexWhere((p) => p['id'] == providerId);
+        if (providerIndex == -1) {
+          throw Exception('Provider not found');
+        }
 
-    try {
-      final providerIndex = _aiProviders.indexWhere((p) => p['id'] == providerId);
-      if (providerIndex == -1) {
-        throw Exception('Provider not found');
-      }
+        // Simulate API key validation
+        await Future.delayed(const Duration(seconds: 1));
 
-      // Simulate API key validation
-      await Future.delayed(const Duration(seconds: 1));
+        _aiProviders[providerIndex]['isConfigured'] = true;
+        _aiProviders[providerIndex]['apiKey'] = apiKey;
+        if (organizationId != null) {
+          _aiProviders[providerIndex]['organizationId'] = organizationId;
+        }
 
-      _aiProviders[providerIndex]['isConfigured'] = true;
-      _aiProviders[providerIndex]['apiKey'] = apiKey;
-      if (organizationId != null) {
-        _aiProviders[providerIndex]['organizationId'] = organizationId;
-      }
-
-      notifyListeners();
-
-    } catch (e) {
-      setError('Failed to configure provider: $e');
-    } finally {
-      setLoading(false);
-    }
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Configuring provider...',
+    );
   }
 
   Future<void> testProvider(String providerId) async {
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        final provider = _aiProviders.firstWhere((p) => p['id'] == providerId);
+        
+        if (!provider['isConfigured']) {
+          throw Exception('Provider not configured');
+        }
 
-    try {
-      final provider = _aiProviders.firstWhere((p) => p['id'] == providerId);
-      
-      if (!provider['isConfigured']) {
-        throw Exception('Provider not configured');
-      }
+        // Simulate connection test
+        await Future.delayed(const Duration(seconds: 2));
 
-      // Simulate connection test
-      await Future.delayed(const Duration(seconds: 2));
+        // Update last used
+        final providerIndex = _aiProviders.indexWhere((p) => p['id'] == providerId);
+        _aiProviders[providerIndex]['lastUsed'] = _formatDateTime(DateTime.now());
 
-      // Update last used
-      final providerIndex = _aiProviders.indexWhere((p) => p['id'] == providerId);
-      _aiProviders[providerIndex]['lastUsed'] = _formatDateTime(DateTime.now());
-
-      notifyListeners();
-
-    } catch (e) {
-      setError('Provider test failed: $e');
-    } finally {
-      setLoading(false);
-    }
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Testing provider connection...',
+    );
   }
 
   void toggleProvider(String providerId, bool isActive) {
     final providerIndex = _aiProviders.indexWhere((p) => p['id'] == providerId);
     if (providerIndex != -1) {
       _aiProviders[providerIndex]['isActive'] = isActive;
-      notifyListeners();
+      safeNotifyListeners();
     }
   }
 
   void deleteProvider(String providerId) {
     _aiProviders.removeWhere((p) => p['id'] == providerId);
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Strategy Management
@@ -150,59 +120,54 @@ class BearlyManagedProvider extends ChangeNotifier {
     required String riskLevel,
     required String providerId,
   }) async {
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        final provider = _aiProviders.firstWhere((p) => p['id'] == providerId);
+        
+        if (!provider['isActive']) {
+          throw Exception('Provider not active');
+        }
 
-    try {
-      final provider = _aiProviders.firstWhere((p) => p['id'] == providerId);
-      
-      if (!provider['isActive']) {
-        throw Exception('Provider not active');
-      }
+        // Simulate AI strategy generation
+        await Future.delayed(const Duration(seconds: 3));
 
-      // Simulate AI strategy generation
-      await Future.delayed(const Duration(seconds: 3));
+        final strategy = {
+          'id': _generateId(),
+          'name': name,
+          'type': type,
+          'description': _generateStrategyDescription(type, symbols, riskLevel),
+          'providerId': providerId,
+          'symbols': symbols,
+          'timeframe': timeframe,
+          'riskLevel': riskLevel,
+          'isActive': false,
+          'winRate': 0.0,
+          'totalTrades': 0,
+          'totalReturn': 0.0,
+          'maxDrawdown': 0.0,
+          'sharpeRatio': 0.0,
+          'createdAt': DateTime.now(),
+          'lastUpdated': DateTime.now(),
+        };
 
-      final strategy = {
-        'id': _generateId(),
-        'name': name,
-        'type': type,
-        'description': _generateStrategyDescription(type, symbols, riskLevel),
-        'providerId': providerId,
-        'symbols': symbols,
-        'timeframe': timeframe,
-        'riskLevel': riskLevel,
-        'isActive': false,
-        'winRate': 0.0,
-        'totalTrades': 0,
-        'totalReturn': 0.0,
-        'maxDrawdown': 0.0,
-        'sharpeRatio': 0.0,
-        'createdAt': DateTime.now(),
-        'lastUpdated': DateTime.now(),
-      };
-
-      _tradingStrategies.add(strategy);
-      notifyListeners();
-
-    } catch (e) {
-      setError('Failed to generate strategy: $e');
-    } finally {
-      setLoading(false);
-    }
+        _tradingStrategies.add(strategy);
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Generating strategy...',
+    );
   }
 
   void toggleStrategy(String strategyId, bool isActive) {
     final strategyIndex = _tradingStrategies.indexWhere((s) => s['id'] == strategyId);
     if (strategyIndex != -1) {
       _tradingStrategies[strategyIndex]['isActive'] = isActive;
-      notifyListeners();
+      safeNotifyListeners();
     }
   }
 
   void deleteStrategy(String strategyId) {
     _tradingStrategies.removeWhere((s) => s['id'] == strategyId);
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Prompt Management
@@ -213,84 +178,78 @@ class BearlyManagedProvider extends ChangeNotifier {
     required String providerId,
     bool isSystemPrompt = false,
   }) async {
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        final prompt = {
+          'id': _generateId(),
+          'name': name,
+          'category': category,
+          'template': template,
+          'providerId': providerId,
+          'isSystemPrompt': isSystemPrompt,
+          'variables': _extractVariables(template),
+          'createdAt': DateTime.now(),
+        };
 
-    try {
-      final prompt = {
-        'id': _generateId(),
-        'name': name,
-        'category': category,
-        'template': template,
-        'providerId': providerId,
-        'isSystemPrompt': isSystemPrompt,
-        'variables': _extractVariables(template),
-        'createdAt': DateTime.now(),
-      };
-
-      _aiPrompts.add(prompt);
-      notifyListeners();
-
-    } catch (e) {
-      setError('Failed to add prompt: $e');
-    } finally {
-      setLoading(false);
-    }
+        _aiPrompts.add(prompt);
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Adding prompt...',
+    );
   }
 
   Future<String> executePrompt({
     required String promptId,
     Map<String, String> variables = const {},
   }) async {
-    setLoading(true);
-    setError(null);
+    final result = await executeAsync<String>(
+      operation: () async {
+        final prompt = _aiPrompts.firstWhere((p) => p['id'] == promptId);
+        final provider = _aiProviders.firstWhere((p) => p['id'] == prompt['providerId']);
+        
+        if (!provider['isActive']) {
+          throw Exception('Provider not active');
+        }
 
-    try {
-      final prompt = _aiPrompts.firstWhere((p) => p['id'] == promptId);
-      final provider = _aiProviders.firstWhere((p) => p['id'] == prompt['providerId']);
-      
-      if (!provider['isActive']) {
-        throw Exception('Provider not active');
-      }
+        // Simulate AI execution
+        await Future.delayed(const Duration(seconds: 2));
 
-      // Simulate AI execution
-      await Future.delayed(const Duration(seconds: 2)));
+        final response = _generateAIResponse(prompt, variables);
+        
+        // Store response
+        final responseRecord = {
+          'id': _generateId(),
+          'promptId': promptId,
+          'providerId': prompt['providerId'],
+          'response': response,
+          'tokensUsed': 150 + Random().nextInt(200),
+          'cost': 0.002 + Random().nextDouble() * 0.008,
+          'responseTimeMs': 800 + Random().nextInt(1200),
+          'success': true,
+          'timestamp': DateTime.now(),
+        };
 
-      final response = _generateAIResponse(prompt, variables);
-      
-      // Store response
-      final responseRecord = {
-        'id': _generateId(),
-        'promptId': promptId,
-        'providerId': prompt['providerId'],
-        'response': response,
-        'tokensUsed': 150 + Random().nextInt(200),
-        'cost': 0.002 + Random().nextDouble() * 0.008,
-        'responseTimeMs': 800 + Random().nextInt(1200),
-        'success': true,
-        'timestamp': DateTime.now(),
-      };
+        _aiResponses.add(responseRecord);
+        
+        // Update provider last used
+        final providerIndex = _aiProviders.indexWhere((p) => p['id'] == prompt['providerId']);
+        _aiProviders[providerIndex]['lastUsed'] = _formatDateTime(DateTime.now());
 
-      _aiResponses.add(responseRecord);
-      
-      // Update provider last used
-      final providerIndex = _aiProviders.indexWhere((p) => p['id'] == prompt['providerId']);
-      _aiProviders[providerIndex]['lastUsed'] = _formatDateTime(DateTime.now());
-
-      notifyListeners();
-      return response;
-
-    } catch (e) {
-      setError('Failed to execute prompt: $e');
-      rethrow;
-    } finally {
-      setLoading(false);
+        safeNotifyListeners();
+        return response;
+      },
+      loadingMessage: 'Executing prompt...',
+    );
+    
+    if (result == null) {
+      throw Exception('Failed to execute prompt');
     }
+    return result;
   }
 
   void deletePrompt(String promptId) {
     _aiPrompts.removeWhere((p) => p['id'] == promptId);
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Generate sample data for demonstration

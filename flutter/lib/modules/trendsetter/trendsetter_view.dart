@@ -393,38 +393,6 @@ class MomentumStockCard extends StatelessWidget {
       }
     }
   }
-
-  void _toggleWatchlist(BuildContext context, String symbol) async {
-    try {
-      if (watchlistProvider.isInWatchlist(symbol)) {
-        await watchlistProvider.removeFromWatchlist(symbol);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$symbol removed from watchlist')),
-          );
-        }
-      } else {
-        final added = await watchlistProvider.addToWatchlist(symbol);
-        if (context.mounted) {
-          if (added) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$symbol added to watchlist')),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Failed to add to watchlist')),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    }
-  }
 }
 
 class HeatMapPanel extends StatelessWidget {

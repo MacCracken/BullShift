@@ -1,12 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'dart:math';
+import '../../services/base_provider.dart';
 
-class BullRunnrProvider extends ChangeNotifier {
+class BullRunnrProvider extends BaseProvider {
   List<Map<String, dynamic>> _newsArticles = [];
   Map<String, dynamic> _marketSentiment = {};
   List<Map<String, dynamic>> _topSentimentMovers = [];
   List<Map<String, dynamic>> _sectorSentiment = [];
-  bool _isLoading = false;
   String _selectedCategory = 'All';
   String _selectedSentiment = 'All';
 
@@ -15,7 +14,6 @@ class BullRunnrProvider extends ChangeNotifier {
   Map<String, dynamic> get marketSentiment => _marketSentiment;
   List<Map<String, dynamic>> get topSentimentMovers => _topSentimentMovers;
   List<Map<String, dynamic>> get sectorSentiment => _sectorSentiment;
-  bool get isLoading => _isLoading;
   String get selectedCategory => _selectedCategory;
   String get selectedSentiment => _selectedSentiment;
 
@@ -23,60 +21,45 @@ class BullRunnrProvider extends ChangeNotifier {
   void setCategoryFilter(String category) {
     _selectedCategory = category;
     _filterArticles();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setSentimentFilter(String sentiment) {
     _selectedSentiment = sentiment;
     _filterArticles();
-    notifyListeners();
-  }
-
-  void setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Initialize with sample data
   void initialize() {
     _generateSampleData();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Refresh news data
   Future<void> refreshNews() async {
-    setLoading(true);
-    
-    try {
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Generate fresh sample data
-      _generateSampleData();
-      
-    } catch (e) {
-      debugPrint('Error refreshing news: $e');
-    } finally {
-      setLoading(false);
-    }
+    await executeAsync(
+      operation: () async {
+        // Simulate API call delay
+        await Future.delayed(const Duration(seconds: 2));
+        
+        // Generate fresh sample data
+        _generateSampleData();
+      },
+    );
   }
 
   // Search news
   Future<void> searchNews(String keywords, List<String> symbols) async {
-    setLoading(true);
-    
-    try {
-      // Simulate search API call
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Generate search results
-      _generateSearchResults(keywords, symbols);
-      
-    } catch (e) {
-      debugPrint('Error searching news: $e');
-    } finally {
-      setLoading(false);
-    }
+    await executeAsync(
+      operation: () async {
+        // Simulate search API call
+        await Future.delayed(const Duration(seconds: 1));
+        
+        // Generate search results
+        _generateSearchResults(keywords, symbols);
+      },
+    );
   }
 
   // Generate sample data for demonstration
@@ -335,13 +318,13 @@ class BullRunnrProvider extends ChangeNotifier {
     // Sort by relevance
     _newsArticles.sort((a, b) => (b['confidence'] as double).compareTo(a['confidence'] as double));
     
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void _filterArticles() {
     // This would filter the articles based on selected category and sentiment
     // For now, we'll just notify listeners to trigger a rebuild
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Get news for specific symbol

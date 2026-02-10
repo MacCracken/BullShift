@@ -204,7 +204,7 @@ class _NotesPanelState extends State<NotesPanel> {
     final tags = <String>[];
     final tagPatterns = ['#earnings', '#technical', '#fundamental', '#news', '#risk', '#breakout', '#support', '#resistance'];
     
-    for (pattern in tagPatterns) {
+    for (final pattern in tagPatterns) {
       if (note.toLowerCase().contains(pattern)) {
         tags.add(pattern);
       }

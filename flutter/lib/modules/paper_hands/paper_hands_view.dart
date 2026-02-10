@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/rust_trading_engine.dart';
 import '../core_trading/trading_provider.dart';
-import '../widgets/advanced_charting_widget.dart';
+import '../../widgets/advanced_charting_widget.dart';
 import 'paper_hands_provider.dart';
 
 class PaperHandsView extends StatelessWidget {

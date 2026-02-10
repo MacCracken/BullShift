@@ -4,12 +4,14 @@ import 'dart:math';
 class AdvancedChartingWidget extends StatefulWidget {
   final String symbol;
   final String timeframe;
+  final Function(String)? onTimeframeChanged;
   final Map<String, dynamic>? chartSettings;
 
   const AdvancedChartingWidget({
     super.key,
     required this.symbol,
     this.timeframe = '1D',
+    this.onTimeframeChanged,
     this.chartSettings,
   });
 
@@ -22,11 +24,23 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
   List<IndicatorType> _activeIndicators = [];
   bool _showVolume = true;
   ChartTheme _theme = ChartTheme.dark;
+  String _currentTimeframe = '1D';
   
   @override
   void initState() {
     super.initState();
+    _currentTimeframe = widget.timeframe;
     _initializeDefaultIndicators();
+  }
+
+  @override
+  void didUpdateWidget(AdvancedChartingWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.timeframe != widget.timeframe) {
+      setState(() {
+        _currentTimeframe = widget.timeframe;
+      });
+    }
   }
 
   void _initializeDefaultIndicators() {
@@ -35,6 +49,19 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
       IndicatorType.sma50,
       IndicatorType.rsi,
     ];
+  }
+
+  void _onTimeframeChanged(String? newTimeframe) {
+    if (newTimeframe != null && newTimeframe != _currentTimeframe) {
+      setState(() {
+        _currentTimeframe = newTimeframe;
+      });
+      
+      // Notify parent widget
+      if (widget.onTimeframeChanged != null) {
+        widget.onTimeframeChanged!(newTimeframe);
+      }
+    }
   }
 
   @override
@@ -100,7 +127,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
             border: Border.all(color: Colors.blue.withOpacity(0.5)),
           ),
           child: Text(
-            widget.timeframe,
+            _currentTimeframe,
             style: const TextStyle(
               color: Colors.blue,
               fontSize: 12,
@@ -172,7 +199,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
         const Spacer(),
         // Time Frame Selector
         DropdownButton<String>(
-          value: widget.timeframe,
+          value: _currentTimeframe,
           dropdownColor: const Color(0xFF37474F),
           style: const TextStyle(color: Colors.white, fontSize: 12),
           items: ['1m', '5m', '15m', '1h', '4h', '1D', '1W', '1M'].map((timeframe) {
@@ -181,9 +208,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
               child: Text(timeframe),
             );
           }).toList(),
-          onChanged: (value) {
-            // TODO: Update timeframe
-          },
+          onChanged: _onTimeframeChanged,
         ),
         const SizedBox(width: 8),
         // Volume Toggle
@@ -213,14 +238,17 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade700),
       ),
-      child: CustomPaint(
-        painter: ChartPainter(
-          chartType: _currentChartType,
-          data: _generateSampleData(),
-          indicators: _activeIndicators,
-          theme: _theme,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: ChartPainter(
+            chartType: _currentChartType,
+            data: _generateSampleData(),
+            indicators: _activeIndicators,
+            theme: _theme,
+          ),
         ),
-        child: Container(),
       ),
     );
   }
@@ -232,12 +260,15 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade700),
       ),
-      child: CustomPaint(
-        painter: VolumeChartPainter(
-          data: _generateSampleData(),
-          theme: _theme,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: VolumeChartPainter(
+            data: _generateSampleData(),
+            theme: _theme,
+          ),
         ),
-        child: Container(),
       ),
     );
   }
@@ -257,13 +288,16 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: Colors.grey.shade700),
               ),
-              child: CustomPaint(
-                painter: IndicatorChartPainter(
-                  indicator: indicator,
-                  data: _generateSampleData(),
-                  theme: _theme,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: CustomPaint(
+                  size: Size.infinite,
+                  painter: IndicatorChartPainter(
+                    indicator: indicator,
+                    data: _generateSampleData(),
+                    theme: _theme,
+                  ),
                 ),
-                child: Container(),
               ),
             ),
           ),
@@ -448,62 +482,330 @@ class ChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // TODO: Implement actual chart rendering
-    // For now, draw a placeholder
-    final paint = Paint()
-      ..color = Colors.grey.shade600
+    // Background
+    final bgPaint = Paint()
+      ..color = const Color(0xFF1E1E1E)
       ..style = PaintingStyle.fill;
-    
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      paint,
-    );
-    
-    // Draw placeholder text
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: '${_getChartTypeName(chartType)} Chart\n${data.length} data points',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 14,
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
+
+    if (data.isEmpty) return;
+
+    // Calculate price range
+    double minPrice = data.map((d) => d.low).reduce(min);
+    double maxPrice = data.map((d) => d.high).reduce(max);
+    double priceRange = maxPrice - minPrice;
+    if (priceRange == 0) priceRange = 1;
+
+    // Draw grid lines
+    _drawGrid(canvas, size, minPrice, maxPrice);
+
+    // Draw chart based on type
+    switch (chartType) {
+      case ChartType.candlestick:
+        _drawCandlesticks(canvas, size, minPrice, priceRange);
+        break;
+      case ChartType.line:
+        _drawLineChart(canvas, size, minPrice, priceRange);
+        break;
+      case ChartType.area:
+        _drawAreaChart(canvas, size, minPrice, priceRange);
+        break;
+      case ChartType.ohlc:
+        _drawOHLC(canvas, size, minPrice, priceRange);
+        break;
+      default:
+        _drawCandlesticks(canvas, size, minPrice, priceRange);
+    }
+
+    // Draw indicators
+    _drawIndicators(canvas, size, minPrice, priceRange);
+
+    // Draw axes
+    _drawAxes(canvas, size, minPrice, maxPrice);
+  }
+
+  void _drawGrid(Canvas canvas, Size size, double minPrice, double maxPrice) {
+    final gridPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    // Horizontal grid lines
+    for (int i = 0; i <= 5; i++) {
+      final y = size.height * i / 5;
+      canvas.drawLine(
+        Offset(50, y),
+        Offset(size.width, y),
+        gridPaint,
+      );
+    }
+
+    // Vertical grid lines
+    final candleWidth = (size.width - 50) / data.length;
+    for (int i = 0; i <= 10; i++) {
+      final x = 50 + (size.width - 50) * i / 10;
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height - 20),
+        gridPaint,
+      );
+    }
+  }
+
+  void _drawCandlesticks(Canvas canvas, Size size, double minPrice, double priceRange) {
+    final candleWidth = (size.width - 50) / data.length * 0.8;
+    final spacing = (size.width - 50) / data.length;
+
+    for (int i = 0; i < data.length; i++) {
+      final d = data[i];
+      final x = 50 + i * spacing + spacing / 2;
+
+      // Calculate y positions
+      final highY = size.height - 20 - ((d.high - minPrice) / priceRange) * (size.height - 40);
+      final lowY = size.height - 20 - ((d.low - minPrice) / priceRange) * (size.height - 40);
+      final openY = size.height - 20 - ((d.open - minPrice) / priceRange) * (size.height - 40);
+      final closeY = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+
+      final isGreen = d.close >= d.open;
+      final color = isGreen ? Colors.green : Colors.red;
+
+      // Draw wick
+      final wickPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1;
+      canvas.drawLine(Offset(x, highY), Offset(x, lowY), wickPaint);
+
+      // Draw body
+      final bodyPaint = Paint()
+        ..color = color
+        ..style = isGreen ? PaintingStyle.fill : PaintingStyle.fill;
+      
+      final bodyTop = min(openY, closeY);
+      final bodyBottom = max(openY, closeY);
+      final bodyHeight = max(bodyBottom - bodyTop, 1);
+
+      canvas.drawRect(
+        Rect.fromLTWH(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight),
+        bodyPaint,
+      );
+
+      // Draw border for green candles
+      if (isGreen) {
+        final borderPaint = Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1;
+        canvas.drawRect(
+          Rect.fromLTWH(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight),
+          borderPaint,
+        );
+      }
+    }
+  }
+
+  void _drawLineChart(Canvas canvas, Size size, double minPrice, double priceRange) {
+    final linePaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    final path = Path();
+    final spacing = (size.width - 50) / data.length;
+
+    for (int i = 0; i < data.length; i++) {
+      final d = data[i];
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, linePaint);
+
+    // Draw dots at data points
+    final dotPaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < data.length; i++) {
+      final d = data[i];
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+
+      if (i % 10 == 0) {
+        canvas.drawCircle(Offset(x, y), 3, dotPaint);
+      }
+    }
+  }
+
+  void _drawAreaChart(Canvas canvas, Size size, double minPrice, double priceRange) {
+    final fillPaint = Paint()
+      ..color = Colors.blue.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+
+    final linePaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    final path = Path();
+    final spacing = (size.width - 50) / data.length;
+
+    for (int i = 0; i < data.length; i++) {
+      final d = data[i];
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    // Close the path for filling
+    path.lineTo(50 + (data.length - 1) * spacing + spacing / 2, size.height - 20);
+    path.lineTo(50 + spacing / 2, size.height - 20);
+    path.close();
+
+    canvas.drawPath(path, fillPaint);
+
+    // Draw the line again
+    final linePath = Path();
+    for (int i = 0; i < data.length; i++) {
+      final d = data[i];
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+
+      if (i == 0) {
+        linePath.moveTo(x, y);
+      } else {
+        linePath.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(linePath, linePaint);
+  }
+
+  void _drawOHLC(Canvas canvas, Size size, double minPrice, double priceRange) {
+    final spacing = (size.width - 50) / data.length;
+
+    for (int i = 0; i < data.length; i++) {
+      final d = data[i];
+      final x = 50 + i * spacing + spacing / 2;
+
+      final highY = size.height - 20 - ((d.high - minPrice) / priceRange) * (size.height - 40);
+      final lowY = size.height - 20 - ((d.low - minPrice) / priceRange) * (size.height - 40);
+      final openY = size.height - 20 - ((d.open - minPrice) / priceRange) * (size.height - 40);
+      final closeY = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+
+      final isGreen = d.close >= d.open;
+      final color = isGreen ? Colors.green : Colors.red;
+
+      final paint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+
+      // Draw high-low line
+      canvas.drawLine(Offset(x, highY), Offset(x, lowY), paint);
+
+      // Draw open tick
+      canvas.drawLine(Offset(x - 5, openY), Offset(x, openY), paint);
+
+      // Draw close tick
+      canvas.drawLine(Offset(x, closeY), Offset(x + 5, closeY), paint);
+    }
+  }
+
+  void _drawIndicators(Canvas canvas, Size size, double minPrice, double priceRange) {
+    final spacing = (size.width - 50) / data.length;
+
+    for (final indicator in indicators) {
+      if (indicator == IndicatorType.sma20) {
+        _drawSMA(canvas, size, data, 20, Colors.yellow, minPrice, priceRange, spacing);
+      } else if (indicator == IndicatorType.sma50) {
+        _drawSMA(canvas, size, data, 50, Colors.orange, minPrice, priceRange, spacing);
+      }
+    }
+  }
+
+  void _drawSMA(Canvas canvas, Size size, List<PriceData> data, int period, Color color,
+      double minPrice, double priceRange, double spacing) {
+    if (data.length < period) return;
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final path = Path();
+    bool started = false;
+
+    for (int i = period - 1; i < data.length; i++) {
+      double sum = 0;
+      for (int j = 0; j < period; j++) {
+        sum += data[i - j].close;
+      }
+      final sma = sum / period;
+
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height - 20 - ((sma - minPrice) / priceRange) * (size.height - 40);
+
+      if (!started) {
+        path.moveTo(x, y);
+        started = true;
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawAxes(Canvas canvas, Size size, double minPrice, double maxPrice) {
+    final textPaint = Paint()
+      ..color = Colors.grey;
+
+    // Y-axis labels (price)
+    for (int i = 0; i <= 5; i++) {
+      final price = minPrice + (maxPrice - minPrice) * i / 5;
+      final y = size.height - 20 - (size.height - 40) * i / 5;
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: price.toStringAsFixed(2),
+          style: const TextStyle(color: Colors.grey, fontSize: 10),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        (size.width - textPainter.width) / 2,
-        (size.height - textPainter.height) / 2,
-      ),
-    );
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(5, y - textPainter.height / 2));
+    }
+
+    // X-axis labels (time)
+    for (int i = 0; i < data.length; i += data.length ~/ 5) {
+      final x = 50 + (size.width - 50) * i / data.length;
+      final time = '${data[i].timestamp.hour}:${data[i].timestamp.minute.toString().padLeft(2, '0')}';
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: time,
+          style: const TextStyle(color: Colors.grey, fontSize: 9),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(x - textPainter.width / 2, size.height - 18));
+    }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-
-  String _getChartTypeName(ChartType type) {
-    switch (type) {
-      case ChartType.candlestick:
-        return 'Candlestick';
-      case ChartType.line:
-        return 'Line';
-      case ChartType.area:
-        return 'Area';
-      case ChartType.ohlc:
-        return 'OHLC';
-      case ChartType.heikinAshi:
-        return 'Heikin Ashi';
-      case ChartType.renko:
-        return 'Renko';
-      case ChartType.pointAndFigure:
-        return 'Point & Figure';
-      case ChartType.kagi:
-        return 'Kagi';
-    }
-  }
 }
 
 class VolumeChartPainter extends CustomPainter {
@@ -517,30 +819,74 @@ class VolumeChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // TODO: Implement volume chart rendering
-    final paint = Paint()
-      ..color = Colors.blue.withOpacity(0.6)
+    // Background
+    final bgPaint = Paint()
+      ..color = const Color(0xFF1E1E1E)
       ..style = PaintingStyle.fill;
-    
-    // Draw placeholder volume bars
-    final barWidth = size.width / data.length;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
+
+    if (data.isEmpty) return;
+
+    // Find max volume for scaling
+    final maxVolume = data.map((d) => d.volume).reduce(max).toDouble();
+    if (maxVolume == 0) return;
+
+    // Draw volume bars
+    final barWidth = (size.width - 50) / data.length * 0.8;
+    final spacing = (size.width - 50) / data.length;
+
     for (int i = 0; i < data.length; i++) {
-      final barHeight = (data[i].volume / 3000000.0) * size.height;
-      final barColor = data[i].close >= data[i].open 
+      final d = data[i];
+      final barHeight = (d.volume / maxVolume) * (size.height - 25);
+
+      final isGreen = d.close >= d.open;
+      final barColor = isGreen 
           ? Colors.green.withOpacity(0.7)
           : Colors.red.withOpacity(0.7);
-      
-      paint.color = barColor;
+
+      final paint = Paint()
+        ..color = barColor
+        ..style = PaintingStyle.fill;
+
+      final x = 50 + i * spacing + (spacing - barWidth) / 2;
+      final y = size.height - 25 - barHeight;
+
       canvas.drawRect(
-        Rect.fromLTWH(
-          i * barWidth,
-          size.height - barHeight,
-          barWidth - 1,
-          barHeight,
-        ),
+        Rect.fromLTWH(x, y, barWidth, barHeight),
         paint,
       );
     }
+
+    // Draw volume label
+    final labelPainter = TextPainter(
+      text: const TextSpan(
+        text: 'Volume',
+        style: TextStyle(color: Colors.grey, fontSize: 10),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    labelPainter.layout();
+    labelPainter.paint(canvas, const Offset(5, 5));
+
+    // Draw max volume value
+    final maxVolPainter = TextPainter(
+      text: TextSpan(
+        text: _formatVolume(maxVolume.toInt()),
+        style: const TextStyle(color: Colors.grey, fontSize: 9),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    maxVolPainter.layout();
+    maxVolPainter.paint(canvas, Offset(5, size.height - 25 - maxVolPainter.height));
+  }
+
+  String _formatVolume(int volume) {
+    if (volume >= 1000000) {
+      return '${(volume / 1000000).toStringAsFixed(1)}M';
+    } else if (volume >= 1000) {
+      return '${(volume / 1000).toStringAsFixed(1)}K';
+    }
+    return volume.toString();
   }
 
   @override
@@ -560,27 +906,31 @@ class IndicatorChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // TODO: Implement indicator chart rendering
-    final paint = Paint()
-      ..color = _getIndicatorColor()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-    
-    // Draw placeholder indicator line
-    final path = Path();
-    for (int i = 0; i < data.length; i++) {
-      final x = (i / data.length) * size.width;
-      final y = size.height / 2 + sin(i * 0.1) * size.height * 0.3;
-      
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
+    // Background
+    final bgPaint = Paint()
+      ..color = const Color(0xFF1E1E1E)
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
+
+    if (data.isEmpty) return;
+
+    switch (indicator) {
+      case IndicatorType.rsi:
+        _drawRSI(canvas, size);
+        break;
+      case IndicatorType.macd:
+        _drawMACD(canvas, size);
+        break;
+      case IndicatorType.stochastic:
+        _drawStochastic(canvas, size);
+        break;
+      default:
+        _drawGenericIndicator(canvas, size);
     }
-    
-    canvas.drawPath(path, paint);
-    
+
+    // Draw overbought/oversold lines
+    _drawThresholdLines(canvas, size);
+
     // Draw indicator name
     final textPainter = TextPainter(
       text: TextSpan(
@@ -588,17 +938,241 @@ class IndicatorChartPainter extends CustomPainter {
         style: TextStyle(
           color: _getIndicatorColor(),
           fontSize: 10,
+          fontWeight: FontWeight.bold,
         ),
       ),
       textDirection: TextDirection.ltr,
     );
-    
     textPainter.layout();
     textPainter.paint(canvas, const Offset(8, 4));
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  void _drawRSI(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.purple
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final path = Path();
+    final spacing = (size.width - 50) / data.length;
+    bool started = false;
+
+    for (int i = 14; i < data.length; i++) {
+      double rsi = _calculateRSI(data, i);
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height - 10 - (rsi / 100) * (size.height - 20);
+
+      if (!started) {
+        path.moveTo(x, y);
+        started = true;
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawMACD(Canvas canvas, Size size) {
+    final spacing = (size.width - 50) / data.length;
+
+    // Draw MACD line
+    final macdPaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final macdPath = Path();
+    bool started = false;
+
+    for (int i = 26; i < data.length; i++) {
+      double macd = _calculateMACD(data, i);
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height / 2 - macd * 2;
+
+      if (!started) {
+        macdPath.moveTo(x, y);
+        started = true;
+      } else {
+        macdPath.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(macdPath, macdPaint);
+
+    // Draw Signal line
+    final signalPaint = Paint()
+      ..color = Colors.orange
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final signalPath = Path();
+    started = false;
+
+    for (int i = 35; i < data.length; i++) {
+      double signal = _calculateSignal(data, i);
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height / 2 - signal * 2;
+
+      if (!started) {
+        signalPath.moveTo(x, y);
+        started = true;
+      } else {
+        signalPath.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(signalPath, signalPaint);
+  }
+
+  void _drawStochastic(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.orange
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final path = Path();
+    final spacing = (size.width - 50) / data.length;
+    bool started = false;
+
+    for (int i = 14; i < data.length; i++) {
+      double stoch = _calculateStochastic(data, i);
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height - 10 - (stoch / 100) * (size.height - 20);
+
+      if (!started) {
+        path.moveTo(x, y);
+        started = true;
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawGenericIndicator(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _getIndicatorColor()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final path = Path();
+    final spacing = (size.width - 50) / data.length;
+
+    for (int i = 0; i < data.length; i++) {
+      final x = 50 + i * spacing + spacing / 2;
+      final y = size.height / 2 + sin(i * 0.1) * size.height * 0.3;
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawThresholdLines(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.grey.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    // Overbought line (70 for RSI, 80 for Stochastic)
+    final overboughtY = size.height * 0.3;
+    canvas.drawLine(
+      Offset(50, overboughtY),
+      Offset(size.width, overboughtY),
+      paint,
+    );
+
+    // Oversold line (30 for RSI, 20 for Stochastic)
+    final oversoldY = size.height * 0.7;
+    canvas.drawLine(
+      Offset(50, oversoldY),
+      Offset(size.width, oversoldY),
+      paint,
+    );
+
+    // Middle line (50)
+    final middleY = size.height / 2;
+    canvas.drawLine(
+      Offset(50, middleY),
+      Offset(size.width, middleY),
+      paint..color = Colors.grey.withOpacity(0.3),
+    );
+  }
+
+  double _calculateRSI(List<PriceData> data, int index) {
+    if (index < 14) return 50;
+
+    double gains = 0;
+    double losses = 0;
+
+    for (int i = index - 13; i <= index; i++) {
+      final change = data[i].close - data[i - 1].close;
+      if (change > 0) {
+        gains += change;
+      } else {
+        losses += change.abs();
+      }
+    }
+
+    final avgGain = gains / 14;
+    final avgLoss = losses / 14;
+
+    if (avgLoss == 0) return 100;
+
+    final rs = avgGain / avgLoss;
+    return 100 - (100 / (1 + rs));
+  }
+
+  double _calculateMACD(List<PriceData> data, int index) {
+    if (index < 26) return 0;
+
+    double ema12 = 0;
+    double ema26 = 0;
+
+    // Simple EMA calculation
+    for (int i = index - 11; i <= index; i++) {
+      ema12 += data[i].close;
+    }
+    ema12 /= 12;
+
+    for (int i = index - 25; i <= index; i++) {
+      ema26 += data[i].close;
+    }
+    ema26 /= 26;
+
+    return ema12 - ema26;
+  }
+
+  double _calculateSignal(List<PriceData> data, int index) {
+    if (index < 35) return 0;
+
+    double sum = 0;
+    for (int i = index - 8; i <= index; i++) {
+      sum += _calculateMACD(data, i);
+    }
+    return sum / 9;
+  }
+
+  double _calculateStochastic(List<PriceData> data, int index) {
+    if (index < 14) return 50;
+
+    double lowestLow = double.infinity;
+    double highestHigh = 0;
+
+    for (int i = index - 13; i <= index; i++) {
+      if (data[i].low < lowestLow) lowestLow = data[i].low;
+      if (data[i].high > highestHigh) highestHigh = data[i].high;
+    }
+
+    final range = highestHigh - lowestLow;
+    if (range == 0) return 50;
+
+    return ((data[index].close - lowestLow) / range) * 100;
+  }
 
   Color _getIndicatorColor() {
     switch (indicator) {
@@ -629,4 +1203,10 @@ class IndicatorChartPainter extends CustomPainter {
         return 'Indicator';
     }
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+
+double max(double a, double b) => a > b ? a : b;
+double min(double a, double b) => a < b ? a : b;

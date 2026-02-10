@@ -52,6 +52,14 @@ class _TradingDashboardState extends State<TradingDashboard> {
   void initState() {
     super.initState();
     _loadAccountBalance();
+    
+    // Initialize providers after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<TrendSetterProvider>(context, listen: false).initialize();
+        Provider.of<WatchlistProvider>(context, listen: false).initialize();
+      }
+    });
   }
 
   void _loadAccountBalance() {
@@ -200,18 +208,6 @@ class _TradingDashboardState extends State<TradingDashboard> {
       default:
         return const CoreTradingView();
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAccountBalance();
-    
-    // Initialize providers
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<TrendSetterProvider>(context, listen: false).initialize();
-      Provider.of<WatchlistProvider>(context, listen: false).initialize();
-    });
   }
 
   void _showOrderDialog(BuildContext context) {

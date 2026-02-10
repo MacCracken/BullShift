@@ -24,6 +24,7 @@ class CoreTradingView extends StatelessWidget {
                       tradingProvider: tradingProvider,
                       watchlistProvider: watchlistProvider,
                     ),
+                  ),
                   const SizedBox(height: 8),
                   Expanded(
                     flex: 2,

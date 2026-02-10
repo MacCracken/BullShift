@@ -1,11 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'dart:math';
+import '../../services/base_provider.dart';
 
-class TrendSetterProvider extends ChangeNotifier {
+class TrendSetterProvider extends BaseProvider {
   List<Map<String, dynamic>> _momentumStocks = [];
   List<Map<String, dynamic>> _heatMapData = [];
   List<Map<String, dynamic>> _activeAlerts = [];
-  bool _isLoading = false;
   double _minScoreFilter = 0.6;
   String _trendStrengthFilter = 'All';
 
@@ -13,7 +12,6 @@ class TrendSetterProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get momentumStocks => _momentumStocks;
   List<Map<String, dynamic>> get heatMapData => _heatMapData;
   List<Map<String, dynamic>> get activeAlerts => _activeAlerts;
-  bool get isLoading => _isLoading;
   double get minScoreFilter => _minScoreFilter;
   String get trendStrengthFilter => _trendStrengthFilter;
 
@@ -21,45 +19,35 @@ class TrendSetterProvider extends ChangeNotifier {
   void setMinScoreFilter(double value) {
     _minScoreFilter = value;
     _filterStocks();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setTrendStrengthFilter(String value) {
     _trendStrengthFilter = value;
     _filterStocks();
-    notifyListeners();
-  }
-
-  void setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Initialize with sample data
   void initialize() {
     _generateSampleData();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Refresh momentum data
   Future<void> refreshMomentumData() async {
-    setLoading(true);
-    
-    try {
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Generate fresh sample data
-      _generateSampleData();
-      
-      // Clear expired alerts
-      _clearExpiredAlerts();
-      
-    } catch (e) {
-      debugPrint('Error refreshing momentum data: $e');
-    } finally {
-      setLoading(false);
-    }
+    await executeAsync(
+      operation: () async {
+        // Simulate API call delay
+        await Future.delayed(const Duration(seconds: 1));
+        
+        // Generate fresh sample data
+        _generateSampleData();
+        
+        // Clear expired alerts
+        _clearExpiredAlerts();
+      },
+    );
   }
 
   // Generate sample data for demonstration

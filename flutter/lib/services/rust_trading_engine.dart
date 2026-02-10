@@ -65,18 +65,31 @@ class RustTradingEngine {
     double? price,
   }) {
     final order = calloc<TradeOrder>();
-    order.ref.symbol = symbol.toNativeUtf8().cast<Char>();
-    order.ref.side = side.toNativeUtf8().cast<Char>();
+    final symbolPtr = symbol.toNativeUtf8();
+    final sidePtr = side.toNativeUtf8();
+    final orderTypePtr = orderType.toNativeUtf8();
+    Pointer<Double>? pricePtr;
+    
+    order.ref.symbol = symbolPtr.cast<Char>();
+    order.ref.side = sidePtr.cast<Char>();
     order.ref.quantity = quantity;
-    order.ref.orderType = orderType.toNativeUtf8().cast<Char>();
+    order.ref.orderType = orderTypePtr.cast<Char>();
     
     if (price != null) {
-      final pricePtr = calloc<Double>();
+      pricePtr = calloc<Double>();
       pricePtr.value = price;
       order.ref.price = pricePtr;
     }
 
     final result = _submitOrder(order);
+    
+    // Free all allocated memory
+    calloc.free(symbolPtr);
+    calloc.free(sidePtr);
+    calloc.free(orderTypePtr);
+    if (pricePtr != null) {
+      calloc.free(pricePtr);
+    }
     calloc.free(order);
     return result;
   }

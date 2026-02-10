@@ -1,13 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'dart:math';
+import '../../services/base_provider.dart';
 
-class PaperHandsProvider extends ChangeNotifier {
+class PaperHandsProvider extends BaseProvider {
   List<Map<String, dynamic>> _paperPortfolios = [];
   Map<String, dynamic>? _selectedPortfolio;
   List<Map<String, dynamic>> _recentTrades = [];
   List<Map<String, dynamic>> _backtestResults = [];
-  bool _isLoading = false;
-  String? _errorMessage;
   
   // Trading state
   String _currentSymbol = '';
@@ -22,8 +20,6 @@ class PaperHandsProvider extends ChangeNotifier {
   Map<String, dynamic>? get selectedPortfolio => _selectedPortfolio;
   List<Map<String, dynamic>> get recentTrades => _recentTrades;
   List<Map<String, dynamic>> get backtestResults => _backtestResults;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
   String get currentSymbol => _currentSymbol;
   String get selectedTimeframe => _selectedTimeframe;
   String get selectedOrderType => _selectedOrderType;
@@ -33,88 +29,73 @@ class PaperHandsProvider extends ChangeNotifier {
   bool get canPlaceOrder => _currentSymbol.isNotEmpty && _currentQuantity > 0 && _selectedPortfolio != null;
 
   // Setters
-  void setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  void setError(String? error) {
-    _errorMessage = error;
-    notifyListeners();
-  }
-
   void setSymbol(String symbol) {
     _currentSymbol = symbol.toUpperCase();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setTimeframe(String timeframe) {
     _selectedTimeframe = timeframe;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setOrderType(String orderType) {
     _selectedOrderType = orderType;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setSide(String side) {
     _selectedSide = side;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setQuantity(double quantity) {
     _currentQuantity = quantity;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setPrice(double price) {
     _currentPrice = price;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Initialize with sample data
   void initialize() {
     _generateSampleData();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Portfolio Management
   Future<void> createPortfolio(String name, double initialBalance) async {
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        final portfolio = {
+          'id': _generateId(),
+          'name': name,
+          'initialBalance': initialBalance,
+          'currentBalance': initialBalance,
+          'allocatedBalance': 0.0,
+          'availableBalance': initialBalance,
+          'positions': <Map<String, dynamic>>[],
+          'trades': <Map<String, dynamic>>[],
+          'totalReturn': 0.0,
+          'totalReturnPercentage': 0.0,
+          'winRate': 0.0,
+          'sharpeRatio': 0.0,
+          'maxDrawdown': 0.0,
+          'totalTrades': 0,
+          'winningTrades': 0,
+          'losingTrades': 0,
+          'isActive': false,
+          'createdAt': DateTime.now(),
+          'lastUpdated': DateTime.now(),
+        };
 
-    try {
-      final portfolio = {
-        'id': _generateId(),
-        'name': name,
-        'initialBalance': initialBalance,
-        'currentBalance': initialBalance,
-        'allocatedBalance': 0.0,
-        'availableBalance': initialBalance,
-        'positions': <Map<String, dynamic>>[],
-        'trades': <Map<String, dynamic>>[],
-        'totalReturn': 0.0,
-        'totalReturnPercentage': 0.0,
-        'winRate': 0.0,
-        'sharpeRatio': 0.0,
-        'maxDrawdown': 0.0,
-        'totalTrades': 0,
-        'winningTrades': 0,
-        'losingTrades': 0,
-        'isActive': false,
-        'createdAt': DateTime.now(),
-        'lastUpdated': DateTime.now(),
-      };
-
-      _paperPortfolios.add(portfolio);
-      notifyListeners();
-
-    } catch (e) {
-      setError('Failed to create portfolio: $e');
-    } finally {
-      setLoading(false);
-    }
+        _paperPortfolios.add(portfolio);
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Creating portfolio...',
+    );
   }
 
   void selectPortfolio(String portfolioId) {
@@ -128,7 +109,7 @@ class PaperHandsProvider extends ChangeNotifier {
     // Load portfolio trades
     _loadPortfolioTrades();
     
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void deletePortfolio(String portfolioId) {
@@ -139,7 +120,7 @@ class PaperHandsProvider extends ChangeNotifier {
       _recentTrades.clear();
     }
     
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Paper Trading
@@ -149,11 +130,9 @@ class PaperHandsProvider extends ChangeNotifier {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      final portfolio = _selectedPortfolio!;
+    await executeAsync(
+      operation: () async {
+        final portfolio = _selectedPortfolio!;
       
       // Simulate order execution
       await Future.delayed(const Duration(milliseconds: 500));
@@ -185,68 +164,60 @@ class PaperHandsProvider extends ChangeNotifier {
         _recentTrades.removeLast();
       }
 
-      notifyListeners();
-
-    } catch (e) {
-      setError('Failed to place paper order: $e');
-    } finally {
-      setLoading(false);
-    }
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Placing order...',
+    );
   }
 
   Future<void> closePosition(String symbol, double exitPrice) async {
     if (_selectedPortfolio == null) return;
 
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        final portfolio = _selectedPortfolio!;
+        
+        // Find open position
+        final position = portfolio['positions'].firstWhere(
+          (p) => p['symbol'] == symbol && p['status'] == 'Open',
+          orElse: () => null,
+        );
 
-    try {
-      final portfolio = _selectedPortfolio!;
-      
-      // Find open position
-      final position = portfolio['positions'].firstWhere(
-        (p) => p['symbol'] == symbol && p['status'] == 'Open',
-        orElse: () => null,
-      );
+        if (position == null) {
+          throw Exception('No open position found for $symbol');
+        }
 
-      if (position == null) {
-        throw Exception('No open position found for $symbol');
-      }
+        // Create closing trade
+        final closingTrade = {
+          'id': _generateId(),
+          'portfolioId': portfolio['id'],
+          'symbol': symbol,
+          'side': position['side'] == 'Buy' ? 'Sell' : 'Buy',
+          'orderType': 'Market',
+          'quantity': position['quantity'],
+          'entryPrice': position['entryPrice'],
+          'exitPrice': exitPrice,
+          'status': 'Closed',
+          'pnl': _calculatePnl(position, exitPrice),
+          'pnlPercentage': _calculatePnlPercentage(position, exitPrice),
+          'fees': _calculateFees(position['quantity'], exitPrice),
+          'timestamp': DateTime.now(),
+          'notes': null,
+        };
 
-      // Create closing trade
-      final closingTrade = {
-        'id': _generateId(),
-        'portfolioId': portfolio['id'],
-        'symbol': symbol,
-        'side': position['side'] == 'Buy' ? 'Sell' : 'Buy',
-        'orderType': 'Market',
-        'quantity': position['quantity'],
-        'entryPrice': position['entryPrice'],
-        'exitPrice': exitPrice,
-        'status': 'Closed',
-        'pnl': _calculatePnl(position, exitPrice),
-        'pnlPercentage': _calculatePnlPercentage(position, exitPrice),
-        'fees': _calculateFees(position['quantity'], exitPrice),
-        'timestamp': DateTime.now(),
-        'notes': null,
-      };
+        // Update portfolio
+        _updatePortfolioAfterClose(portfolio, position, closingTrade);
+        
+        // Add to recent trades
+        _recentTrades.insert(0, closingTrade);
+        if (_recentTrades.length > 50) {
+          _recentTrades.removeLast();
+        }
 
-      // Update portfolio
-      _updatePortfolioAfterClose(portfolio, position, closingTrade);
-      
-      // Add to recent trades
-      _recentTrades.insert(0, closingTrade);
-      if (_recentTrades.length > 50) {
-        _recentTrades.removeLast();
-      }
-
-      notifyListeners();
-
-    } catch (e) {
-      setError('Failed to close position: $e');
-    } finally {
-      setLoading(false);
-    }
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Closing position...',
+    );
   }
 
   // Backtesting
@@ -258,17 +229,15 @@ class PaperHandsProvider extends ChangeNotifier {
     required DateTime endDate,
     required double initialBalance,
   }) async {
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        // Simulate backtest execution
+        await Future.delayed(const Duration(seconds: 3));
 
-    try {
-      // Simulate backtest execution
-      await Future.delayed(const Duration(seconds: 3));
-
-      final backtestResult = {
-        'id': _generateId(),
-        'strategyName': strategyName,
-        'symbol': symbol,
+        final backtestResult = {
+          'id': _generateId(),
+          'strategyName': strategyName,
+          'symbol': symbol,
         'timeframe': timeframe,
         'startDate': startDate,
         'endDate': endDate,
@@ -302,21 +271,18 @@ class PaperHandsProvider extends ChangeNotifier {
       // Generate equity curve
       backtestResult['equityCurve'] = _generateEquityCurve(initialBalance, backtestResult['finalBalance'], startDate, endDate);
 
-      _backtestResults.add(backtestResult);
-      notifyListeners();
-
-    } catch (e) {
-      setError('Backtest failed: $e');
-    } finally {
-      setLoading(false);
-    }
+        _backtestResults.add(backtestResult);
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Running backtest...',
+    );
   }
 
   // Analytics
   void refreshPortfolioData() {
     if (_selectedPortfolio != null) {
       _updatePortfolioMetrics(_selectedPortfolio!);
-      notifyListeners();
+      safeNotifyListeners();
     }
   }
 

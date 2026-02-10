@@ -1,13 +1,12 @@
-import 'package:flutter/foundation.dart';
 import 'dart:math';
 import 'dart:async';
-import '../services/rust_trading_engine.dart';
+import '../../services/base_provider.dart';
+import '../../services/rust_trading_engine.dart';
 
-class WatchlistProvider extends ChangeNotifier {
+class WatchlistProvider extends BaseProvider {
   final RustTradingEngine _rustEngine;
   List<Map<String, dynamic>> _watchlist = [];
   List<Map<String, dynamic>> _searchResults = [];
-  bool _isLoading = false;
   String _searchQuery = '';
   String _sortBy = 'symbol'; // symbol, price, change, volume
   bool _sortAscending = true;
@@ -19,21 +18,15 @@ class WatchlistProvider extends ChangeNotifier {
   // Getters
   List<Map<String, dynamic>> get watchlist => _watchlist;
   List<Map<String, dynamic>> get searchResults => _searchResults;
-  bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   String get sortBy => _sortBy;
   bool get sortAscending => _sortAscending;
   bool get realTimeUpdatesEnabled => _realTimeUpdatesEnabled;
 
   // Setters
-  void setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
   void setSearchQuery(String query) {
     _searchQuery = query;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setSortBy(String sortBy) {
@@ -44,7 +37,7 @@ class WatchlistProvider extends ChangeNotifier {
       _sortAscending = true;
     }
     _sortWatchlist();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setRealTimeUpdatesEnabled(bool enabled) {
@@ -54,14 +47,14 @@ class WatchlistProvider extends ChangeNotifier {
     } else {
       _stopRealTimeUpdates();
     }
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Initialize watchlist with sample data
   void initialize() {
     _generateSampleWatchlist();
     _startRealTimeUpdates();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Add symbol to watchlist
@@ -70,67 +63,63 @@ class WatchlistProvider extends ChangeNotifier {
       return false; // Already exists
     }
 
-    final stockData = await _fetchSymbolData(symbol.toUpperCase());
-    if (stockData != null) {
-      _watchlist.add(stockData);
-      _sortWatchlist();
-      notifyListeners();
-      return true;
-    }
-    return false;
+    return await executeAsync(
+      operation: () async {
+        final stockData = await _fetchSymbolData(symbol.toUpperCase());
+        if (stockData != null) {
+          _watchlist.add(stockData);
+          _sortWatchlist();
+          return true;
+        }
+        return false;
+      },
+      showLoading: false,
+    ) ?? false;
   }
 
   // Remove symbol from watchlist
   Future<void> removeFromWatchlist(String symbol) async {
     _watchlist.removeWhere((item) => item['symbol'] == symbol.toUpperCase());
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Search for symbols
   Future<void> searchSymbols(String query) async {
     _searchQuery = query;
-    setLoading(true);
+    await executeAsync(
+      operation: () async {
+        await Future.delayed(const Duration(milliseconds: 300)); // Debounce
 
-    try {
-      await Future.delayed(const Duration(milliseconds: 300)); // Debounce
-
-      if (query.isEmpty) {
-        _searchResults = [];
-      } else {
-        _searchResults = await _searchSymbolsAPI(query);
-      }
-    } catch (e) {
-      debugPrint('Error searching symbols: $e');
-      _searchResults = [];
-    } finally {
-      setLoading(false);
-    }
+        if (query.isEmpty) {
+          _searchResults = [];
+        } else {
+          _searchResults = await _searchSymbolsAPI(query);
+        }
+      },
+      showLoading: true,
+    );
   }
 
   // Refresh all watchlist prices
   Future<void> refreshWatchlistPrices() async {
-    setLoading(true);
+    await executeAsync(
+      operation: () async {
+        await Future.delayed(const Duration(seconds: 1)); // Simulate API call
 
-    try {
-      await Future.delayed(const Duration(seconds: 1)); // Simulate API call
-
-      for (int i = 0; i < _watchlist.length; i++) {
-        final symbol = _watchlist[i]['symbol'] as String;
-        final updatedData = await _fetchSymbolData(symbol);
-        if (updatedData != null) {
-          // Preserve the previous price for change calculation
-          final previousPrice = _watchlist[i]['currentPrice'] as double;
-          updatedData['previousPrice'] = previousPrice;
-          _watchlist[i] = updatedData;
+        for (int i = 0; i < _watchlist.length; i++) {
+          final symbol = _watchlist[i]['symbol'] as String;
+          final updatedData = await _fetchSymbolData(symbol);
+          if (updatedData != null) {
+            // Preserve the previous price for change calculation
+            final previousPrice = _watchlist[i]['currentPrice'] as double;
+            updatedData['previousPrice'] = previousPrice;
+            _watchlist[i] = updatedData;
+          }
         }
-      }
 
-      _sortWatchlist();
-    } catch (e) {
-      debugPrint('Error refreshing watchlist prices: $e');
-    } finally {
-      setLoading(false);
-    }
+        _sortWatchlist();
+      },
+    );
   }
 
   // Get watchlist statistics
@@ -306,7 +295,7 @@ class WatchlistProvider extends ChangeNotifier {
   void clearSearchResults() {
     _searchResults = [];
     _searchQuery = '';
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Add multiple symbols at once
@@ -401,7 +390,7 @@ class WatchlistProvider extends ChangeNotifier {
       }
       
       _sortWatchlist();
-      notifyListeners();
+      safeNotifyListeners();
     } catch (e) {
       debugPrint('Error updating watchlist prices: $e');
     }
@@ -451,7 +440,7 @@ class WatchlistProvider extends ChangeNotifier {
       };
       
       _sortWatchlist();
-      notifyListeners();
+      safeNotifyListeners();
       
     } catch (e) {
       debugPrint('Error handling market data update: $e');

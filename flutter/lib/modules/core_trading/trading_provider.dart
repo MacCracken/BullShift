@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
-import '../services/rust_trading_engine.dart';
+import '../../services/base_provider.dart';
+import '../../services/rust_trading_engine.dart';
 
-class TradingProvider extends ChangeNotifier {
+class TradingProvider extends BaseProvider {
   final RustTradingEngine _rustEngine;
   
   String _currentSymbol = '';
@@ -9,8 +9,6 @@ class TradingProvider extends ChangeNotifier {
   String _orderType = 'MARKET';
   double? _limitPrice;
   List<Map<String, dynamic>> _positions = [];
-  bool _isLoading = false;
-  String? _errorMessage;
   
   // Notes functionality
   Map<String, List<Map<String, dynamic>>> _symbolNotes = {};
@@ -23,38 +21,26 @@ class TradingProvider extends ChangeNotifier {
   String get orderType => _orderType;
   double? get limitPrice => _limitPrice;
   List<Map<String, dynamic>> get positions => _positions;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
 
   // Setters
   void setSymbol(String symbol) {
     _currentSymbol = symbol.toUpperCase();
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setQuantity(double quantity) {
     _currentQuantity = quantity;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setOrderType(String orderType) {
     _orderType = orderType;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void setPrice(double? price) {
     _limitPrice = price;
-    notifyListeners();
-  }
-
-  void setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  void setError(String? error) {
-    _errorMessage = error;
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   // Trading Actions
@@ -64,35 +50,30 @@ class TradingProvider extends ChangeNotifier {
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        final success = _rustEngine.submitOrder(
+          symbol: _currentSymbol,
+          side: side,
+          quantity: _currentQuantity,
+          orderType: 'MARKET',
+        );
 
-    try {
-      final success = _rustEngine.submitOrder(
-        symbol: _currentSymbol,
-        side: side,
-        quantity: _currentQuantity,
-        orderType: 'MARKET',
-      );
-
-      if (success) {
-        // Clear form
-        _currentSymbol = '';
-        _currentQuantity = 0.0;
-        _limitPrice = null;
-        
-        // Refresh positions
-        await loadPositions();
-        
-        notifyListeners();
-      } else {
-        setError('Order submission failed');
-      }
-    } catch (e) {
-      setError('Order error: $e');
-    } finally {
-      setLoading(false);
-    }
+        if (success) {
+          // Clear form
+          _currentSymbol = '';
+          _currentQuantity = 0.0;
+          _limitPrice = null;
+          
+          // Refresh positions
+          await loadPositions();
+          
+          return success;
+        } else {
+          throw Exception('Order submission failed');
+        }
+      },
+    );
   }
 
   Future<void> submitLimitOrder(String side) async {
@@ -101,64 +82,58 @@ class TradingProvider extends ChangeNotifier {
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    await executeAsync(
+      operation: () async {
+        final success = _rustEngine.submitOrder(
+          symbol: _currentSymbol,
+          side: side,
+          quantity: _currentQuantity,
+          orderType: 'LIMIT',
+          price: _limitPrice,
+        );
 
-    try {
-      final success = _rustEngine.submitOrder(
-        symbol: _currentSymbol,
-        side: side,
-        quantity: _currentQuantity,
-        orderType: 'LIMIT',
-        price: _limitPrice,
-      );
-
-      if (success) {
-        // Clear form
-        _currentSymbol = '';
-        _currentQuantity = 0.0;
-        _limitPrice = null;
-        
-        // Refresh positions
-        await loadPositions();
-        
-        notifyListeners();
-      } else {
-        setError('Order submission failed');
-      }
-    } catch (e) {
-      setError('Order error: $e');
-    } finally {
-      setLoading(false);
-    }
+        if (success) {
+          // Clear form
+          _currentSymbol = '';
+          _currentQuantity = 0.0;
+          _limitPrice = null;
+          
+          // Refresh positions
+          await loadPositions();
+          
+          return success;
+        } else {
+          throw Exception('Order submission failed');
+        }
+      },
+    );
   }
 
   Future<void> loadPositions() async {
-    try {
-      final positionsPtr = _rustEngine.getPositions();
-      
-      // For now, create sample data
-      _positions = [
-        {
-          'symbol': 'AAPL',
-          'quantity': 100,
-          'entryPrice': 150.25,
-          'currentPrice': 152.80,
-          'unrealizedPnl': 255.0,
-        },
-        {
-          'symbol': 'TSLA',
-          'quantity': 50,
-          'entryPrice': 245.50,
-          'currentPrice': 242.30,
-          'unrealizedPnl': -160.0,
-        },
-      ];
-      
-      notifyListeners();
-    } catch (e) {
-      setError('Failed to load positions: $e');
-    }
+    await executeAsync(
+      operation: () async {
+        final positionsPtr = _rustEngine.getPositions();
+        
+        // For now, create sample data
+        _positions = [
+          {
+            'symbol': 'AAPL',
+            'quantity': 100,
+            'entryPrice': 150.25,
+            'currentPrice': 152.80,
+            'unrealizedPnl': 255.0,
+          },
+          {
+            'symbol': 'TSLA',
+            'quantity': 50,
+            'entryPrice': 245.50,
+            'currentPrice': 242.30,
+            'unrealizedPnl': -160.0,
+          },
+        ];
+      },
+      showLoading: false,
+    );
   }
 
   Future<void> refreshData() async {
@@ -166,14 +141,16 @@ class TradingProvider extends ChangeNotifier {
   }
 
   Future<void> connectMarketData(String symbol) async {
-    try {
-      final success = _rustEngine.connectMarketData(symbol);
-      if (!success) {
-        setError('Failed to connect to market data');
-      }
-    } catch (e) {
-      setError('Market data connection error: $e');
-    }
+    await executeAsync(
+      operation: () async {
+        final success = _rustEngine.connectMarketData(symbol);
+        if (!success) {
+          throw Exception('Failed to connect to market data');
+        }
+        return success;
+      },
+      showLoading: false,
+    );
   }
 
   double getAccountBalance() {
@@ -204,7 +181,7 @@ class TradingProvider extends ChangeNotifier {
       return (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime);
     });
     
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   List<Map<String, dynamic>> getNotesForSymbol(String symbol) {
@@ -215,7 +192,7 @@ class TradingProvider extends ChangeNotifier {
     for (final notes in _symbolNotes.values) {
       notes.removeWhere((note) => note['id'] == noteId);
     }
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void updateNote({
@@ -235,12 +212,12 @@ class TradingProvider extends ChangeNotifier {
         }
       }
     }
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void clearNotesForSymbol(String symbol) {
     _symbolNotes.remove(symbol);
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   void pinNote(String noteId) {
@@ -252,7 +229,7 @@ class TradingProvider extends ChangeNotifier {
         }
       }
     }
-    notifyListeners();
+    safeNotifyListeners();
   }
 
   List<Map<String, dynamic>> getAllNotes() {
