@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/rust_trading_engine.dart';
+import '../watchlist/watchlist_provider.dart';
 import 'trading_provider.dart';
 
 class CoreTradingView extends StatelessWidget {
@@ -8,8 +9,8 @@ class CoreTradingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TradingProvider>(
-      builder: (context, tradingProvider, child) {
+    return Consumer2<TradingProvider, WatchlistProvider>(
+      builder: (context, tradingProvider, watchlistProvider, child) {
         return Row(
           children: [
             // Order Panel
@@ -19,8 +20,10 @@ class CoreTradingView extends StatelessWidget {
                 children: [
                   Expanded(
                     flex: 1,
-                    child: OrderPanel(tradingProvider: tradingProvider),
-                  ),
+                    child: OrderPanel(
+                      tradingProvider: tradingProvider,
+                      watchlistProvider: watchlistProvider,
+                    ),
                   const SizedBox(height: 8),
                   Expanded(
                     flex: 2,
@@ -56,10 +59,12 @@ class CoreTradingView extends StatelessWidget {
 
 class OrderPanel extends StatelessWidget {
   final TradingProvider tradingProvider;
+  final WatchlistProvider watchlistProvider;
   
   const OrderPanel({
     super.key,
     required this.tradingProvider,
+    required this.watchlistProvider,
   });
 
   @override
@@ -84,10 +89,14 @@ class OrderPanel extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           TextField(
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Symbol',
               hintText: 'e.g. AAPL',
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
+              suffixIcon: tradingProvider.currentSymbol.isNotEmpty &&
+                      watchlistProvider.isInWatchlist(tradingProvider.currentSymbol)
+                  ? const Icon(Icons.star, color: Colors.yellow)
+                  : null,
             ),
             onChanged: (value) => tradingProvider.setSymbol(value),
           ),
@@ -331,10 +340,57 @@ class PositionCard extends StatelessWidget {
                     fontSize: 14,
                   ),
                 ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Watchlist integration
+          if (tradingProvider.currentSymbol.isNotEmpty)
+            Row(
+              children: [
+                Expanded(
+                  child: watchlistProvider.isInWatchlist(tradingProvider.currentSymbol)
+                      ? ElevatedButton.icon(
+                          onPressed: () async {
+                            await watchlistProvider.removeFromWatchlist(tradingProvider.currentSymbol);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('${tradingProvider.currentSymbol} removed from watchlist')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.star, color: Colors.yellow),
+                          label: Text('Watching ${tradingProvider.currentSymbol}'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                          ),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: () async {
+                            final added = await watchlistProvider.addToWatchlist(tradingProvider.currentSymbol);
+                            if (context.mounted) {
+                              if (added) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('${tradingProvider.currentSymbol} added to watchlist')),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Failed to add to watchlist')),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.star_border),
+                          label: Text('Add ${tradingProvider.currentSymbol} to Watchlist'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                ),
               ],
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

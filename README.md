@@ -476,6 +476,11 @@ cd flutter && flutter analyze
 - [ ] **Strategy Optimization**: Machine learning model training
 - [ ] **LangChain Integration**: Advanced AI workflow support
 
+*** SECURITY ISSUES *** 
+- [•] Replace insecure XOR encryption in Flutter security manager
+- [ ] Fix weak random number generation in Flutter
+- [ ] Add FFI safety checks for null pointers
+- [ ] Fix plaintext credential transmission in WebSocket
 ### ✅ Phase 4: Simulation & Testing (COMPLETED)
 - [x] **PaperHands Module**: Risk-free paper trading
 - [x] **Strategy Backtesting**: Historical performance analysis
@@ -516,6 +521,56 @@ cd flutter && flutter analyze
 
 ---
 
+## 🔒 Security Notice
+
+⚠️ **IMPORTANT SECURITY INFORMATION**
+
+This repository contains critical security vulnerabilities that must be addressed before any production deployment. Please review the security audit report:
+
+- **Security Audit:** [docs/security-audit.md](docs/security-audit.md)
+- **Code Quality Guide:** [docs/code-quality.md](docs/code-quality.md)  
+- **Cleanup Plan:** [docs/cleanup.md](docs/cleanup.md)
+
+**Immediate Action Required:**
+1. Fix hardcoded encryption keys
+2. Replace insecure XOR encryption
+3. Implement proper authentication
+4. Add input validation and FFI safety
+
+---
+
+## 📋 Current Development Status
+
+### ✅ Completed Modules
+- **Core Trading** - Live order execution and position management
+- **TrendSetter** - Market analytics and momentum detection
+- **BullRunnr** - Real-time news sentiment analysis
+- **BearlyManaged** - AI provider integration framework
+- **PaperHands** - Paper trading simulation environment
+
+### 🚧 Critical Issues to Address
+- **Security:** 5 critical vulnerabilities requiring immediate fixes
+- **Performance:** 37 instances of excessive cloning in Rust code
+- **Code Quality:** Large view files (>1000 lines) need refactoring
+- **Testing:** Missing comprehensive test coverage
+
+### 📊 Repository Statistics
+- **5 Core Modules:** All implemented and functional
+- **Languages:** Rust (backend), Dart (frontend), Python (AI integration)
+- **Platforms:** Linux, macOS, Windows, iOS, Android
+- **Security Status:** ⚠️ Requires immediate attention
+
+---
+
+## 📚 Additional Documentation
+
+- [Security Audit Report](docs/security-audit.md) - Comprehensive security assessment
+- [Code Quality Guide](docs/code-quality.md) - Refactoring and improvement plan
+- [Cleanup & Maintenance Guide](docs/cleanup.md) - Repository organization plan
+- [Mobile Applications](docs/mobile-applications.md) - Mobile platform features
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -524,11 +579,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🤝 Contributing
 
+**Before contributing, please:**
+1. Review the [Security Audit Report](docs/security-audit.md)
+2. Read the [Code Quality Guide](docs/code-quality.md)
+3. Understand the current critical issues
+
+**Contribution Steps:**
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Ensure all security best practices are followed
+4. Add appropriate tests
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request with security review
 
 ---
 

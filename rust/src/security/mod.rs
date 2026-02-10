@@ -32,10 +32,108 @@ impl SecurityManager {
     }
 
     fn derive_key_from_system() -> Result<Vec<u8>, String> {
-        // In production, this would use platform-specific secure storage
-        // For now, use a fixed key (should be replaced with proper key derivation)
-        let key = b"bullshift_secure_key_32_bytes_long!!";
-        Ok(key.to_vec())
+        // Use platform-specific secure key derivation
+        #[cfg(target_os = "macos")]
+        {
+            use std::process::Command;
+            let output = Command::new("security")
+                .args(&["find-generic-password", "-wa", "BullShift_Encryption_Key"])
+                .output()
+                .map_err(|e| format!("Failed to access keychain: {}", e))?;
+            
+            if output.status.success() {
+                let key_data = String::from_utf8(output.stdout)
+                    .map_err(|e| format!("Invalid key data: {}", e))?;
+                return Ok(key_data.as_bytes()[0..32].to_vec());
+            } else {
+                // Generate and store new key
+                let mut key_bytes = [0u8; 32];
+                self.rng.fill(&mut key_bytes)
+                    .map_err(|e| format!("Failed to generate key: {}", e))?;
+                
+                let key_hex = hex::encode(&key_bytes);
+                Command::new("security")
+                    .args(&["add-generic-password", "-a", "BullShift", "-s", "BullShift_Encryption_Key", "-w", &key_hex])
+                    .output()
+                    .map_err(|e| format!("Failed to store key: {}", e))?;
+                
+                return Ok(key_bytes.to_vec());
+            }
+        }
+        
+        #[cfg(target_os = "linux")]
+        {
+            use std::process::Command;
+            let output = Command::new("secret-tool")
+                .args(&["lookup", "name", "BullShift_Encryption_Key"])
+                .output()
+                .map_err(|e| format!("Failed to access libsecret: {}", e))?;
+            
+            if output.status.success() {
+                let key_data = String::from_utf8(output.stdout)
+                    .map_err(|e| format!("Invalid key data: {}", e))?;
+                return Ok(key_data.as_bytes()[0..32].to_vec());
+            } else {
+                // Generate and store new key
+                let mut key_bytes = [0u8; 32];
+                self.rng.fill(&mut key_bytes)
+                    .map_err(|e| format!("Failed to generate key: {}", e))?;
+                
+                let key_hex = hex::encode(&key_bytes);
+                Command::new("secret-tool")
+                    .args(&["store", "--label=BullShift Encryption Key", "name", "BullShift_Encryption_Key", "password", &key_hex])
+                    .output()
+                    .map_err(|e| format!("Failed to store key: {}", e))?;
+                
+                return Ok(key_bytes.to_vec());
+            }
+        }
+        
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        {
+            use std::fs;
+            use std::path::PathBuf;
+            
+            let home_dir = dirs::home_dir().ok_or("Cannot find home directory")?;
+            let key_file = home_dir.join(".bullshift").join(".encryption_key");
+            
+            if key_file.exists() {
+                let key_data = fs::read(&key_file)
+                    .map_err(|e| format!("Failed to read key file: {}", e))?;
+                
+                if key_data.len() >= 32 {
+                    return Ok(key_data[0..32].to_vec());
+                }
+            }
+            
+            // Generate and store new key
+            let mut key_bytes = [0u8; 32];
+            self.rng.fill(&mut key_bytes)
+                .map_err(|e| format!("Failed to generate key: {}", e))?;
+            
+            let key_dir = key_file.parent().unwrap();
+            if !key_dir.exists() {
+                fs::create_dir_all(key_dir)
+                    .map_err(|e| format!("Failed to create key directory: {}", e))?;
+            }
+            
+            fs::write(&key_file, &key_bytes)
+                .map_err(|e| format!("Failed to write key file: {}", e))?;
+            
+            // Set restrictive permissions
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = fs::metadata(&key_file)
+                    .map_err(|e| format!("Failed to get file metadata: {}", e))?
+                    .permissions();
+                perms.set_mode(0o600); // Read/write for owner only
+                fs::set_permissions(&key_file, perms)
+                    .map_err(|e| format!("Failed to set file permissions: {}", e))?;
+            }
+            
+            return Ok(key_bytes.to_vec());
+        }
     }
 
     pub fn store_credentials(&mut self, broker: String, api_key: String, api_secret: String) -> Result<(), String> {

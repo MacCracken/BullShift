@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/rust_trading_engine.dart';
 import '../core_trading/trading_provider.dart';
+import '../watchlist/watchlist_provider.dart';
 import 'trendsetter_provider.dart';
 
 class TrendSetterView extends StatelessWidget {
@@ -9,24 +10,33 @@ class TrendSetterView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TrendSetterProvider>(
-      builder: (context, provider, child) {
+    return Consumer2<TrendSetterProvider, WatchlistProvider>(
+      builder: (context, trendProvider, watchlistProvider, child) {
         return Row(
           children: [
             // Momentum Scanner
             Expanded(
               flex: 2,
-              child: MomentumScanner(provider: provider),
+              child: MomentumScanner(
+                provider: trendProvider,
+                watchlistProvider: watchlistProvider,
+              ),
             ),
             // Heat Map
             Expanded(
               flex: 1,
-              child: HeatMapPanel(provider: provider),
+              child: HeatMapPanel(
+                provider: trendProvider,
+                watchlistProvider: watchlistProvider,
+              ),
             ),
             // Shift Alerts
             Expanded(
               flex: 1,
-              child: ShiftAlertsPanel(provider: provider),
+              child: ShiftAlertsPanel(
+                provider: trendProvider,
+                watchlistProvider: watchlistProvider,
+              ),
             ),
           ],
         );
@@ -37,10 +47,12 @@ class TrendSetterView extends StatelessWidget {
 
 class MomentumScanner extends StatelessWidget {
   final TrendSetterProvider provider;
+  final WatchlistProvider watchlistProvider;
   
   const MomentumScanner({
     super.key,
     required this.provider,
+    required this.watchlistProvider,
   });
 
   @override
@@ -130,10 +142,13 @@ class MomentumScanner extends StatelessWidget {
                   )
                 : ListView.builder(
                     itemCount: provider.momentumStocks.length,
-                    itemBuilder: (context, index) {
-                      final stock = provider.momentumStocks[index];
-                      return MomentumStockCard(stock: stock);
-                    },
+                   itemBuilder: (context, index) {
+                     final stock = provider.momentumStocks[index];
+                     return MomentumStockCard(
+                       stock: stock,
+                       watchlistProvider: watchlistProvider,
+                     );
+                   },
                   ),
           ),
         ],
@@ -144,10 +159,12 @@ class MomentumScanner extends StatelessWidget {
 
 class MomentumStockCard extends StatelessWidget {
   final Map<String, dynamic> stock;
+  final WatchlistProvider watchlistProvider;
   
   const MomentumStockCard({
     super.key,
     required this.stock,
+    required this.watchlistProvider,
   });
 
   @override
@@ -241,16 +258,40 @@ class MomentumStockCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _toggleWatchlist(context, symbol),
+                    icon: Icon(
+                      watchlistProvider.isInWatchlist(symbol) 
+                          ? Icons.star 
+                          : Icons.star_border,
+                      size: 16,
+                    ),
+                    label: Text(
+                      watchlistProvider.isInWatchlist(symbol) 
+                          ? 'Watching' 
+                          : 'Watch',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: watchlistProvider.isInWatchlist(symbol) 
+                          ? Colors.orange 
+                          : Colors.grey,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
                   child: ElevatedButton(
                     onPressed: () => _showQuickTradeDialog(context, symbol),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
-                    child: const Text('Quick Trade'),
+                    child: const Text('Trade'),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => _showAnalysisDialog(context, stock),
@@ -320,14 +361,80 @@ class MomentumStockCard extends StatelessWidget {
       builder: (context) => AnalysisDialog(stock: stock),
     );
   }
+
+  void _toggleWatchlist(BuildContext context, String symbol) async {
+    try {
+      if (watchlistProvider.isInWatchlist(symbol)) {
+        await watchlistProvider.removeFromWatchlist(symbol);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$symbol removed from watchlist')),
+          );
+        }
+      } else {
+        final added = await watchlistProvider.addToWatchlist(symbol);
+        if (context.mounted) {
+          if (added) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$symbol added to watchlist')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to add to watchlist')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  void _toggleWatchlist(BuildContext context, String symbol) async {
+    try {
+      if (watchlistProvider.isInWatchlist(symbol)) {
+        await watchlistProvider.removeFromWatchlist(symbol);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$symbol removed from watchlist')),
+          );
+        }
+      } else {
+        final added = await watchlistProvider.addToWatchlist(symbol);
+        if (context.mounted) {
+          if (added) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$symbol added to watchlist')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to add to watchlist')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
 }
 
 class HeatMapPanel extends StatelessWidget {
   final TrendSetterProvider provider;
+  final WatchlistProvider watchlistProvider;
   
   const HeatMapPanel({
     super.key,
     required this.provider,
+    required this.watchlistProvider,
   });
 
   @override
@@ -362,7 +469,10 @@ class HeatMapPanel extends StatelessWidget {
               itemCount: provider.heatMapData.length,
               itemBuilder: (context, index) {
                 final data = provider.heatMapData[index];
-                return HeatMapTile(data: data);
+                return HeatMapTile(
+                  data: data,
+                  watchlistProvider: watchlistProvider,
+                );
               },
             ),
           ),
@@ -374,10 +484,12 @@ class HeatMapPanel extends StatelessWidget {
 
 class HeatMapTile extends StatelessWidget {
   final Map<String, dynamic> data;
+  final WatchlistProvider watchlistProvider;
   
   const HeatMapTile({
     super.key,
     required this.data,
+    required this.watchlistProvider,
   });
 
   @override
@@ -393,31 +505,49 @@ class HeatMapTile extends StatelessWidget {
       return Colors.green.shade700;
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: getHeatColor(),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            symbol,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+    return InkWell(
+      onTap: () => _toggleWatchlist(context, symbol),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: getHeatColor(),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Stack(
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  symbol,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${(heat * 100).toInt()}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${(heat * 100).toInt()}%',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-            ),
-          ),
-        ],
+            if (watchlistProvider.isInWatchlist(symbol))
+              const Positioned(
+                top: 2,
+                right: 2,
+                child: Icon(
+                  Icons.star,
+                  color: Colors.yellow,
+                  size: 12,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -425,10 +555,12 @@ class HeatMapTile extends StatelessWidget {
 
 class ShiftAlertsPanel extends StatelessWidget {
   final TrendSetterProvider provider;
+  final WatchlistProvider watchlistProvider;
   
   const ShiftAlertsPanel({
     super.key,
     required this.provider,
+    required this.watchlistProvider,
   });
 
   @override
@@ -477,7 +609,10 @@ class ShiftAlertsPanel extends StatelessWidget {
               itemCount: provider.activeAlerts.length,
               itemBuilder: (context, index) {
                 final alert = provider.activeAlerts[index];
-                return ShiftAlertCard(alert: alert);
+                return ShiftAlertCard(
+                  alert: alert,
+                  watchlistProvider: watchlistProvider,
+                );
               },
             ),
           ),
@@ -489,10 +624,12 @@ class ShiftAlertsPanel extends StatelessWidget {
 
 class ShiftAlertCard extends StatelessWidget {
   final Map<String, dynamic> alert;
+  final WatchlistProvider watchlistProvider;
   
   const ShiftAlertCard({
     super.key,
     required this.alert,
+    required this.watchlistProvider,
   });
 
   @override
@@ -542,6 +679,14 @@ class ShiftAlertCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (watchlistProvider.isInWatchlist(symbol)) ...[
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.star,
+                          color: Colors.yellow,
+                          size: 16,
+                        ),
+                      ],
                       const Spacer(),
                       Text(
                         '${(confidence * 100).toInt()}%',
@@ -561,6 +706,23 @@ class ShiftAlertCard extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (!watchlistProvider.isInWatchlist(symbol))
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: () => _addToWatchlist(context, symbol),
+                            icon: const Icon(Icons.add, size: 12),
+                            label: const Text('Watch', style: TextStyle(fontSize: 10)),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.green,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -568,6 +730,29 @@ class ShiftAlertCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _addToWatchlist(BuildContext context, String symbol) async {
+    try {
+      final added = await watchlistProvider.addToWatchlist(symbol);
+      if (context.mounted) {
+        if (added) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$symbol added to watchlist')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to add to watchlist')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 }
 
