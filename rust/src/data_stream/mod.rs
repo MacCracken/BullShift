@@ -27,6 +27,38 @@ pub struct MarketBar {
     pub timeframe: String,
 }
 
+/// Credentials for API authentication
+/// These are loaded from secure storage, not hardcoded
+#[derive(Clone)]
+pub struct ApiCredentials {
+    pub api_key: String,
+    pub api_secret: String,
+}
+
+impl ApiCredentials {
+    /// Create credentials from secure storage
+    pub fn from_secure_storage(key: String, secret: String) -> Self {
+        Self {
+            api_key: key,
+            api_secret: secret,
+        }
+    }
+    
+    /// Validate that credentials are properly configured
+    pub fn validate(&self) -> Result<(), String> {
+        if self.api_key.is_empty() {
+            return Err("API key is empty".to_string());
+        }
+        if self.api_secret.is_empty() {
+            return Err("API secret is empty".to_string());
+        }
+        if self.api_key.len() < 10 {
+            return Err("API key appears to be invalid (too short)".to_string());
+        }
+        Ok(())
+    }
+}
+
 pub trait MarketDataStream {
     fn connect(&mut self, symbols: Vec<String>) -> Result<(), String>;
     fn subscribe_ticks(&mut self, symbols: Vec<String>) -> Result<(), String>;
@@ -40,6 +72,7 @@ pub struct AlpacaStream {
     bar_sender: mpsc::UnboundedSender<MarketBar>,
     connected: bool,
     subscriptions: HashMap<String, String>,
+    credentials: Option<ApiCredentials>,
 }
 
 impl AlpacaStream {
@@ -52,7 +85,21 @@ impl AlpacaStream {
             bar_sender,
             connected: false,
             subscriptions: HashMap::new(),
+            credentials: None,
         }
+    }
+    
+    /// Set credentials for authentication
+    pub fn set_credentials(&mut self, credentials: ApiCredentials) {
+        self.credentials = Some(credentials);
+    }
+    
+    /// Load credentials from secure storage
+    /// In a real implementation, this would call into the security module
+    pub fn load_credentials(&mut self) -> Result<(), String> {
+        // TODO: In production, load from secure storage
+        // For now, return an error indicating credentials must be set
+        Err("Credentials must be set via set_credentials() before connecting".to_string())
     }
 
     fn process_message(&mut self, msg: Message) {
@@ -128,22 +175,34 @@ impl AlpacaStream {
 
 impl MarketDataStream for AlpacaStream {
     fn connect(&mut self, symbols: Vec<String>) -> Result<(), String> {
+        // Validate credentials are set
+        let credentials = self.credentials.as_ref()
+            .ok_or("No credentials configured. Call set_credentials() first.")?;
+        
+        // Validate credentials
+        credentials.validate()?;
+        
         let url = "wss://stream.data.alpaca.markets/v2/iex";
         
         match connect(url) {
             Ok((mut ws_stream, _)) => {
                 self.connected = true;
                 
-                // Send authentication
+                // Send authentication with securely loaded credentials
+                // NOTE: The credentials are sent over WSS (WebSocket Secure)
+                // which provides TLS encryption. The plaintext here is 
+                // encrypted in transit by the TLS layer.
                 let auth_msg = serde_json::json!({
                     "action": "auth",
-                    "key": "YOUR_API_KEY",
-                    "secret": "YOUR_API_SECRET"
+                    "key": credentials.api_key,
+                    "secret": credentials.api_secret
                 });
                 
                 if let Err(e) = ws_stream.write_message(Message::Text(auth_msg.to_string())) {
                     return Err(format!("Failed to send auth: {}", e));
                 }
+                
+                log::info!("WebSocket authentication sent (credentials transmitted over TLS)");
                 
                 // Subscribe to symbols
                 for symbol in symbols {
@@ -245,5 +304,49 @@ impl MarketDataManager {
             // Implementation would start async tasks to receive data
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_api_credentials_validation() {
+        let valid_creds = ApiCredentials::from_secure_storage(
+            "PK_VALID_API_KEY_123".to_string(),
+            "valid_secret_key_here".to_string()
+        );
+        assert!(valid_creds.validate().is_ok());
+
+        let empty_key = ApiCredentials::from_secure_storage(
+            "".to_string(),
+            "valid_secret".to_string()
+        );
+        assert!(empty_key.validate().is_err());
+
+        let short_key = ApiCredentials::from_secure_storage(
+            "short".to_string(),
+            "valid_secret".to_string()
+        );
+        assert!(short_key.validate().is_err());
+    }
+
+    #[test]
+    fn test_alpaca_stream_credentials() {
+        let mut stream = AlpacaStream::new();
+        
+        // Should fail without credentials
+        assert!(stream.load_credentials().is_err());
+        
+        // Set credentials
+        let creds = ApiCredentials::from_secure_storage(
+            "PK_TEST_API_KEY_123".to_string(),
+            "test_secret_key".to_string()
+        );
+        stream.set_credentials(creds);
+        
+        // Should now have credentials
+        assert!(stream.credentials.is_some());
     }
 }

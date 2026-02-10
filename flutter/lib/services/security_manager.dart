@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:crypto/crypto.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
 
 class SecurityManager {
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
@@ -124,7 +126,7 @@ class SecurityManager {
     String? masterKey = await _secureStorage.read(key: _masterKeyAlias);
     
     if (masterKey == null) {
-      // Generate new master key
+      // Generate new master key using cryptographically secure random
       masterKey = _generateSecureKey();
       await _secureStorage.write(key: _masterKeyAlias, value: masterKey);
     }
@@ -132,78 +134,77 @@ class SecurityManager {
     return masterKey;
   }
 
-  // Generate cryptographically secure key
+  // Generate cryptographically secure key using OS-level secure random
   static String _generateSecureKey() {
+    final secureRandom = Random.secure();
     final bytes = Uint8List(32);
+    
     for (int i = 0; i < 32; i++) {
-      bytes[i] = (DateTime.now().millisecondsSinceEpoch + i) % 256;
+      bytes[i] = secureRandom.nextInt(256);
     }
+    
     return base64.encode(bytes);
   }
 
-  // Encrypt data using master key
+  // Encrypt data using AES-256-GCM
   static Future<String> _encryptData(String data, String masterKey) async {
     try {
-      final key = utf8.encode(masterKey);
-      final dataBytes = utf8.encode(data);
+      // Derive 32-byte key from master key using SHA-256
+      final keyBytes = sha256.convert(utf8.encode(masterKey)).bytes;
+      final key = encrypt.Key(Uint8List.fromList(keyBytes));
       
-      // Generate HMAC for integrity
-      final hmac = Hmac(sha256, key);
-      final digest = hmac.convert(dataBytes);
+      // Generate cryptographically secure random IV (16 bytes for AES)
+      final iv = encrypt.IV.fromSecureRandom(16);
       
-      // Simple XOR encryption (in production, use proper encryption like AES)
-      final encrypted = <int>[];
-      for (int i = 0; i < dataBytes.length; i++) {
-        encrypted.add(dataBytes[i] ^ key[i % key.length]);
-      }
+      // Create encrypter with AES-256 in GCM mode
+      final encrypter = encrypt.Encrypter(
+        encrypt.AES(key, mode: encrypt.AESMode.gcm),
+      );
       
-      // Combine encrypted data with HMAC
-      final combined = [...encrypted, ...digest.bytes];
+      // Encrypt the data
+      final encrypted = encrypter.encrypt(data, iv: iv);
+      
+      // Combine IV and encrypted data for storage
+      // Format: base64(iv + encrypted)
+      final combined = Uint8List(iv.bytes.length + encrypted.bytes.length);
+      combined.setRange(0, iv.bytes.length, iv.bytes);
+      combined.setRange(iv.bytes.length, combined.length, encrypted.bytes);
+      
       return base64.encode(combined);
     } catch (e) {
       throw Exception('Encryption failed: $e');
     }
   }
 
-  // Decrypt data using master key
+  // Decrypt data using AES-256-GCM
   static Future<String> _decryptData(String encryptedData, String masterKey) async {
     try {
-      final key = utf8.encode(masterKey);
+      // Derive 32-byte key from master key using SHA-256
+      final keyBytes = sha256.convert(utf8.encode(masterKey)).bytes;
+      final key = encrypt.Key(Uint8List.fromList(keyBytes));
+      
+      // Decode the combined data
       final combined = base64.decode(encryptedData);
       
-      // Separate encrypted data from HMAC
-      final encrypted = combined.sublist(0, combined.length - 32);
-      final receivedHmac = combined.sublist(combined.length - 32);
+      // Extract IV (first 16 bytes) and encrypted data
+      final ivBytes = combined.sublist(0, 16);
+      final encryptedBytes = combined.sublist(16);
       
-      // Verify HMAC
-      final hmac = Hmac(sha256, key);
-      final digest = hmac.convert(encrypted);
+      final iv = encrypt.IV(Uint8List.fromList(ivBytes));
+      final encrypted = encrypt.Encrypted(Uint8List.fromList(encryptedBytes));
       
-      if (!_bytesEqual(digest.bytes, receivedHmac)) {
-        throw Exception('HMAC verification failed - data may be tampered');
-      }
+      // Create decrypter with AES-256 in GCM mode
+      final encrypter = encrypt.Encrypter(
+        encrypt.AES(key, mode: encrypt.AESMode.gcm),
+      );
       
-      // Decrypt using XOR
-      final decrypted = <int>[];
-      for (int i = 0; i < encrypted.length; i++) {
-        decrypted.add(encrypted[i] ^ key[i % key.length]);
-      }
+      // Decrypt the data
+      final decrypted = encrypter.decrypt(encrypted, iv: iv);
       
-      return utf8.decode(decrypted);
+      return decrypted;
     } catch (e) {
       throw Exception('Decryption failed: $e');
     }
-  }
-
-  // Secure byte comparison
-  static bool _bytesEqual(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    
-    for (int i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    
-    return true;
   }
 
   // Clear all stored data (for testing/reset)
