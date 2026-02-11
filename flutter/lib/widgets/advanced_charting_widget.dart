@@ -25,7 +25,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
   bool _showVolume = true;
   ChartTheme _theme = ChartTheme.dark;
   String _currentTimeframe = '1D';
-  
+
   @override
   void initState() {
     super.initState();
@@ -56,7 +56,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
       setState(() {
         _currentTimeframe = newTimeframe;
       });
-      
+
       // Notify parent widget
       if (widget.onTimeframeChanged != null) {
         widget.onTimeframeChanged!(newTimeframe);
@@ -83,17 +83,10 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
           _buildChartControls(),
           const SizedBox(height: 12),
           // Main Chart Area
-          Expanded(
-            flex: 3,
-            child: _buildMainChart(),
-          ),
+          Expanded(flex: 3, child: _buildMainChart()),
           const SizedBox(height: 8),
           // Volume Chart
-          if (_showVolume)
-            Expanded(
-              flex: 1,
-              child: _buildVolumeChart(),
-            ),
+          if (_showVolume) Expanded(flex: 1, child: _buildVolumeChart()),
           // Indicator Charts
           ..._buildIndicatorCharts(),
         ],
@@ -104,11 +97,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
   Widget _buildChartHeader() {
     return Row(
       children: [
-        Icon(
-          Icons.show_chart,
-          color: Colors.white,
-          size: 20,
-        ),
+        Icon(Icons.show_chart, color: Colors.white, size: 20),
         const SizedBox(width: 8),
         Text(
           '${widget.symbol} Advanced Chart',
@@ -172,7 +161,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
             itemBuilder: (context, index) {
               final type = ChartType.values[index];
               final isSelected = _currentChartType == type;
-              
+
               return Padding(
                 padding: const EdgeInsets.only(right: 4),
                 child: FilterChip(
@@ -202,11 +191,10 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
           value: _currentTimeframe,
           dropdownColor: const Color(0xFF37474F),
           style: const TextStyle(color: Colors.white, fontSize: 12),
-          items: ['1m', '5m', '15m', '1h', '4h', '1D', '1W', '1M'].map((timeframe) {
-            return DropdownMenuItem(
-              value: timeframe,
-              child: Text(timeframe),
-            );
+          items: ['1m', '5m', '15m', '1h', '4h', '1D', '1W', '1M'].map((
+            timeframe,
+          ) {
+            return DropdownMenuItem(value: timeframe, child: Text(timeframe));
           }).toList(),
           onChanged: _onTimeframeChanged,
         ),
@@ -275,7 +263,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
 
   List<Widget> _buildIndicatorCharts() {
     final indicatorCharts = <Widget>[];
-    
+
     for (final indicator in _activeIndicators) {
       if (_indicatorNeedsChart(indicator)) {
         indicatorCharts.add(
@@ -304,7 +292,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
         );
       }
     }
-    
+
     return indicatorCharts;
   }
 
@@ -312,29 +300,31 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
     final random = Random();
     final data = <PriceData>[];
     final now = DateTime.now();
-    
+
     double currentPrice = 150.0;
-    
+
     for (int i = 0; i < 100; i++) {
       final change = (random.nextDouble() - 0.5) * 2.0;
       currentPrice += change;
-      
+
       final open = currentPrice;
       final close = currentPrice + (random.nextDouble() - 0.5) * 1.0;
       final high = max(open, close) + random.nextDouble() * 0.5;
       final low = min(open, close) - random.nextDouble() * 0.5;
       final volume = 1000000 + random.nextInt(2000000);
-      
-      data.add(PriceData(
-        timestamp: now.subtract(Duration(minutes: (100 - i) * 5)),
-        open: open,
-        high: high,
-        low: low,
-        close: close,
-        volume: volume,
-      ));
+
+      data.add(
+        PriceData(
+          timestamp: now.subtract(Duration(minutes: (100 - i) * 5)),
+          open: open,
+          high: high,
+          low: low,
+          close: close,
+          volume: volume,
+        ),
+      );
     }
-    
+
     return data;
   }
 
@@ -442,11 +432,7 @@ enum IndicatorType {
   vwap,
 }
 
-enum ChartTheme {
-  light,
-  dark,
-  solarized,
-}
+enum ChartTheme { light, dark, solarized }
 
 class PriceData {
   final DateTime timestamp;
@@ -513,8 +499,18 @@ class ChartPainter extends CustomPainter {
       case ChartType.ohlc:
         _drawOHLC(canvas, size, minPrice, priceRange);
         break;
-      default:
-        _drawCandlesticks(canvas, size, minPrice, priceRange);
+      case ChartType.heikinAshi:
+        _drawHeikinAshi(canvas, size, minPrice, priceRange);
+        break;
+      case ChartType.renko:
+        _drawRenko(canvas, size, minPrice, priceRange);
+        break;
+      case ChartType.pointAndFigure:
+        _drawPointAndFigure(canvas, size, minPrice, priceRange);
+        break;
+      case ChartType.kagi:
+        _drawKagi(canvas, size, minPrice, priceRange);
+        break;
     }
 
     // Draw indicators
@@ -533,26 +529,23 @@ class ChartPainter extends CustomPainter {
     // Horizontal grid lines
     for (int i = 0; i <= 5; i++) {
       final y = size.height * i / 5;
-      canvas.drawLine(
-        Offset(50, y),
-        Offset(size.width, y),
-        gridPaint,
-      );
+      canvas.drawLine(Offset(50, y), Offset(size.width, y), gridPaint);
     }
 
     // Vertical grid lines
     final candleWidth = (size.width - 50) / data.length;
     for (int i = 0; i <= 10; i++) {
       final x = 50 + (size.width - 50) * i / 10;
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height - 20),
-        gridPaint,
-      );
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height - 20), gridPaint);
     }
   }
 
-  void _drawCandlesticks(Canvas canvas, Size size, double minPrice, double priceRange) {
+  void _drawCandlesticks(
+    Canvas canvas,
+    Size size,
+    double minPrice,
+    double priceRange,
+  ) {
     final candleWidth = (size.width - 50) / data.length * 0.8;
     final spacing = (size.width - 50) / data.length;
 
@@ -561,10 +554,22 @@ class ChartPainter extends CustomPainter {
       final x = 50 + i * spacing + spacing / 2;
 
       // Calculate y positions
-      final highY = size.height - 20 - ((d.high - minPrice) / priceRange) * (size.height - 40);
-      final lowY = size.height - 20 - ((d.low - minPrice) / priceRange) * (size.height - 40);
-      final openY = size.height - 20 - ((d.open - minPrice) / priceRange) * (size.height - 40);
-      final closeY = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+      final highY =
+          size.height -
+          20 -
+          ((d.high - minPrice) / priceRange) * (size.height - 40);
+      final lowY =
+          size.height -
+          20 -
+          ((d.low - minPrice) / priceRange) * (size.height - 40);
+      final openY =
+          size.height -
+          20 -
+          ((d.open - minPrice) / priceRange) * (size.height - 40);
+      final closeY =
+          size.height -
+          20 -
+          ((d.close - minPrice) / priceRange) * (size.height - 40);
 
       final isGreen = d.close >= d.open;
       final color = isGreen ? Colors.green : Colors.red;
@@ -580,7 +585,7 @@ class ChartPainter extends CustomPainter {
       final bodyPaint = Paint()
         ..color = color
         ..style = isGreen ? PaintingStyle.fill : PaintingStyle.fill;
-      
+
       final bodyTop = min(openY, closeY);
       final bodyBottom = max(openY, closeY);
       final bodyHeight = max(bodyBottom - bodyTop, 1);
@@ -604,7 +609,12 @@ class ChartPainter extends CustomPainter {
     }
   }
 
-  void _drawLineChart(Canvas canvas, Size size, double minPrice, double priceRange) {
+  void _drawLineChart(
+    Canvas canvas,
+    Size size,
+    double minPrice,
+    double priceRange,
+  ) {
     final linePaint = Paint()
       ..color = Colors.blue
       ..style = PaintingStyle.stroke
@@ -616,7 +626,10 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < data.length; i++) {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
-      final y = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+      final y =
+          size.height -
+          20 -
+          ((d.close - minPrice) / priceRange) * (size.height - 40);
 
       if (i == 0) {
         path.moveTo(x, y);
@@ -635,7 +648,10 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < data.length; i++) {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
-      final y = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+      final y =
+          size.height -
+          20 -
+          ((d.close - minPrice) / priceRange) * (size.height - 40);
 
       if (i % 10 == 0) {
         canvas.drawCircle(Offset(x, y), 3, dotPaint);
@@ -643,7 +659,12 @@ class ChartPainter extends CustomPainter {
     }
   }
 
-  void _drawAreaChart(Canvas canvas, Size size, double minPrice, double priceRange) {
+  void _drawAreaChart(
+    Canvas canvas,
+    Size size,
+    double minPrice,
+    double priceRange,
+  ) {
     final fillPaint = Paint()
       ..color = Colors.blue.withOpacity(0.3)
       ..style = PaintingStyle.fill;
@@ -659,7 +680,10 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < data.length; i++) {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
-      final y = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+      final y =
+          size.height -
+          20 -
+          ((d.close - minPrice) / priceRange) * (size.height - 40);
 
       if (i == 0) {
         path.moveTo(x, y);
@@ -669,7 +693,10 @@ class ChartPainter extends CustomPainter {
     }
 
     // Close the path for filling
-    path.lineTo(50 + (data.length - 1) * spacing + spacing / 2, size.height - 20);
+    path.lineTo(
+      50 + (data.length - 1) * spacing + spacing / 2,
+      size.height - 20,
+    );
     path.lineTo(50 + spacing / 2, size.height - 20);
     path.close();
 
@@ -680,7 +707,10 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < data.length; i++) {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
-      final y = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+      final y =
+          size.height -
+          20 -
+          ((d.close - minPrice) / priceRange) * (size.height - 40);
 
       if (i == 0) {
         linePath.moveTo(x, y);
@@ -698,10 +728,22 @@ class ChartPainter extends CustomPainter {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
 
-      final highY = size.height - 20 - ((d.high - minPrice) / priceRange) * (size.height - 40);
-      final lowY = size.height - 20 - ((d.low - minPrice) / priceRange) * (size.height - 40);
-      final openY = size.height - 20 - ((d.open - minPrice) / priceRange) * (size.height - 40);
-      final closeY = size.height - 20 - ((d.close - minPrice) / priceRange) * (size.height - 40);
+      final highY =
+          size.height -
+          20 -
+          ((d.high - minPrice) / priceRange) * (size.height - 40);
+      final lowY =
+          size.height -
+          20 -
+          ((d.low - minPrice) / priceRange) * (size.height - 40);
+      final openY =
+          size.height -
+          20 -
+          ((d.open - minPrice) / priceRange) * (size.height - 40);
+      final closeY =
+          size.height -
+          20 -
+          ((d.close - minPrice) / priceRange) * (size.height - 40);
 
       final isGreen = d.close >= d.open;
       final color = isGreen ? Colors.green : Colors.red;
@@ -722,20 +764,51 @@ class ChartPainter extends CustomPainter {
     }
   }
 
-  void _drawIndicators(Canvas canvas, Size size, double minPrice, double priceRange) {
+  void _drawIndicators(
+    Canvas canvas,
+    Size size,
+    double minPrice,
+    double priceRange,
+  ) {
     final spacing = (size.width - 50) / data.length;
 
     for (final indicator in indicators) {
       if (indicator == IndicatorType.sma20) {
-        _drawSMA(canvas, size, data, 20, Colors.yellow, minPrice, priceRange, spacing);
+        _drawSMA(
+          canvas,
+          size,
+          data,
+          20,
+          Colors.yellow,
+          minPrice,
+          priceRange,
+          spacing,
+        );
       } else if (indicator == IndicatorType.sma50) {
-        _drawSMA(canvas, size, data, 50, Colors.orange, minPrice, priceRange, spacing);
+        _drawSMA(
+          canvas,
+          size,
+          data,
+          50,
+          Colors.orange,
+          minPrice,
+          priceRange,
+          spacing,
+        );
       }
     }
   }
 
-  void _drawSMA(Canvas canvas, Size size, List<PriceData> data, int period, Color color,
-      double minPrice, double priceRange, double spacing) {
+  void _drawSMA(
+    Canvas canvas,
+    Size size,
+    List<PriceData> data,
+    int period,
+    Color color,
+    double minPrice,
+    double priceRange,
+    double spacing,
+  ) {
     if (data.length < period) return;
 
     final paint = Paint()
@@ -754,7 +827,10 @@ class ChartPainter extends CustomPainter {
       final sma = sum / period;
 
       final x = 50 + i * spacing + spacing / 2;
-      final y = size.height - 20 - ((sma - minPrice) / priceRange) * (size.height - 40);
+      final y =
+          size.height -
+          20 -
+          ((sma - minPrice) / priceRange) * (size.height - 40);
 
       if (!started) {
         path.moveTo(x, y);
@@ -768,8 +844,7 @@ class ChartPainter extends CustomPainter {
   }
 
   void _drawAxes(Canvas canvas, Size size, double minPrice, double maxPrice) {
-    final textPaint = Paint()
-      ..color = Colors.grey;
+    final textPaint = Paint()..color = Colors.grey;
 
     // Y-axis labels (price)
     for (int i = 0; i <= 5; i++) {
@@ -790,7 +865,8 @@ class ChartPainter extends CustomPainter {
     // X-axis labels (time)
     for (int i = 0; i < data.length; i += data.length ~/ 5) {
       final x = 50 + (size.width - 50) * i / data.length;
-      final time = '${data[i].timestamp.hour}:${data[i].timestamp.minute.toString().padLeft(2, '0')}';
+      final time =
+          '${data[i].timestamp.hour}:${data[i].timestamp.minute.toString().padLeft(2, '0')}';
 
       final textPainter = TextPainter(
         text: TextSpan(
@@ -800,8 +876,368 @@ class ChartPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(x - textPainter.width / 2, size.height - 18));
+      textPainter.paint(
+        canvas,
+        Offset(x - textPainter.width / 2, size.height - 18),
+      );
     }
+  }
+
+  void _drawHeikinAshi(
+    Canvas canvas,
+    Size size,
+    double minPrice,
+    double priceRange,
+  ) {
+    final candleWidth = (size.width - 50) / data.length * 0.8;
+    final spacing = (size.width - 50) / data.length;
+
+    // Calculate Heikin Ashi data
+    final haData = <PriceData>[];
+
+    for (int i = 0; i < data.length; i++) {
+      final current = data[i];
+
+      if (i == 0) {
+        // First candle uses regular data
+        haData.add(
+          PriceData(
+            timestamp: current.timestamp,
+            open: (current.open + current.close) / 2,
+            high: current.high,
+            low: current.low,
+            close:
+                (current.open + current.high + current.low + current.close) / 4,
+            volume: current.volume,
+          ),
+        );
+      } else {
+        final prevHA = haData[i - 1];
+        final haOpen = (prevHA.open + prevHA.close) / 2;
+        final haClose =
+            (current.open + current.high + current.low + current.close) / 4;
+        final haHigh = max(max(current.high, haOpen), haClose);
+        final haLow = min(min(current.low, haOpen), haClose);
+
+        haData.add(
+          PriceData(
+            timestamp: current.timestamp,
+            open: haOpen,
+            high: haHigh,
+            low: haLow,
+            close: haClose,
+            volume: current.volume,
+          ),
+        );
+      }
+    }
+
+    // Draw Heikin Ashi candlesticks
+    for (int i = 0; i < haData.length; i++) {
+      final d = haData[i];
+      final x = 50 + i * spacing + spacing / 2;
+
+      final highY =
+          size.height -
+          20 -
+          ((d.high - minPrice) / priceRange) * (size.height - 40);
+      final lowY =
+          size.height -
+          20 -
+          ((d.low - minPrice) / priceRange) * (size.height - 40);
+      final openY =
+          size.height -
+          20 -
+          ((d.open - minPrice) / priceRange) * (size.height - 40);
+      final closeY =
+          size.height -
+          20 -
+          ((d.close - minPrice) / priceRange) * (size.height - 40);
+
+      final isGreen = d.close >= d.open;
+      final color = isGreen ? Colors.green : Colors.red;
+
+      // Draw wick
+      final wickPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1;
+      canvas.drawLine(Offset(x, highY), Offset(x, lowY), wickPaint);
+
+      // Draw body
+      final bodyPaint = Paint()
+        ..color = color
+        ..style = isGreen ? PaintingStyle.fill : PaintingStyle.fill;
+
+      final bodyTop = min(openY, closeY);
+      final bodyBottom = max(openY, closeY);
+      final bodyHeight = max(bodyBottom - bodyTop, 1);
+
+      canvas.drawRect(
+        Rect.fromLTWH(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight),
+        bodyPaint,
+      );
+
+      // Draw border for green candles
+      if (isGreen) {
+        final borderPaint = Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1;
+        canvas.drawRect(
+          Rect.fromLTWH(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight),
+          borderPaint,
+        );
+      }
+    }
+  }
+
+  void _drawRenko(
+    Canvas canvas,
+    Size size,
+    double minPrice,
+    double priceRange,
+  ) {
+    final brickSize = (size.width - 50) / 50; // Show 50 bricks max
+    final renkoData = _calculateRenkoBricks();
+
+    for (int i = 0; i < renkoData.length; i++) {
+      final brick = renkoData[i];
+      final x = 50 + i * brickSize;
+      final y =
+          size.height -
+          20 -
+          ((brick.price - minPrice) / priceRange) * (size.height - 40);
+
+      final paint = Paint()
+        ..color = brick.isBullish ? Colors.green : Colors.red
+        ..style = PaintingStyle.fill;
+
+      canvas.drawRect(
+        Rect.fromLTWH(x, y - brickSize, brickSize * 0.9, brickSize),
+        paint,
+      );
+    }
+  }
+
+  void _drawPointAndFigure(
+    Canvas canvas,
+    Size size,
+    double minPrice,
+    double priceRange,
+  ) {
+    final boxSize = priceRange * 0.02; // 2% box size
+    final reversalAmount = boxSize * 3; // 3-box reversal
+    final pnfData = _calculatePointAndFigure(boxSize, reversalAmount);
+
+    final cellWidth = (size.width - 50) / 30; // Max 30 columns
+    final cellHeight = (size.height - 40) / 30; // Max 30 rows
+
+    for (int i = 0; i < pnfData.length; i++) {
+      final point = pnfData[i];
+      final x = 50 + point.column * cellWidth;
+      final y =
+          size.height -
+          20 -
+          ((point.price - minPrice) / priceRange) * (size.height - 40);
+
+      final paint = Paint()
+        ..color = point.isX ? Colors.green : Colors.red
+        ..style = PaintingStyle.fill;
+
+      if (point.isX) {
+        // Draw X
+        canvas.drawLine(
+          Offset(x, y - cellHeight / 2),
+          Offset(x + cellWidth, y + cellHeight / 2),
+          paint..strokeWidth = 2,
+        );
+        canvas.drawLine(
+          Offset(x + cellWidth, y - cellHeight / 2),
+          Offset(x, y + cellHeight / 2),
+          paint,
+        );
+      } else {
+        // Draw O
+        final center = Offset(x + cellWidth / 2, y);
+        canvas.drawCircle(center, cellWidth / 3, paint);
+      }
+    }
+  }
+
+  void _drawKagi(Canvas canvas, Size size, double minPrice, double priceRange) {
+    final kagiData = _calculateKagiLines();
+    final spacing = (size.width - 50) / max(kagiData.length, 1);
+
+    Path kagiPath = Path();
+    bool started = false;
+
+    for (int i = 0; i < kagiData.length; i++) {
+      final point = kagiData[i];
+      final x = 50 + i * spacing;
+      final y =
+          size.height -
+          20 -
+          ((point.price - minPrice) / priceRange) * (size.height - 40);
+
+      if (!started) {
+        kagiPath.moveTo(x, y);
+        started = true;
+      } else {
+        if (point.isVertical) {
+          // Vertical line
+          final lastPoint = kagiData[i - 1];
+          final lastX = 50 + (i - 1) * spacing;
+          kagiPath.lineTo(lastX, y);
+        } else {
+          // Horizontal line
+          kagiPath.lineTo(x, y);
+        }
+      }
+
+      // Store the current point for thickness calculation
+      if (i == kagiData.length - 1 ||
+          point.isVertical != kagiData[i + 1].isVertical) {
+        // Draw the segment
+        final paint = Paint()
+          ..color = point.isBullish ? Colors.green : Colors.red
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = point.isBullish ? 3 : 2;
+
+        canvas.drawPath(kagiPath, paint);
+        kagiPath = Path();
+        kagiPath.moveTo(x, y);
+        started = false;
+      }
+    }
+  }
+
+  // Helper methods for advanced chart calculations
+
+  List<RenkoBrick> _calculateRenkoBricks() {
+    if (data.isEmpty) return [];
+
+    final bricks = <RenkoBrick>[];
+    final brickSize =
+        (data.first.high - data.first.low) * 0.01; // 1% brick size
+    double currentPrice = data.first.close;
+
+    for (int i = 1; i < data.length; i++) {
+      final price = data[i].close;
+
+      if (price > currentPrice + brickSize) {
+        // Up bricks
+        final numBricks = ((price - currentPrice) / brickSize).floor();
+        for (int j = 0; j < numBricks; j++) {
+          currentPrice += brickSize;
+          bricks.add(RenkoBrick(currentPrice, true));
+        }
+      } else if (price < currentPrice - brickSize) {
+        // Down bricks
+        final numBricks = ((currentPrice - price) / brickSize).floor();
+        for (int j = 0; j < numBricks; j++) {
+          currentPrice -= brickSize;
+          bricks.add(RenkoBrick(currentPrice, false));
+        }
+      }
+    }
+
+    return bricks;
+  }
+
+  List<PointAndFigurePoint> _calculatePointAndFigure(
+    double boxSize,
+    double reversalAmount,
+  ) {
+    if (data.isEmpty) return [];
+
+    final points = <PointAndFigurePoint>[];
+    double currentPrice = data.first.close;
+    bool isUpTrend = true;
+    int column = 0;
+
+    for (int i = 1; i < data.length; i++) {
+      final price = data[i].close;
+      final priceChange = price - currentPrice;
+
+      if (isUpTrend && priceChange >= boxSize) {
+        // Add X's
+        final numBoxes = (priceChange / boxSize).floor();
+        for (int j = 0; j < numBoxes; j++) {
+          currentPrice += boxSize;
+          points.add(PointAndFigurePoint(currentPrice, column, true));
+        }
+      } else if (!isUpTrend && -priceChange >= boxSize) {
+        // Add O's
+        final numBoxes = (-priceChange / boxSize).floor();
+        for (int j = 0; j < numBoxes; j++) {
+          currentPrice -= boxSize;
+          points.add(PointAndFigurePoint(currentPrice, column, false));
+        }
+      } else if ((isUpTrend && -priceChange >= reversalAmount) ||
+          (!isUpTrend && priceChange >= reversalAmount)) {
+        // Reversal
+        isUpTrend = !isUpTrend;
+        column++;
+        i--; // Re-process this price with new trend
+      }
+    }
+
+    return points;
+  }
+
+  List<KagiPoint> _calculateKagiLines() {
+    if (data.isEmpty) return [];
+
+    final points = <KagiPoint>[];
+    double currentPrice = data.first.close;
+    double previousHigh = data.first.high;
+    double previousLow = data.first.low;
+    bool isBullish = true;
+    bool isVertical = false;
+
+    points.add(KagiPoint(currentPrice, isBullish, isVertical));
+
+    for (int i = 1; i < data.length; i++) {
+      final candle = data[i];
+
+      if (isBullish) {
+        if (candle.high > previousHigh) {
+          // Continue uptrend
+          currentPrice = candle.high;
+          previousHigh = candle.high;
+          isVertical = true;
+          points.add(KagiPoint(currentPrice, isBullish, isVertical));
+        } else if (candle.low <
+            previousLow - (previousHigh - previousLow) * 0.03) {
+          // Reversal (more than 3% below low)
+          isBullish = false;
+          currentPrice = candle.low;
+          isVertical = true;
+          points.add(KagiPoint(currentPrice, isBullish, isVertical));
+        }
+      } else {
+        if (candle.low < previousLow) {
+          // Continue downtrend
+          currentPrice = candle.low;
+          previousLow = candle.low;
+          isVertical = true;
+          points.add(KagiPoint(currentPrice, isBullish, isVertical));
+        } else if (candle.high >
+            previousHigh + (previousHigh - previousLow) * 0.03) {
+          // Reversal (more than 3% above high)
+          isBullish = true;
+          currentPrice = candle.high;
+          isVertical = true;
+          points.add(KagiPoint(currentPrice, isBullish, isVertical));
+        }
+      }
+
+      previousHigh = max(previousHigh, candle.high);
+      previousLow = min(previousLow, candle.low);
+    }
+
+    return points;
   }
 
   @override
@@ -812,10 +1248,7 @@ class VolumeChartPainter extends CustomPainter {
   final List<PriceData> data;
   final ChartTheme theme;
 
-  VolumeChartPainter({
-    required this.data,
-    required this.theme,
-  });
+  VolumeChartPainter({required this.data, required this.theme});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -840,7 +1273,7 @@ class VolumeChartPainter extends CustomPainter {
       final barHeight = (d.volume / maxVolume) * (size.height - 25);
 
       final isGreen = d.close >= d.open;
-      final barColor = isGreen 
+      final barColor = isGreen
           ? Colors.green.withOpacity(0.7)
           : Colors.red.withOpacity(0.7);
 
@@ -851,10 +1284,7 @@ class VolumeChartPainter extends CustomPainter {
       final x = 50 + i * spacing + (spacing - barWidth) / 2;
       final y = size.height - 25 - barHeight;
 
-      canvas.drawRect(
-        Rect.fromLTWH(x, y, barWidth, barHeight),
-        paint,
-      );
+      canvas.drawRect(Rect.fromLTWH(x, y, barWidth, barHeight), paint);
     }
 
     // Draw volume label
@@ -877,7 +1307,10 @@ class VolumeChartPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     );
     maxVolPainter.layout();
-    maxVolPainter.paint(canvas, Offset(5, size.height - 25 - maxVolPainter.height));
+    maxVolPainter.paint(
+      canvas,
+      Offset(5, size.height - 25 - maxVolPainter.height),
+    );
   }
 
   String _formatVolume(int volume) {
@@ -1210,3 +1643,27 @@ class IndicatorChartPainter extends CustomPainter {
 
 double max(double a, double b) => a > b ? a : b;
 double min(double a, double b) => a < b ? a : b;
+
+// Helper classes for advanced chart types
+class RenkoBrick {
+  final double price;
+  final bool isBullish;
+
+  RenkoBrick(this.price, this.isBullish);
+}
+
+class PointAndFigurePoint {
+  final double price;
+  final int column;
+  final bool isX;
+
+  PointAndFigurePoint(this.price, this.column, this.isX);
+}
+
+class KagiPoint {
+  final double price;
+  final bool isBullish;
+  final bool isVertical;
+
+  KagiPoint(this.price, this.isBullish, this.isVertical);
+}

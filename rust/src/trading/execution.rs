@@ -44,7 +44,11 @@ impl ExecutionEngine {
         }
     }
     
-    pub async fn submit_order(&self, order: Order) -> Result<(), String> {
+use crate::trading::Order;
+use crate::logging::{Logger, LogLevel};
+
+impl Order {
+    pub async fn submit_order(&self, logger: &dyn Logger) -> Result<(), String> {
         self.order_tx.send(order).map_err(|e| e.to_string())
     }
     

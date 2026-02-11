@@ -47,8 +47,9 @@ impl SecurityManager {
                 return Ok(key_data.as_bytes()[0..32].to_vec());
             } else {
                 // Generate and store new key
+                let rng = SystemRandom::new();
                 let mut key_bytes = [0u8; 32];
-                self.rng.fill(&mut key_bytes)
+                rng.fill(&mut key_bytes)
                     .map_err(|e| format!("Failed to generate key: {}", e))?;
                 
                 let key_hex = hex::encode(&key_bytes);
@@ -75,8 +76,9 @@ impl SecurityManager {
                 return Ok(key_data.as_bytes()[0..32].to_vec());
             } else {
                 // Generate and store new key
+                let rng = SystemRandom::new();
                 let mut key_bytes = [0u8; 32];
-                self.rng.fill(&mut key_bytes)
+                rng.fill(&mut key_bytes)
                     .map_err(|e| format!("Failed to generate key: {}", e))?;
                 
                 let key_hex = hex::encode(&key_bytes);
@@ -107,8 +109,9 @@ impl SecurityManager {
             }
             
             // Generate and store new key
+            let rng = SystemRandom::new();
             let mut key_bytes = [0u8; 32];
-            self.rng.fill(&mut key_bytes)
+            rng.fill(&mut key_bytes)
                 .map_err(|e| format!("Failed to generate key: {}", e))?;
             
             let key_dir = key_file.parent().unwrap();
@@ -214,6 +217,58 @@ impl SecurityManager {
             }
             Err(_) => Ok(false),
         }
+    }
+
+    pub fn encrypt_sensitive_data(&self, data: &str) -> Result<String, String> {
+        let data_bytes = data.as_bytes();
+        
+        // Generate random nonce
+        let mut nonce_bytes = [0u8; 12];
+        self.rng.fill(&mut nonce_bytes)
+            .map_err(|e| format!("Failed to generate nonce: {}", e))?;
+        
+        // Encrypt data
+        let nonce = Nonce::assume_unique_for_key(nonce_bytes);
+        let sealing_key = LessSafeKey::new(self.encryption_key.clone());
+        
+        let mut encrypted_data = data_bytes.to_vec();
+        encrypted_data.resize(encrypted_data.len() + AES_256_GCM.tag_len(), 0);
+        
+        sealing_key.seal_in_place_append_tag(nonce, &[], &mut encrypted_data)
+            .map_err(|e| format!("Encryption failed: {}", e))?;
+        
+        // Combine nonce and encrypted data for storage
+        let mut combined = nonce_bytes.to_vec();
+        combined.extend_from_slice(&encrypted_data);
+        
+        // Encode as hex for safe storage
+        Ok(hex::encode(combined))
+    }
+
+    pub fn decrypt_sensitive_data(&self, encrypted_data: &str) -> Result<String, String> {
+        let combined = hex::decode(encrypted_data)
+            .map_err(|e| format!("Failed to decode encrypted data: {}", e))?;
+        
+        if combined.len() < 12 {
+            return Err("Invalid encrypted data format".to_string());
+        }
+        
+        // Extract nonce and encrypted data
+        let nonce_bytes = &combined[..12];
+        let encrypted_bytes = &combined[12..];
+        
+        // Decrypt data
+        let nonce = Nonce::assume_unique_for_key(nonce_bytes.try_into()
+            .map_err(|_| "Invalid nonce length".to_string())?);
+        
+        let sealing_key = LessSafeKey::new(self.encryption_key.clone());
+        let mut decrypted_data = encrypted_bytes.to_vec();
+        
+        let decrypted_bytes = sealing_key.open_in_place(nonce, &[], &mut decrypted_data)
+            .map_err(|e| format!("Decryption failed: {}", e))?;
+        
+        String::from_utf8(decrypted_bytes.to_vec())
+            .map_err(|e| format!("Failed to parse decrypted data: {}", e))
     }
 }
 

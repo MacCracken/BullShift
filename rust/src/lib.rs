@@ -1,6 +1,9 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
+pub mod security;
+pub mod logging;
+
 #[repr(C)]
 pub struct TradeOrder {
     symbol: *const c_char,
