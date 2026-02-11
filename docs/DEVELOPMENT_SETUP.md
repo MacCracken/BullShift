@@ -322,7 +322,7 @@ After setup:
 - Platform-specific issues in Troubleshooting section
 
 **Code Issues:**
-- Review [Audit Summary](AUDIT_SUMMARY.md) for recent fixes
+- Review [Refactoring Summary](../REFACTORING_SUMMARY.md) for recent improvements
 - Check existing GitHub issues
 - Create new issue with environment details
 

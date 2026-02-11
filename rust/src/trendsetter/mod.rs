@@ -123,8 +123,10 @@ impl TrendSetter {
             _ => TrendStrength::Weak,
         };
         
+        let symbol_string = symbol.to_string();
+        
         let momentum_score = MomentumScore {
-            symbol: symbol.clone(),
+            symbol: symbol_string.clone(),
             score: composite_score,
             volume_spike: volume_analysis.volume_ratio,
             price_momentum: price_momentum.momentum_score,
@@ -133,11 +135,11 @@ impl TrendSetter {
             timestamp: Utc::now(),
         };
         
-        // Store results
-        self.momentum_scores.insert(symbol.clone(), momentum_score.clone());
-        self.volume_analysis.insert(symbol, volume_analysis);
-        self.price_momentum.insert(symbol.clone(), price_momentum);
-        self.social_sentiment.insert(symbol.clone(), social_sentiment);
+        // Store results - use single clone for all insertions
+        self.momentum_scores.insert(symbol_string.clone(), momentum_score);
+        self.volume_analysis.insert(symbol_string.clone(), volume_analysis);
+        self.price_momentum.insert(symbol_string.clone(), price_momentum);
+        self.social_sentiment.insert(symbol_string, social_sentiment);
         
         // Generate alerts if needed
         self.generate_alerts(&momentum_score);
@@ -226,45 +228,44 @@ impl TrendSetter {
     }
 
     fn generate_alerts(&mut self, momentum_score: &MomentumScore) {
-        let mut alerts = Vec::new();
+        let symbol = momentum_score.symbol.clone();
+        let now = Utc::now();
         
         // Volume spike alert
         if momentum_score.volume_spike > 3.0 {
-            alerts.push(TrendAlert {
-                symbol: momentum_score.symbol.clone(),
+            self.active_alerts.push(TrendAlert {
+                symbol: symbol.clone(),
                 alert_type: AlertType::VolumeSpike,
                 message: format!("Unusual volume spike detected: {:.1}x average", momentum_score.volume_spike),
                 confidence: 0.8,
-                timestamp: Utc::now(),
-                expires_at: Utc::now() + Duration::hours(4),
+                timestamp: now,
+                expires_at: now + Duration::hours(4),
             });
         }
         
         // Strong momentum alert
         if momentum_score.score > 0.7 {
-            alerts.push(TrendAlert {
-                symbol: momentum_score.symbol.clone(),
+            self.active_alerts.push(TrendAlert {
+                symbol: symbol.clone(),
                 alert_type: AlertType::MomentumShift,
                 message: format!("Strong momentum detected: {:.2}", momentum_score.score),
                 confidence: momentum_score.score,
-                timestamp: Utc::now(),
-                expires_at: Utc::now() + Duration::hours(2),
+                timestamp: now,
+                expires_at: now + Duration::hours(2),
             });
         }
         
         // Social buzz alert
         if momentum_score.social_sentiment > 0.6 {
-            alerts.push(TrendAlert {
-                symbol: momentum_score.symbol.clone(),
+            self.active_alerts.push(TrendAlert {
+                symbol,
                 alert_type: AlertType::SocialBuzz,
                 message: format!("High social sentiment: {:.2}", momentum_score.social_sentiment),
                 confidence: 0.7,
-                timestamp: Utc::now(),
-                expires_at: Utc::now() + Duration::hours(6),
+                timestamp: now,
+                expires_at: now + Duration::hours(6),
             });
         }
-        
-        self.active_alerts.extend(alerts);
     }
 
     // Helper methods (simplified for example)

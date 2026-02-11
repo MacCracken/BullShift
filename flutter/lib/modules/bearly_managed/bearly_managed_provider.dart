@@ -252,6 +252,34 @@ class BearlyManagedProvider extends BaseProvider {
     safeNotifyListeners();
   }
 
+  Future<void> updatePrompt({
+    required String promptId,
+    required String name,
+    required String category,
+    required String prompt,
+    String? description,
+  }) async {
+    await executeAsync(
+      operation: () async {
+        final promptIndex = _aiPrompts.indexWhere((p) => p['id'] == promptId);
+        if (promptIndex == -1) {
+          throw Exception('Prompt not found');
+        }
+
+        _aiPrompts[promptIndex]['name'] = name;
+        _aiPrompts[promptIndex]['category'] = category;
+        _aiPrompts[promptIndex]['prompt'] = prompt;
+        if (description != null) {
+          _aiPrompts[promptIndex]['description'] = description;
+        }
+        _aiPrompts[promptIndex]['updatedAt'] = DateTime.now();
+
+        safeNotifyListeners();
+      },
+      loadingMessage: 'Updating prompt...',
+    );
+  }
+
   // Generate sample data for demonstration
   void _generateSampleData() {
     final random = Random();

@@ -154,10 +154,14 @@ impl BullRunnr {
         self.update_symbol_sentiment(&all_articles);
         self.update_market_sentiment(&all_articles);
 
+        // Take ownership of sentiment data to avoid cloning
+        let symbol_sentiment = std::mem::take(&mut self.symbol_sentiment);
+        let market_sentiment = std::mem::take(&mut self.market_sentiment);
+        
         Ok(NewsStream {
             articles: all_articles,
-            symbol_sentiment: self.symbol_sentiment.clone(),
-            market_sentiment: self.market_sentiment.clone(),
+            symbol_sentiment,
+            market_sentiment,
         })
     }
 
@@ -220,18 +224,32 @@ impl BullRunnr {
     }
 
     fn update_article_cache(&mut self, articles: &[NewsArticle]) {
+        // Batch insert to minimize rehashing
+        let estimated_size = self.article_cache.len() + articles.len();
+        if estimated_size > self.article_cache.capacity() {
+            self.article_cache.reserve(estimated_size - self.article_cache.capacity());
+        }
+        
+        // Use drain iterator if we own the articles, otherwise clone
         for article in articles {
             self.article_cache.insert(article.id.clone(), article.clone());
         }
         
-        // Remove old articles (keep last 1000)
-        if self.article_cache.len() > 1000 {
-            let mut articles_by_date: Vec<_> = self.article_cache.values().collect();
-            articles_by_date.sort_by_key(|a| a.published_at);
+        // Remove old articles only when we exceed the limit by 10% to avoid frequent cleanup
+        if self.article_cache.len() > 1100 {
+            // Use a more efficient approach with binary heap or sorted vec
+            let mut ids_with_dates: Vec<_> = self.article_cache
+                .iter()
+                .map(|(id, article)| (article.published_at, id.clone()))
+                .collect();
             
-            let to_remove = articles_by_date.len() - 1000;
-            for article in articles_by_date.iter().take(to_remove) {
-                self.article_cache.remove(&article.id);
+            // Sort by date (oldest first)
+            ids_with_dates.sort_by(|a, b| a.0.cmp(&b.0));
+            
+            // Remove oldest articles
+            let to_remove = self.article_cache.len() - 1000;
+            for i in 0..to_remove {
+                self.article_cache.remove(&ids_with_dates[i].1);
             }
         }
     }
@@ -240,29 +258,33 @@ impl BullRunnr {
         // Reset symbol sentiment
         self.symbol_sentiment.clear();
         
-        // Group articles by symbol
-        let mut symbol_articles: HashMap<String, Vec<&NewsArticle>> = HashMap::new();
+        // Group articles by symbol using references only
+        let mut symbol_articles: HashMap<&str, Vec<&NewsArticle>> = HashMap::new();
         
         for article in articles {
             for symbol in &article.symbols {
-                symbol_articles.entry(symbol.clone()).or_default().push(article);
+                symbol_articles.entry(symbol.as_str()).or_default().push(article);
             }
         }
         
         // Calculate sentiment for each symbol
         for (symbol, symbol_articles) in symbol_articles {
-            let sentiment_scores: Vec<f64> = symbol_articles
-                .iter()
-                .map(|a| a.sentiment.score)
-                .collect();
+            let avg_sentiment = if !symbol_articles.is_empty() {
+                let sum: f64 = symbol_articles.iter().map(|a| a.sentiment.score).sum();
+                sum / symbol_articles.len() as f64
+            } else {
+                0.0
+            };
             
-            let avg_sentiment = sentiment_scores.iter().sum::<f64>() / sentiment_scores.len() as f64;
             let buzz_score = (symbol_articles.len() as f64 / 10.0).min(1.0);
             
+            let sentiment_scores: Vec<f64> = symbol_articles.iter()
+                .map(|a| a.sentiment.score)
+                .collect();
             let sentiment_trend = self.calculate_sentiment_trend(&sentiment_scores);
             
-            self.symbol_sentiment.insert(symbol.clone(), SymbolSentiment {
-                symbol: symbol.clone(),
+            self.symbol_sentiment.insert(symbol.to_string(), SymbolSentiment {
+                symbol: symbol.to_string(),
                 sentiment_score: avg_sentiment,
                 article_count: symbol_articles.len() as i32,
                 recent_articles: symbol_articles.iter().map(|a| a.id.clone()).collect(),

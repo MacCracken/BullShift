@@ -39,5 +39,8 @@ ffi = "0.1"
 log = "0.4"
 env_logger = "0.10"
 
+# Random number generation
+rand = "0.8"
+
 [build-dependencies]
 tonic-build = "0.10"

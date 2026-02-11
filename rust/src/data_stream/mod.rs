@@ -5,6 +5,8 @@ use tokio::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
+use crate::security::SecurityManager;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketTick {
     pub symbol: String,
@@ -94,12 +96,44 @@ impl AlpacaStream {
         self.credentials = Some(credentials);
     }
     
-    /// Load credentials from secure storage
-    /// In a real implementation, this would call into the security module
+    /// Load credentials from secure storage using the security manager
+    /// This retrieves encrypted credentials for the "alpaca" broker
     pub fn load_credentials(&mut self) -> Result<(), String> {
-        // TODO: In production, load from secure storage
-        // For now, return an error indicating credentials must be set
-        Err("Credentials must be set via set_credentials() before connecting".to_string())
+        // Initialize security manager
+        let security_manager = SecurityManager::new()
+            .map_err(|e| format!("Failed to initialize security manager: {}", e))?;
+        
+        // Attempt to load credentials for Alpaca broker
+        match security_manager.get_credentials("alpaca") {
+            Ok((api_key, api_secret)) => {
+                let credentials = ApiCredentials::from_secure_storage(api_key, api_secret);
+                
+                // Validate credentials before storing
+                credentials.validate()
+                    .map_err(|e| format!("Invalid credentials from secure storage: {}", e))?;
+                
+                self.credentials = Some(credentials);
+                log::info!("Successfully loaded Alpaca credentials from secure storage");
+                Ok(())
+            }
+            Err(e) => {
+                log::warn!("Failed to load credentials from secure storage: {}", e);
+                Err(format!("Failed to load credentials from secure storage: {}. \
+                    Please ensure credentials are stored using the security manager or set them manually with set_credentials()", e))
+            }
+        }
+    }
+    
+    /// Store credentials securely using the security manager
+    pub fn store_credentials_securely(&self, api_key: String, api_secret: String) -> Result<(), String> {
+        let mut security_manager = SecurityManager::new()
+            .map_err(|e| format!("Failed to initialize security manager: {}", e))?;
+        
+        security_manager.store_credentials("alpaca".to_string(), api_key, api_secret)
+            .map_err(|e| format!("Failed to store credentials: {}", e))?;
+        
+        log::info!("Successfully stored Alpaca credentials in secure storage");
+        Ok(())
     }
 
     fn process_message(&mut self, msg: Message) {

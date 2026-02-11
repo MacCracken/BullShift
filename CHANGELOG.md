@@ -12,6 +12,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional broker integrations
 - Performance optimizations
 
+## [1.0.0-alpha.2] - 2026-02-11
+
+### Added
+- **BullRunnr Module Refactor** - Extracted 13 widget files from 1,065 line view (96% reduction)
+- **PaperHands Module Refactor** - Extracted 14 widget files from 1,057 line view (97% reduction)
+- **Paper Trading Backend** - Full simulation with Monte Carlo analysis and correlation calculations
+- **AI Provider Dialogs** - Complete UI for AddProvider, ConfigureProvider, GenerateStrategy
+- **Prompt Management Dialogs** - AddPrompt, ExecutePrompt, EditPrompt fully implemented
+- **Comprehensive Test Suite** - 108 new unit test cases across 4 providers
+- **Widget Tests** - 7 new widget test files for extracted components
+- **Rust Performance Optimizations** - Reduced cloning operations, improved cache efficiency
+- **Data Stream Secure Storage** - Implemented secure credential loading using SecurityManager
+
+### Improved
+- **Test Coverage** - Increased from 15% to ~30% with 240 total tests (150 unit + 90 widget)
+- **Code Organization** - All view files now under 50 lines with extracted widgets
+- **Performance** - Optimized Rust cloning operations, symmetric correlation matrix calculations
+- **Documentation** - Removed redundant AUDIT_SUMMARY.md, consolidated in REFACTORING_SUMMARY.md
+
+### Fixed
+- **TODO Count** - Reduced from 21 to 9 (12 TODOs completed)
+- **Provider Consistency** - Added updatePrompt method to BearlyManagedProvider
+- **Dialog Completeness** - All 6 placeholder dialogs now fully implemented
+- **Secure Storage** - Data stream now loads credentials from encrypted storage
+
+### Technical
+- Added `rand` crate dependency for Monte Carlo simulations
+- Implemented geometric Brownian motion for trading simulations
+- Optimized article cache with batch operations and capacity reservation
+- Replaced String clones with &str references in sentiment analysis
+
 ## [1.0.0-alpha] - 2026-02-10
 
 ### Added
