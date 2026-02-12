@@ -1,0 +1,15 @@
+/home/macro/Repos/bullshift/rust/target/debug/deps/uuid-f0e6d21141df68d1.d: /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/lib.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/macros.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/builder.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/error.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/non_nil.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/parser.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/fmt.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/timestamp.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/v4.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/rng.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/external.rs
+
+/home/macro/Repos/bullshift/rust/target/debug/deps/libuuid-f0e6d21141df68d1.rmeta: /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/lib.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/macros.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/builder.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/error.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/non_nil.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/parser.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/fmt.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/timestamp.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/v4.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/rng.rs /home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/external.rs
+
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/lib.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/macros.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/builder.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/error.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/non_nil.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/parser.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/fmt.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/timestamp.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/v4.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/rng.rs:
+/home/macro/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.20.0/src/external.rs:

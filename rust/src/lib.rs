@@ -1,8 +1,9 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-pub mod security;
 pub mod logging;
+pub mod security;
+pub mod security;
 
 #[repr(C)]
 pub struct TradeOrder {
@@ -50,9 +51,31 @@ unsafe fn validate_c_string(ptr: *const c_char, max_len: usize, field_name: &str
     }
     
     if str_slice.len() > max_len {
-        return Err(format!("{} exceeds maximum length of {}", field_name, max_len));
+        return Err(format!("{} exceeds maximum length of {} characters", field_name, max_len));
     }
     
+    Ok(str_slice.to_string())
+}
+
+    let c_str = CStr::from_ptr(ptr);
+    let str_slice = c_str.to_str().map_err(|_| {
+        BullShiftError::Validation(format!("{} contains invalid UTF-8", field_name))
+    })?;
+
+    if str_slice.is_empty() {
+        return Err(BullShiftError::Validation(format!(
+            "{} is empty",
+            field_name
+        )));
+    }
+
+    if str_slice.len() > max_len {
+        return Err(BullShiftError::Validation(format!(
+            "{} exceeds maximum length of {} characters",
+            field_name, max_len
+        )));
+    }
+
     Ok(str_slice.to_string())
 }
 
@@ -62,11 +85,11 @@ fn validate_trade_order(order: &TradeOrder) -> Result<(), String> {
     if order.quantity <= 0.0 {
         return Err("Quantity must be greater than zero".to_string());
     }
-    
+
     if !order.quantity.is_finite() {
         return Err("Quantity must be a finite number".to_string());
     }
-    
+
     // Validate price if provided
     if let Some(price) = order.price {
         if price <= 0.0 {
@@ -76,7 +99,7 @@ fn validate_trade_order(order: &TradeOrder) -> Result<(), String> {
             return Err("Price must be a finite number".to_string());
         }
     }
-    
+
     Ok(())
 }
 
@@ -90,7 +113,7 @@ pub extern "C" fn submit_order(order: TradeOrder) -> bool {
             return false;
         }
     };
-    
+
     let side = match unsafe { validate_c_string(order.side, MAX_SIDE_LENGTH, "side") } {
         Ok(s) => s.to_uppercase(),
         Err(e) => {
@@ -98,33 +121,40 @@ pub extern "C" fn submit_order(order: TradeOrder) -> bool {
             return false;
         }
     };
-    
-    let order_type = match unsafe { validate_c_string(order.order_type, MAX_ORDER_TYPE_LENGTH, "order_type") } {
-        Ok(s) => s,
-        Err(e) => {
-            log::error!("Order submission failed: {}", e);
-            return false;
-        }
-    };
-    
+
+    let order_type =
+        match unsafe { validate_c_string(order.order_type, MAX_ORDER_TYPE_LENGTH, "order_type") } {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("Order submission failed: {}", e);
+                return false;
+            }
+        };
+
     // Validate side is valid
     if side != "BUY" && side != "SELL" {
-        log::error!("Order submission failed: Invalid side '{}'. Must be 'BUY' or 'SELL'", side);
+        log::error!(
+            "Order submission failed: Invalid side '{}'. Must be 'BUY' or 'SELL'",
+            side
+        );
         return false;
     }
-    
+
     // Validate numeric fields
     if let Err(e) = validate_trade_order(&order) {
         log::error!("Order submission failed: {}", e);
         return false;
     }
-    
+
     // Core trading logic implementation
     log::info!(
         "Submitting order: symbol={}, side={}, quantity={}, type={}",
-        symbol, side, order.quantity, order_type
+        symbol,
+        side,
+        order.quantity,
+        order_type
     );
-    
+
     true
 }
 
@@ -146,7 +176,7 @@ pub extern "C" fn connect_market_data(symbol: *const c_char) -> bool {
             return false;
         }
     };
-    
+
     // WebSocket connection for real-time data
     log::info!("Connecting to market data for: {}", symbol_str);
     true
@@ -219,9 +249,9 @@ mod tests {
             order_type: CString::new("MARKET").unwrap().into_raw(),
             price: Some(150.0),
         };
-        
+
         assert!(validate_trade_order(&valid_order).is_ok());
-        
+
         // Clean up
         unsafe {
             let _ = CString::from_raw(valid_order.symbol);
@@ -239,11 +269,11 @@ mod tests {
             order_type: CString::new("MARKET").unwrap().into_raw(),
             price: None,
         };
-        
+
         let result = validate_trade_order(&invalid_order);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Quantity"));
-        
+
         // Clean up
         unsafe {
             let _ = CString::from_raw(invalid_order.symbol);
@@ -261,10 +291,10 @@ mod tests {
             order_type: CString::new("MARKET").unwrap().into_raw(),
             price: Some(150.0),
         };
-        
+
         let result = submit_order(order);
         assert!(result);
-        
+
         // Clean up
         unsafe {
             let _ = CString::from_raw(order.symbol);
@@ -282,10 +312,10 @@ mod tests {
             order_type: CString::new("MARKET").unwrap().into_raw(),
             price: None,
         };
-        
+
         let result = submit_order(order);
         assert!(!result);
-        
+
         // Clean up
         unsafe {
             let _ = CString::from_raw(order.side);
@@ -302,10 +332,10 @@ mod tests {
             order_type: CString::new("MARKET").unwrap().into_raw(),
             price: None,
         };
-        
+
         let result = submit_order(order);
         assert!(!result);
-        
+
         // Clean up
         unsafe {
             let _ = CString::from_raw(order.symbol);

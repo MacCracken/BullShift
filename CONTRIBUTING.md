@@ -12,9 +12,9 @@ Thank you for your interest in contributing to BullShift! This document provides
    - All contributions must follow security best practices
 
 2. **Read Documentation**
-   - [Development Setup Guide](docs/DEVELOPMENT_SETUP.md) - Environment setup
-   - [Architecture Guide](docs/ARCHITECTURE.md) - Project structure
-   - [Code Quality Guide](docs/code-quality.md) - Coding standards
+   - [Development Setup Guide](docs/development_setup.md) - Environment setup
+   - [Architecture Guide](docs/architecture.md) - Project structure
+   - [Roadmap](docs/roadmap.md) - Feature planning
 
 3. **Set Up Development Environment**
    ```bash

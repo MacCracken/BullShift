@@ -7,10 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- Advanced charting features
+### Completed High Priority Features
+- Advanced Charting Widget - Chart rendering, volume charts, and indicator charts fully implemented
+- BearlyManaged Module - All 6 dialogs implemented (AddProvider, ConfigureProvider, GenerateStrategy, AddPrompt, ExecutePrompt, EditPrompt)
+- Paper Hands - Trading simulation, Monte Carlo analysis, correlation calculations implemented
+- Data Stream - Secure credential loading from SecurityManager implemented
+
+### Completed Technical Debt
+- View file refactoring - All 6 view files refactored (>500 lines reduced to <50 lines)
+- Widget tests - Added tests for position_card, heat_map_tile, watchlist_card
+- Provider tests - All 6 providers tested
+- Integration tests - FFI boundary tests added
+
+### Planned (v1.1+)
+- Proper error types in Rust
+- Structured logging
 - Additional broker integrations
-- Performance optimizations
 
 ## [1.0.0-alpha.2] - 2026-02-11
 

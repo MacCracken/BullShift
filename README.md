@@ -313,14 +313,16 @@ cd flutter && flutter analyze
 ### Developer Documentation
 - **[Development Setup](docs/DEVELOPMENT_SETUP.md)** - Environment setup & build guide
 - **[API Reference](docs/API_REFERENCE.md)** - Rust & Flutter API documentation
-- **[Architecture](docs/ARCHITECTURE.md)** - Project structure & modules
+- **[Architecture](docs/architecture.md)** - Project structure & modules
 - **[Contributing Guide](CONTRIBUTING.md)** - Contribution guidelines & standards
 
 ### Project Documentation
 - **[Security Policy](SECURITY.md)** - Vulnerability reporting & security practices
 - **[Changelog](CHANGELOG.md)** - Version history & release notes
+- **[Roadmap](docs/ROADMAP.md)** - Feature planning & release schedule
 - **[Security Audit](docs/security-audit.md)** - Security assessment & fixes
 - **[Refactoring Summary](REFACTORING_SUMMARY.md)** - Recent improvements & changes
+- **[ADRs](docs/adr/)** - Architecture decision records
 
 ---
 

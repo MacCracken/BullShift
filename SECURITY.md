@@ -210,8 +210,8 @@ We offer rewards for responsible security disclosures:
 
 ### 📚 Documentation
 - [Security Audit Report](docs/security-audit.md)
-- [Architecture Guide](docs/ARCHITECTURE.md)
-- [Code Quality Guide](docs/code-quality.md)
+- [Architecture Guide](docs/architecture.md)
+- [Roadmap](docs/roadmap.md)
 
 ### 🔗 External Resources
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)

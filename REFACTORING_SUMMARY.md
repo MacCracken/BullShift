@@ -85,11 +85,11 @@ Refactored `bearly_managed_view.dart`:
 - `widgets/dialogs/edit_prompt_dialog.dart` (28 lines)
 
 **Documentation:**
-- Created `docs/VIEW_REFACTORING.md` - Complete guide for future extractions
+- Created `docs/roadmap.md` - Feature planning & release schedule
 
 **Remaining Work:**
-- [ ] Extract BullRunnr module (1,065 lines)
-- [ ] Extract PaperHands module (1,057 lines)
+- [x] Extract BullRunnr module (1,065 lines) - COMPLETE
+- [x] Extract PaperHands module (1,057 lines) - COMPLETE
 
 ---
 
@@ -137,19 +137,17 @@ Refactored `bearly_managed_view.dart`:
 
 **Created/Updated Documentation Files:**
 
-1. **`docs/ARCHITECTURE.md`** - Architecture guide
+1. **`docs/architecture.md`** - Architecture guide
    - Project structure
    - Module descriptions
    - Provider pattern guide
    - TODO registry
 
-3. **`docs/VIEW_REFACTORING.md`** - Refactoring guide
-   - Directory structure
-   - Extraction process
-   - Component inventory
-   - Target file sizes
+2. **`docs/roadmap.md`** - Feature planning
+   - Release schedule
+   - Version milestones
 
-4. **`flutter/test/README.md`** - Testing guide
+3. **`flutter/test/README.md`** - Testing guide
    - Test structure
    - Best practices
    - Coverage tracking

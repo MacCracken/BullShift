@@ -26,7 +26,9 @@ ring = "0.17"
 aes-gcm = "0.10"
 
 # Database
-objectbox = "0.16.0"
+# TODO: Add database backend (objectbox not available for Rust, consider sled or rusqlite)
+# sled = "0.34"
+# rusqlite = { version = "0.31", features = ["bundled"] }
 
 # gRPC
 tonic = "0.10"
@@ -38,12 +40,6 @@ ffi = "0.1"
 # Logging
 log = "0.4"
 env_logger = "0.10"
-
-[lib]
-name = "bullshift_core"
-crate-type = ["cdylib", "rlib"]
-
-[dependencies]
 
 # Random number generation
 rand = "0.8"
