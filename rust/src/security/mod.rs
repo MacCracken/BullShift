@@ -1,4 +1,4 @@
-use ring::aead::{LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ pub struct SecureCredentials {
 }
 
 pub struct SecurityManager {
-    encryption_key: UnboundKey,
+    key_bytes: Vec<u8>, // Store key bytes instead of UnboundKey
     rng: SystemRandom,
     credential_store: HashMap<String, SecureCredentials>,
 }
@@ -21,11 +21,9 @@ pub struct SecurityManager {
 impl SecurityManager {
     pub fn new() -> Result<Self, String> {
         let key_material = Self::derive_key_from_system()?;
-        let encryption_key = UnboundKey::new(&AES_256_GCM, &key_material)
-            .map_err(|e| format!("Failed to create encryption key: {}", e))?;
 
         Ok(Self {
-            encryption_key,
+            key_bytes: key_material,
             rng: SystemRandom::new(),
             credential_store: HashMap::new(),
         })
@@ -171,19 +169,21 @@ impl SecurityManager {
 
         // Encrypt credentials
         let nonce = Nonce::assume_unique_for_key(nonce_bytes);
-        let sealing_key = LessSafeKey::new(self.encryption_key.clone());
+        let unbound_key = UnboundKey::new(&AES_256_GCM, &self.key_bytes)
+            .map_err(|e| format!("Failed to create key: {}", e))?;
+        let sealing_key = LessSafeKey::new(unbound_key);
 
         let mut encrypted_data = credential_bytes.to_vec();
         encrypted_data.resize(encrypted_data.len() + AES_256_GCM.tag_len(), 0);
 
         sealing_key
-            .seal_in_place_append_tag(nonce, &[], &mut encrypted_data)
+            .seal_in_place_append_tag(nonce, Aad::empty(), &mut encrypted_data)
             .map_err(|e| format!("Encryption failed: {}", e))?;
 
         let secure_credentials = SecureCredentials {
             api_key: "*".repeat(api_key.len()),       // Store masked version
             api_secret: "*".repeat(api_secret.len()), // Store masked version
-            broker,
+            broker: broker.clone(),
             encrypted_data,
             nonce: nonce_bytes.to_vec(),
         };
@@ -209,11 +209,13 @@ impl SecurityManager {
                 .map_err(|_| "Invalid nonce length".to_string())?,
         );
 
-        let sealing_key = LessSafeKey::new(self.encryption_key.clone());
+        let unbound_key = UnboundKey::new(&AES_256_GCM, &self.key_bytes)
+            .map_err(|e| format!("Failed to create key: {}", e))?;
+        let sealing_key = LessSafeKey::new(unbound_key);
         let mut decrypted_data = credentials.encrypted_data.clone();
 
         let decrypted_bytes = sealing_key
-            .open_in_place(nonce, &[], &mut decrypted_data)
+            .open_in_place(nonce, Aad::empty(), &mut decrypted_data)
             .map_err(|e| format!("Decryption failed: {}", e))?;
 
         let credential_string = String::from_utf8(decrypted_bytes.to_vec())
@@ -261,13 +263,15 @@ impl SecurityManager {
 
         // Encrypt data
         let nonce = Nonce::assume_unique_for_key(nonce_bytes);
-        let sealing_key = LessSafeKey::new(self.encryption_key.clone());
+        let unbound_key = UnboundKey::new(&AES_256_GCM, &self.key_bytes)
+            .map_err(|e| format!("Failed to create key: {}", e))?;
+        let sealing_key = LessSafeKey::new(unbound_key);
 
         let mut encrypted_data = data_bytes.to_vec();
         encrypted_data.resize(encrypted_data.len() + AES_256_GCM.tag_len(), 0);
 
         sealing_key
-            .seal_in_place_append_tag(nonce, &[], &mut encrypted_data)
+            .seal_in_place_append_tag(nonce, Aad::empty(), &mut encrypted_data)
             .map_err(|e| format!("Encryption failed: {}", e))?;
 
         // Combine nonce and encrypted data for storage
@@ -297,11 +301,13 @@ impl SecurityManager {
                 .map_err(|_| "Invalid nonce length".to_string())?,
         );
 
-        let sealing_key = LessSafeKey::new(self.encryption_key.clone());
+        let unbound_key = UnboundKey::new(&AES_256_GCM, &self.key_bytes)
+            .map_err(|e| format!("Failed to create key: {}", e))?;
+        let sealing_key = LessSafeKey::new(unbound_key);
         let mut decrypted_data = encrypted_bytes.to_vec();
 
         let decrypted_bytes = sealing_key
-            .open_in_place(nonce, &[], &mut decrypted_data)
+            .open_in_place(nonce, Aad::empty(), &mut decrypted_data)
             .map_err(|e| format!("Decryption failed: {}", e))?;
 
         String::from_utf8(decrypted_bytes.to_vec())

@@ -3,7 +3,6 @@ use std::os::raw::c_char;
 
 pub mod logging;
 pub mod security;
-pub mod security;
 
 #[repr(C)]
 pub struct TradeOrder {
@@ -37,43 +36,29 @@ const MAX_SIDE_LENGTH: usize = 8;
 const MAX_ORDER_TYPE_LENGTH: usize = 16;
 
 /// Validates that a C string pointer is not null and points to valid data
-unsafe fn validate_c_string(ptr: *const c_char, max_len: usize, field_name: &str) -> Result<String, String> {
+unsafe fn validate_c_string(
+    ptr: *const c_char,
+    max_len: usize,
+    field_name: &str,
+) -> Result<String, String> {
     if ptr.is_null() {
         return Err(format!("{} is null", field_name));
     }
-    
+
     let c_str = CStr::from_ptr(ptr);
-    let str_slice = c_str.to_str()
+    let str_slice = c_str
+        .to_str()
         .map_err(|_| format!("{} contains invalid UTF-8", field_name))?;
-    
+
     if str_slice.is_empty() {
         return Err(format!("{} is empty", field_name));
     }
-    
-    if str_slice.len() > max_len {
-        return Err(format!("{} exceeds maximum length of {} characters", field_name, max_len));
-    }
-    
-    Ok(str_slice.to_string())
-}
-
-    let c_str = CStr::from_ptr(ptr);
-    let str_slice = c_str.to_str().map_err(|_| {
-        BullShiftError::Validation(format!("{} contains invalid UTF-8", field_name))
-    })?;
-
-    if str_slice.is_empty() {
-        return Err(BullShiftError::Validation(format!(
-            "{} is empty",
-            field_name
-        )));
-    }
 
     if str_slice.len() > max_len {
-        return Err(BullShiftError::Validation(format!(
+        return Err(format!(
             "{} exceeds maximum length of {} characters",
             field_name, max_len
-        )));
+        ));
     }
 
     Ok(str_slice.to_string())
