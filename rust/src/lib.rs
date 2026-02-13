@@ -1,8 +1,12 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
+pub mod error;
 pub mod logging;
 pub mod security;
+
+pub use error::{BullShiftError, Result};
+pub use logging::{ErrorDetails, LogEntry, LogLevel, Logger, StructuredLogger};
 
 #[repr(C)]
 pub struct TradeOrder {
@@ -40,48 +44,62 @@ unsafe fn validate_c_string(
     ptr: *const c_char,
     max_len: usize,
     field_name: &str,
-) -> Result<String, String> {
+) -> Result<String> {
     if ptr.is_null() {
-        return Err(format!("{} is null", field_name));
+        return Err(BullShiftError::Validation(format!(
+            "{} is null",
+            field_name
+        )));
     }
 
     let c_str = CStr::from_ptr(ptr);
-    let str_slice = c_str
-        .to_str()
-        .map_err(|_| format!("{} contains invalid UTF-8", field_name))?;
+    let str_slice = c_str.to_str().map_err(|_| {
+        BullShiftError::Validation(format!("{} contains invalid UTF-8", field_name))
+    })?;
 
     if str_slice.is_empty() {
-        return Err(format!("{} is empty", field_name));
+        return Err(BullShiftError::Validation(format!(
+            "{} is empty",
+            field_name
+        )));
     }
 
     if str_slice.len() > max_len {
-        return Err(format!(
+        return Err(BullShiftError::Validation(format!(
             "{} exceeds maximum length of {} characters",
             field_name, max_len
-        ));
+        )));
     }
 
     Ok(str_slice.to_string())
 }
 
 /// Validates trade order data
-fn validate_trade_order(order: &TradeOrder) -> Result<(), String> {
+fn validate_trade_order(order: &TradeOrder) -> Result<()> {
     // Validate quantity
     if order.quantity <= 0.0 {
-        return Err("Quantity must be greater than zero".to_string());
+        return Err(BullShiftError::Validation(
+            "Quantity must be greater than zero".to_string(),
+        ));
     }
 
     if !order.quantity.is_finite() {
-        return Err("Quantity must be a finite number".to_string());
+        return Err(BullShiftError::Validation(
+            "Quantity must be a finite number".to_string(),
+        ));
     }
 
     // Validate price if provided
     if let Some(price) = order.price {
         if price <= 0.0 {
-            return Err("Price must be greater than zero".to_string());
+            return Err(BullShiftError::Validation(
+                "Price must be greater than zero".to_string(),
+            ));
         }
         if !price.is_finite() {
-            return Err("Price must be a finite number".to_string());
+            return Err(BullShiftError::Validation(
+                "Price must be a finite number".to_string(),
+            ));
         }
     }
 
@@ -213,7 +231,8 @@ mod tests {
     fn test_validate_c_string_null() {
         let result = unsafe { validate_c_string(std::ptr::null(), MAX_SYMBOL_LENGTH, "symbol") };
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("null"));
+        let err = result.unwrap_err();
+        assert!(format!("{}", err).contains("null"));
     }
 
     #[test]
@@ -222,7 +241,8 @@ mod tests {
         let c_string = CString::new(long_string).unwrap();
         let result = unsafe { validate_c_string(c_string.as_ptr(), MAX_SYMBOL_LENGTH, "symbol") };
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("exceeds maximum length"));
+        let err = result.unwrap_err();
+        assert!(format!("{}", err).contains("exceeds maximum length"));
     }
 
     #[test]
@@ -239,9 +259,9 @@ mod tests {
 
         // Clean up
         unsafe {
-            let _ = CString::from_raw(valid_order.symbol);
-            let _ = CString::from_raw(valid_order.side);
-            let _ = CString::from_raw(valid_order.order_type);
+            let _ = CString::from_raw(valid_order.symbol as *mut c_char);
+            let _ = CString::from_raw(valid_order.side as *mut c_char);
+            let _ = CString::from_raw(valid_order.order_type as *mut c_char);
         }
     }
 
@@ -257,76 +277,65 @@ mod tests {
 
         let result = validate_trade_order(&invalid_order);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Quantity"));
+        let err = result.unwrap_err();
+        assert!(format!("{}", err).contains("Quantity"));
 
         // Clean up
         unsafe {
-            let _ = CString::from_raw(invalid_order.symbol);
-            let _ = CString::from_raw(invalid_order.side);
-            let _ = CString::from_raw(invalid_order.order_type);
+            let _ = CString::from_raw(invalid_order.symbol as *mut c_char);
+            let _ = CString::from_raw(invalid_order.side as *mut c_char);
+            let _ = CString::from_raw(invalid_order.order_type as *mut c_char);
         }
     }
 
     #[test]
     fn test_submit_order_valid() {
+        let symbol = CString::new("AAPL").unwrap();
+        let side = CString::new("BUY").unwrap();
+        let order_type = CString::new("MARKET").unwrap();
         let order = TradeOrder {
-            symbol: CString::new("AAPL").unwrap().into_raw(),
-            side: CString::new("BUY").unwrap().into_raw(),
+            symbol: symbol.as_ptr(),
+            side: side.as_ptr(),
             quantity: 100.0,
-            order_type: CString::new("MARKET").unwrap().into_raw(),
+            order_type: order_type.as_ptr(),
             price: Some(150.0),
         };
 
         let result = submit_order(order);
         assert!(result);
-
-        // Clean up
-        unsafe {
-            let _ = CString::from_raw(order.symbol);
-            let _ = CString::from_raw(order.side);
-            let _ = CString::from_raw(order.order_type);
-        }
     }
 
     #[test]
     fn test_submit_order_null_symbol() {
+        let side = CString::new("BUY").unwrap();
+        let order_type = CString::new("MARKET").unwrap();
         let order = TradeOrder {
             symbol: std::ptr::null(),
-            side: CString::new("BUY").unwrap().into_raw(),
+            side: side.as_ptr(),
             quantity: 100.0,
-            order_type: CString::new("MARKET").unwrap().into_raw(),
+            order_type: order_type.as_ptr(),
             price: None,
         };
 
         let result = submit_order(order);
         assert!(!result);
-
-        // Clean up
-        unsafe {
-            let _ = CString::from_raw(order.side);
-            let _ = CString::from_raw(order.order_type);
-        }
     }
 
     #[test]
     fn test_submit_order_invalid_side() {
+        let symbol = CString::new("AAPL").unwrap();
+        let side = CString::new("HOLD").unwrap();
+        let order_type = CString::new("MARKET").unwrap();
         let order = TradeOrder {
-            symbol: CString::new("AAPL").unwrap().into_raw(),
-            side: CString::new("HOLD").unwrap().into_raw(),
+            symbol: symbol.as_ptr(),
+            side: side.as_ptr(),
             quantity: 100.0,
-            order_type: CString::new("MARKET").unwrap().into_raw(),
+            order_type: order_type.as_ptr(),
             price: None,
         };
 
         let result = submit_order(order);
         assert!(!result);
-
-        // Clean up
-        unsafe {
-            let _ = CString::from_raw(order.symbol);
-            let _ = CString::from_raw(order.side);
-            let _ = CString::from_raw(order.order_type);
-        }
     }
 
     #[test]

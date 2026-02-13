@@ -1,3 +1,4 @@
+use crate::logging::{LogLevel, Logger, StructuredLogger};
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
@@ -13,9 +14,10 @@ pub struct SecureCredentials {
 }
 
 pub struct SecurityManager {
-    key_bytes: Vec<u8>, // Store key bytes instead of UnboundKey
+    key_bytes: Vec<u8>,
     rng: SystemRandom,
     credential_store: HashMap<String, SecureCredentials>,
+    logger: StructuredLogger,
 }
 
 impl SecurityManager {
@@ -26,6 +28,7 @@ impl SecurityManager {
             key_bytes: key_material,
             rng: SystemRandom::new(),
             credential_store: HashMap::new(),
+            logger: StructuredLogger::new("security_manager".to_string(), LogLevel::Info),
         })
     }
 
@@ -161,13 +164,11 @@ impl SecurityManager {
         let credential_data = format!("{}:{}", api_key, api_secret);
         let credential_bytes = credential_data.as_bytes();
 
-        // Generate random nonce
         let mut nonce_bytes = [0u8; 12];
         self.rng
             .fill(&mut nonce_bytes)
             .map_err(|e| format!("Failed to generate nonce: {}", e))?;
 
-        // Encrypt credentials
         let nonce = Nonce::assume_unique_for_key(nonce_bytes);
         let unbound_key = UnboundKey::new(&AES_256_GCM, &self.key_bytes)
             .map_err(|e| format!("Failed to create key: {}", e))?;
@@ -181,8 +182,8 @@ impl SecurityManager {
             .map_err(|e| format!("Encryption failed: {}", e))?;
 
         let secure_credentials = SecureCredentials {
-            api_key: "*".repeat(api_key.len()),       // Store masked version
-            api_secret: "*".repeat(api_secret.len()), // Store masked version
+            api_key: "*".repeat(api_key.len()),
+            api_secret: "*".repeat(api_secret.len()),
             broker: broker.clone(),
             encrypted_data,
             nonce: nonce_bytes.to_vec(),
@@ -190,7 +191,12 @@ impl SecurityManager {
 
         self.credential_store
             .insert(broker.clone(), secure_credentials);
-        log::info!("Securely stored credentials for broker: {}", broker);
+
+        self.logger.log(
+            LogLevel::Info,
+            "security",
+            &format!("Securely stored credentials for broker: {}", broker),
+        );
         Ok(())
     }
 
@@ -198,7 +204,8 @@ impl SecurityManager {
         let credentials = self
             .credential_store
             .get(broker)
-            .ok_or_else(|| format!("No credentials found for broker: {}", broker))?;
+            .ok_or_else(|| format!("No credentials found for broker: {}", broker))?
+            .clone();
 
         // Decrypt credentials
         let nonce = Nonce::assume_unique_for_key(
@@ -336,9 +343,7 @@ pub mod macos_keychain {
 
 #[cfg(target_os = "linux")]
 pub mod linux_libsecret {
-    use super::*;
-
-    pub fn store_in_libsecret(service: &str, account: &str, password: &str) -> Result<(), String> {
+    pub fn store_in_libsecret(service: &str, account: &str, _password: &str) -> Result<(), String> {
         // Integration with libsecret
         log::info!("Storing in libsecret: {}@{}", account, service);
         Ok(())
