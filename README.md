@@ -172,7 +172,7 @@ Risk-free simulation environment for strategy testing:
 
 ## 🚀 Quick Start
 
-1. **Setup Environment** - See [Development Setup](docs/DEVELOPMENT_SETUP.md)
+1. **Setup Environment** - See [Development Setup](docs/development_setup.md)
 2. **Build Platform** - `./build.sh` or manual build
 3. **Configure APIs** - Store trading/AI credentials securely
 4. **Start Trading** - Real-time order execution & analytics
@@ -306,22 +306,22 @@ cd flutter && flutter analyze
 ![Documentation](https://img.shields.io/badge/Docs-Complete-blue)
 
 ### User Documentation
-- **[User Manual](docs/USER_MANUAL.md)** - Complete platform usage guide
-- **[Configuration Guide](docs/CONFIGURATION_GUIDE.md)** - Setup trading APIs & AI providers
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues & solutions
+- **[User Manual](docs/user_manual.md)** - Complete platform usage guide
+- **[Configuration Guide](docs/configuration_guide.md)** - Setup trading APIs & AI providers
+- **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues & solutions
 
 ### Developer Documentation
-- **[Development Setup](docs/DEVELOPMENT_SETUP.md)** - Environment setup & build guide
-- **[API Reference](docs/API_REFERENCE.md)** - Rust & Flutter API documentation
+- **[Development Setup](docs/development_setup.md)** - Environment setup & build guide
+- **[API Reference](docs/api_reference.md)** - Rust & Flutter API documentation
 - **[Architecture](docs/architecture.md)** - Project structure & modules
-- **[Contributing Guide](CONTRIBUTING.md)** - Contribution guidelines & standards
+- **[Contributing Guide](docs/contributing.md)** - Contribution guidelines & standards
 
 ### Project Documentation
-- **[Security Policy](SECURITY.md)** - Vulnerability reporting & security practices
+- **[Security Policy](docs/security.md)** - Vulnerability reporting & security practices
 - **[Changelog](CHANGELOG.md)** - Version history & release notes
-- **[Roadmap](docs/ROADMAP.md)** - Feature planning & release schedule
+- **[Roadmap](docs/roadmap.md)** - Feature planning & release schedule
 - **[Security Audit](docs/security-audit.md)** - Security assessment & fixes
-- **[Refactoring Summary](REFACTORING_SUMMARY.md)** - Recent improvements & changes
+- **[Refactoring Summary](docs/refactoring-summary.md)** - Recent improvements & changes
 - **[ADRs](docs/adr/)** - Architecture decision records
 
 ---
@@ -334,7 +334,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed guidelines.
+We welcome contributions! Please see our [Contributing Guide](docs/contributing.md) for detailed guidelines.
 
 **Quick Start:**
 1. Fork the repository
@@ -343,7 +343,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 4. Add tests
 5. Submit pull request
 
-**Security:** All contributions require security review. See [Security Policy](SECURITY.md) for details.
+**Security:** All contributions require security review. See [Security Policy](docs/security.md) for details.
 
 ---
 

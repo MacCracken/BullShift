@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test Coverage** - Increased from 15% to ~30% with 240 total tests (150 unit + 90 widget)
 - **Code Organization** - All view files now under 50 lines with extracted widgets
 - **Performance** - Optimized Rust cloning operations, symmetric correlation matrix calculations
-- **Documentation** - Removed redundant AUDIT_SUMMARY.md, consolidated in REFACTORING_SUMMARY.md
+- **Documentation** - Removed redundant audit-summary.md, consolidated in refactoring-summary.md
 
 ### Fixed
 - **TODO Count** - Reduced from 21 to 9 (12 TODOs completed)

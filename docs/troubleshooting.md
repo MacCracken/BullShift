@@ -893,10 +893,10 @@ This guide helps you diagnose and resolve common issues with BullShift Trading P
 ### Self-Service Resources
 
 #### Documentation
-- **[User Manual](docs/USER_MANUAL.md)** - Complete usage guide
-- **[Configuration Guide](docs/CONFIGURATION_GUIDE.md)** - Setup instructions
-- **[API Reference](docs/API_REFERENCE.md)** - Developer documentation
-- **[Security Guide](SECURITY.md)** - Security policies
+- **[User Manual](user_manual.md)** - Complete usage guide
+- **[Configuration Guide](configuration_guide.md)** - Setup instructions
+- **[API Reference](api_reference.md)** - Developer documentation
+- **[Security Guide](security.md)** - Security policies
 
 #### Diagnostic Tools
 ```bash

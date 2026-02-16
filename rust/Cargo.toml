@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
 hex = "0.4"
 dirs = "5.0"
 thiserror = "1.0"
@@ -27,9 +27,7 @@ ring = "0.17"
 aes-gcm = "0.10"
 
 # Database
-# TODO: Add database backend (objectbox not available for Rust, consider sled or rusqlite)
-# sled = "0.34"
-# rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
 
 # gRPC
 tonic = "0.10"

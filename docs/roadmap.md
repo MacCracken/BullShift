@@ -20,9 +20,9 @@
 
 ### Focus: Database backend
 
-- [ ] Add database backend (consider sled or rusqlite)
-- [ ] Implement portfolio/position persistence
-- [ ] Add historical trade storage
+- [x] Add database backend (consider sled or rusqlite)
+- [x] Implement portfolio/position persistence
+- [x] Add historical trade storage
 
 ---
 
@@ -98,7 +98,9 @@
 |---------|------|--------|
 | 1.0.0-alpha | 2026-02-10 | ✅ Released |
 | 1.0.0-alpha.2 | 2026-02-11 | ✅ Released |
-| 1.1.0 | TBD | Planned |
+| 1.1.0 | 2026-02-13 | ✅ Released |
+| 1.2.0 | 2026-02-16 | ✅ Released |
+| 1.3.0 | TBD | Planned |
 
 ---
 

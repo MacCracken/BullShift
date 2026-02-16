@@ -757,4 +757,4 @@ EOF
 **Configuration Guide Version: 1.0**  
 **Last Updated: February 10, 2026**
 
-For additional help, see the [Troubleshooting Guide](docs/TROUBLESHOOTING.md) or open an issue on GitHub.
+For additional help, see the [Troubleshooting Guide](troubleshooting.md) or open an issue on GitHub.

@@ -1,12 +1,16 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
+use crate::error::{BullShiftError, Result};
+
+pub mod database;
 pub mod error;
 pub mod logging;
 pub mod security;
+pub mod trading;
 
-pub use error::{BullShiftError, Result};
-pub use logging::{ErrorDetails, LogEntry, LogLevel, Logger, StructuredLogger};
+pub use database::Database;
+pub use trading::trade_history::{TradeHistory, Trade};
 
 #[repr(C)]
 pub struct TradeOrder {

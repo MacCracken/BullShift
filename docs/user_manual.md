@@ -36,7 +36,7 @@
 3. Launch application
 
 #### Option 2: Build from Source
-1. [Set up development environment](docs/DEVELOPMENT_SETUP.md)
+1. [Set up development environment](development_setup.md)
 2. Run `./build.sh`
 3. Launch with `flutter run -d [platform]`
 
@@ -524,8 +524,7 @@ Detailed portfolio analysis:
 ### Getting Help
 
 #### Resources
-- **[Documentation](docs/)** - Comprehensive guides
-- **[FAQ](docs/FAQ.md)** - Frequently asked questions
+- **[Documentation](.)** - Comprehensive guides
 - **[Community Forum](https://github.com/yourrepo/bullshift/discussions)** - Community support
 
 #### Contact Support
