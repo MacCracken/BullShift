@@ -831,22 +831,21 @@ const client = new BullShiftWS('your-api-token');
 - **Minor Version** - New features, backward compatible
 - **Patch Version** - Bug fixes, security patches
 
-### Current Version: 1.0.0
+### Current Version: 2026.2.16
 
 ### Supported Versions
-- **v1.0.x** - Current stable version
-- **v0.9.x** - Deprecated (security updates only)
+- **2026.2.x** - Current stable version
 
 ### Version Headers
 ```http
-API-Version: 1.0.0
+API-Version: 2026.2.16
 Content-Type: application/json
 Authorization: Bearer your-token
 ```
 
 ---
 
-**API Reference Version: 1.0**  
+**API Reference Version: 2026.2.16**  
 **Last Updated: February 10, 2026**
 
 For additional examples and integration guides, see the [Examples](docs/examples/) directory.
