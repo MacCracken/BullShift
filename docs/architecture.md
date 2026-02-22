@@ -1,7 +1,7 @@
 # BullShift Codebase Documentation
 
-**Last Updated:** February 12, 2026  
-**Status:** Phase 2 Complete - View Refactoring Complete
+**Last Updated:** February 22, 2026  
+**Status:** Phase 3 Complete - Enhanced Charting Released
 
 ---
 
@@ -12,6 +12,7 @@
 3. [Refactoring Summary](#refactoring-summary)
 4. [TODO Registry](#todo-registry)
 5. [Code Quality Guidelines](#code-quality-guidelines)
+6. [Advanced Charting](#advanced-charting-widget)
 
 > **Note:** For detailed feature roadmap and release planning, see [roadmap.md](roadmap.md)  
 > **Note:** For architectural decisions, see [ADR directory](adr/)
@@ -33,12 +34,14 @@ bullshift/
 │   │   │   ├── bullrunnr/               # News sentiment
 │   │   │   ├── bearly_managed/          # AI integration
 │   │   │   ├── paper_hands/             # Paper trading
-│   │   │   └── watchlist/               # Watchlist management
+│   │   │   ├── watchlist/               # Watchlist management
+│   │   │   └── market_data/             # Real-time market data
 │   │   ├── services/                    # Shared services
 │   │   │   ├── base_provider.dart       # Base provider class
 │   │   │   ├── rust_trading_engine.dart # FFI bridge
 │   │   │   └── security_manager.dart    # Secure storage
 │   │   └── widgets/                     # Reusable widgets
+│   │       └── advanced_charting_widget.dart  # Charting
 │   └── pubspec.yaml
 ├── rust/
 │   └── src/                             # Rust backend
@@ -92,6 +95,15 @@ bullshift/
   - Performance analytics
   - Trade simulation
 
+#### Market Data Module
+- **Purpose:** Real-time market data management
+- **Provider:** `MarketDataProvider`
+- **Key Features:**
+  - Price history storage (OHLCV)
+  - Real-time price updates (simulated)
+  - Symbol data loading
+  - Streaming controls
+
 #### Watchlist Module
 - **Purpose:** Symbol tracking and monitoring
 - **Provider:** `WatchlistProvider`
@@ -100,6 +112,25 @@ bullshift/
   - Search and filter
   - Import/Export
   - Cross-module integration
+
+#### Advanced Charting Widget
+- **Location:** `lib/widgets/advanced_charting_widget.dart`
+- **Key Features:**
+  - Multiple chart types: Candlestick, Line, Area, OHLC, Heikin Ashi, Renko, P&F, Kagi
+  - Technical indicators: SMA, EMA, Bollinger Bands, RSI, MACD, Stochastic, etc.
+  - Drawing tools: Trendline, Horizontal/Vertical Line, Fibonacci, Rectangle, Text
+  - Multi-symbol comparison
+  - Real-time data integration via MarketDataProvider
+  - Custom CustomPainter rendering for performance
+
+#### Drawing Tools
+- **Location:** `lib/widgets/drawing_tools.dart`
+- **Classes:**
+  - `DrawingToolManager` - Manages drawing state
+  - `DrawingObject` - Base class for all drawings
+  - `Trendline`, `HorizontalLine`, `VerticalLine`
+  - `FibonacciRetracement`, `FibonacciExtension`
+  - `RectangleDrawing`, `TextAnnotation`
 
 ---
 

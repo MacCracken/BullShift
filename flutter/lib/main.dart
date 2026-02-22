@@ -12,6 +12,7 @@ import '../modules/bearly_managed/bearly_managed_view.dart';
 import '../modules/paper_hands/paper_hands_provider.dart';
 import '../modules/paper_hands/paper_hands_view.dart';
 import '../modules/watchlist/watchlist_provider.dart';
+import '../modules/market_data/market_data_provider.dart';
 import '../modules/watchlist/watchlist_view.dart';
 import '../widgets/notes_panel.dart';
 import '../widgets/advanced_charting_widget.dart';
@@ -52,7 +53,7 @@ class _TradingDashboardState extends State<TradingDashboard> {
   void initState() {
     super.initState();
     _loadAccountBalance();
-    
+
     // Initialize providers after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -78,6 +79,7 @@ class _TradingDashboardState extends State<TradingDashboard> {
         ChangeNotifierProvider(create: (_) => BearlyManagedProvider()),
         ChangeNotifierProvider(create: (_) => PaperHandsProvider()),
         ChangeNotifierProvider(create: (_) => WatchlistProvider(_rustEngine)),
+        ChangeNotifierProvider(create: (_) => MarketDataProvider(_rustEngine)),
       ],
       child: Scaffold(
         appBar: AppBar(
@@ -160,9 +162,7 @@ class _TradingDashboardState extends State<TradingDashboard> {
                     ),
                   ),
                   // Current View
-                  Expanded(
-                    child: _getCurrentView(),
-                  ),
+                  Expanded(child: _getCurrentView()),
                 ],
               ),
             ),
@@ -211,9 +211,6 @@ class _TradingDashboardState extends State<TradingDashboard> {
   }
 
   void _showOrderDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const OrderDialog(),
-    );
+    showDialog(context: context, builder: (context) => const OrderDialog());
   }
 }

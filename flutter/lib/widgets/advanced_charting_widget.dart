@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'drawing_tools.dart';
 
 class AdvancedChartingWidget extends StatefulWidget {
   final String symbol;
   final String timeframe;
   final Function(String)? onTimeframeChanged;
   final Map<String, dynamic>? chartSettings;
+  final List<PriceData>? priceData;
+  final bool useRealtimeData;
 
   const AdvancedChartingWidget({
     super.key,
@@ -13,6 +16,8 @@ class AdvancedChartingWidget extends StatefulWidget {
     this.timeframe = '1D',
     this.onTimeframeChanged,
     this.chartSettings,
+    this.priceData,
+    this.useRealtimeData = false,
   });
 
   @override
@@ -25,12 +30,24 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
   bool _showVolume = true;
   ChartTheme _theme = ChartTheme.dark;
   String _currentTimeframe = '1D';
+  List<PriceData>? _externalPriceData;
+
+  // Multi-symbol comparison
+  List<String> _comparisonSymbols = [];
+  Map<String, List<PriceData>> _comparisonData = {};
+  bool _showComparisonChart = false;
+
+  // Drawing tools state
+  DrawingToolType _currentDrawingTool = DrawingToolType.none;
+  Color _currentDrawingColor = Colors.yellow;
+  final DrawingToolManager _drawingManager = DrawingToolManager();
 
   @override
   void initState() {
     super.initState();
     _currentTimeframe = widget.timeframe;
     _initializeDefaultIndicators();
+    _externalPriceData = widget.priceData;
   }
 
   @override
@@ -41,7 +58,14 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
         _currentTimeframe = widget.timeframe;
       });
     }
+    if (oldWidget.priceData != widget.priceData) {
+      setState(() {
+        _externalPriceData = widget.priceData;
+      });
+    }
   }
+
+  List<PriceData> get _chartData => _externalPriceData ?? _generateSampleData();
 
   void _initializeDefaultIndicators() {
     _activeIndicators = [
@@ -215,8 +239,290 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
             fontSize: 12,
           ),
         ),
+        const SizedBox(width: 8),
+        // Multi-symbol comparison toggle
+        FilterChip(
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.compare_arrows, size: 14),
+              const SizedBox(width: 4),
+              const Text('Compare', style: TextStyle(fontSize: 12)),
+            ],
+          ),
+          selected: _showComparisonChart,
+          onSelected: (selected) {
+            setState(() {
+              _showComparisonChart = selected;
+              if (selected && _comparisonSymbols.isEmpty) {
+                _addDefaultComparisonSymbols();
+              }
+            });
+          },
+          backgroundColor: const Color(0xFF37474F),
+          selectedColor: Colors.purple,
+          labelStyle: TextStyle(
+            color: _showComparisonChart ? Colors.white : Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+        if (_showComparisonChart) ...[
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.add, size: 18),
+            tooltip: 'Add Symbol to Compare',
+            onPressed: _showAddComparisonDialog,
+            color: Colors.white,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ],
+        const SizedBox(width: 8),
+        // Drawing Tools Toggle
+        PopupMenuButton<DrawingToolType>(
+          tooltip: 'Drawing Tools',
+          icon: Icon(
+            Icons.edit,
+            color: _currentDrawingTool != DrawingToolType.none
+                ? Colors.orange
+                : Colors.white,
+            size: 20,
+          ),
+          onSelected: (DrawingToolType tool) {
+            setState(() {
+              _currentDrawingTool = tool == _currentDrawingTool
+                  ? DrawingToolType.none
+                  : tool;
+            });
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: DrawingToolType.none,
+              child: Row(
+                children: [
+                  Icon(Icons.close, size: 16),
+                  SizedBox(width: 8),
+                  Text('None'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: DrawingToolType.trendline,
+              child: Row(
+                children: [
+                  Icon(Icons.show_chart, size: 16),
+                  SizedBox(width: 8),
+                  Text('Trendline'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: DrawingToolType.horizontalLine,
+              child: Row(
+                children: [
+                  Icon(Icons.horizontal_rule, size: 16),
+                  SizedBox(width: 8),
+                  Text('Horizontal Line'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: DrawingToolType.verticalLine,
+              child: Row(
+                children: [
+                  Icon(Icons.vertical_align_center, size: 16),
+                  SizedBox(width: 8),
+                  Text('Vertical Line'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: DrawingToolType.fibonacciRetracement,
+              child: Row(
+                children: [
+                  Icon(Icons.timeline, size: 16),
+                  SizedBox(width: 8),
+                  Text('Fib Retracement'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: DrawingToolType.fibonacciExtension,
+              child: Row(
+                children: [
+                  Icon(Icons.timeline, size: 16),
+                  SizedBox(width: 8),
+                  Text('Fib Extension'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: DrawingToolType.rectangle,
+              child: Row(
+                children: [
+                  Icon(Icons.crop_square, size: 16),
+                  SizedBox(width: 8),
+                  Text('Rectangle'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: DrawingToolType.textAnnotation,
+              child: Row(
+                children: [
+                  Icon(Icons.text_fields, size: 16),
+                  SizedBox(width: 8),
+                  Text('Text'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (_currentDrawingTool != DrawingToolType.none) ...[
+          const SizedBox(width: 4),
+          PopupMenuButton<Color>(
+            tooltip: 'Line Color',
+            icon: Icon(Icons.palette, color: _currentDrawingColor, size: 20),
+            onSelected: (Color color) {
+              setState(() {
+                _currentDrawingColor = color;
+              });
+            },
+            itemBuilder: (context) =>
+                [
+                      Colors.yellow,
+                      Colors.red,
+                      Colors.blue,
+                      Colors.green,
+                      Colors.orange,
+                      Colors.purple,
+                      Colors.white,
+                    ]
+                    .map(
+                      (color) => PopupMenuItem(
+                        value: color,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              color == Colors.yellow
+                                  ? 'Yellow'
+                                  : color == Colors.red
+                                  ? 'Red'
+                                  : color == Colors.blue
+                                  ? 'Blue'
+                                  : color == Colors.green
+                                  ? 'Green'
+                                  : color == Colors.orange
+                                  ? 'Orange'
+                                  : color == Colors.purple
+                                  ? 'Purple'
+                                  : 'White',
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+          ),
+        ],
       ],
     );
+  }
+
+  void _addDefaultComparisonSymbols() {
+    _comparisonSymbols = ['SPY', 'QQQ'];
+    _generateComparisonData();
+  }
+
+  void _generateComparisonData() {
+    _comparisonData = {};
+    for (final symbol in _comparisonSymbols) {
+      final random = Random(symbol.hashCode);
+      final data = <PriceData>[];
+
+      double currentPrice = 100.0 + random.nextDouble() * 100;
+
+      for (int i = 0; i < _chartData.length; i++) {
+        final change = (random.nextDouble() - 0.5) * 2.0;
+        currentPrice += change;
+        currentPrice = currentPrice.clamp(50.0, 200.0);
+
+        data.add(
+          PriceData(
+            timestamp: _chartData[i].timestamp,
+            open: currentPrice - random.nextDouble() * 0.5,
+            high: currentPrice + random.nextDouble() * 0.5,
+            low: currentPrice - random.nextDouble() * 0.5,
+            close: currentPrice,
+            volume: 1000000 + random.nextInt(2000000),
+          ),
+        );
+      }
+      _comparisonData[symbol] = data;
+    }
+  }
+
+  void _showAddComparisonDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        String newSymbol = '';
+        return AlertDialog(
+          backgroundColor: const Color(0xFF263238),
+          title: const Text(
+            'Add Symbol to Compare',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: TextField(
+            autofocus: true,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              hintText: 'Enter symbol (e.g., SPY)',
+              hintStyle: TextStyle(color: Colors.grey),
+            ),
+            onChanged: (value) => newSymbol = value.toUpperCase(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (newSymbol.isNotEmpty &&
+                    !_comparisonSymbols.contains(newSymbol)) {
+                  setState(() {
+                    _comparisonSymbols = [..._comparisonSymbols, newSymbol];
+                    _generateComparisonData();
+                  });
+                }
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _removeComparisonSymbol(String symbol) {
+    setState(() {
+      _comparisonSymbols = _comparisonSymbols
+          .where((s) => s != symbol)
+          .toList();
+      _comparisonData.remove(symbol);
+    });
   }
 
   Widget _buildMainChart() {
@@ -228,15 +534,176 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
-        child: CustomPaint(
-          size: Size.infinite,
-          painter: ChartPainter(
-            chartType: _currentChartType,
-            data: _generateSampleData(),
-            indicators: _activeIndicators,
-            theme: _theme,
+        child: GestureDetector(
+          onTapDown: _currentDrawingTool != DrawingToolType.none
+              ? (details) => _handleChartTap(details, size)
+              : null,
+          onPanStart: _currentDrawingTool != DrawingToolType.none
+              ? (details) => _handleDrawingStart(details, size)
+              : null,
+          onPanUpdate: _currentDrawingTool != DrawingToolType.none
+              ? (details) => _handleDrawingUpdate(details, size)
+              : null,
+          onPanEnd: _currentDrawingTool != DrawingToolType.none
+              ? (details) => _handleDrawingEnd(details)
+              : null,
+          child: CustomPaint(
+            size: Size.infinite,
+            painter: ChartPainter(
+              chartType: _currentChartType,
+              data: _chartData,
+              indicators: _activeIndicators,
+              theme: _theme,
+              drawings: _drawingManager.drawings,
+              comparisonData: _comparisonData,
+              showComparison: _showComparisonChart,
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Offset? _drawingStartPoint;
+  Size? _chartSize;
+
+  void _handleChartTap(TapDownDetails details, Size size) {
+    if (_chartData.isEmpty) return;
+
+    final price = _getPriceFromY(details.localPosition.dy, size.height);
+    final time = _getTimeFromX(details.localPosition.dx, size.width);
+
+    switch (_currentDrawingTool) {
+      case DrawingToolType.horizontalLine:
+        _drawingManager.addDrawing(
+          HorizontalLine(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            price: price,
+            color: _currentDrawingColor,
+          ),
+        );
+        break;
+      case DrawingToolType.verticalLine:
+        _drawingManager.addDrawing(
+          VerticalLine(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            time: time,
+            color: _currentDrawingColor,
+          ),
+        );
+        break;
+      case DrawingToolType.fibonacciRetracement:
+        _drawingManager.addDrawing(
+          FibonacciRetracement(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            highPrice: _chartData.last.high,
+            lowPrice: _chartData.last.low,
+            color: _currentDrawingColor,
+          ),
+        );
+        break;
+      case DrawingToolType.fibonacciExtension:
+        _drawingManager.addDrawing(
+          FibonacciExtension(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            lowPrice: _chartData.last.low,
+            highPrice: _chartData.last.high,
+            color: _currentDrawingColor,
+          ),
+        );
+        break;
+      case DrawingToolType.textAnnotation:
+        _showTextInputDialog(price, time);
+        break;
+      default:
+        break;
+    }
+    setState(() {});
+  }
+
+  void _handleDrawingStart(DragStartDetails details, Size size) {
+    if (_chartData.isEmpty) return;
+    _drawingStartPoint = details.localPosition;
+    _chartSize = size;
+  }
+
+  void _handleDrawingUpdate(DragUpdateDetails details, Size size) {
+    // Could add preview drawing here
+  }
+
+  void _handleDrawingEnd(DragEndDetails details) {
+    if (_drawingStartPoint == null || _chartSize == null || _chartData.isEmpty)
+      return;
+
+    final startPrice = _getPriceFromY(
+      _drawingStartPoint!.dy,
+      _chartSize!.height,
+    );
+    final endPrice = _getPriceFromY(_drawingStartPoint!.dy, _chartSize!.height);
+    final startTime = _getTimeFromX(_drawingStartPoint!.dx, _chartSize!.width);
+    final endTime = _getTimeFromX(_drawingStartPoint!.dx, _chartSize!.width);
+
+    switch (_currentDrawingTool) {
+      case DrawingToolType.trendline:
+        _drawingManager.addDrawing(
+          Trendline(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            startPrice: startPrice,
+            endPrice: endPrice,
+            startTime: startTime,
+            endTime: endTime,
+            color: _currentDrawingColor,
+          ),
+        );
+        break;
+      case DrawingToolType.rectangle:
+        _drawingManager.addDrawing(
+          RectangleDrawing(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            topPrice: startPrice > endPrice ? startPrice : endPrice,
+            bottomPrice: startPrice > endPrice ? endPrice : startPrice,
+            startTime: startTime,
+            endTime: endTime,
+            color: _currentDrawingColor,
+          ),
+        );
+        break;
+      default:
+        break;
+    }
+
+    _drawingStartPoint = null;
+    _chartSize = null;
+    setState(() {});
+  }
+
+  double _getPriceFromY(double y, double height) {
+    if (_chartData.isEmpty) return 0;
+    final minPrice = _chartData.map((d) => d.low).reduce(min);
+    final maxPrice = _chartData.map((d) => d.high).reduce(max);
+    final priceRange = maxPrice - minPrice;
+    return maxPrice - (y / height) * priceRange;
+  }
+
+  DateTime _getTimeFromX(double x, double width) {
+    if (_chartData.isEmpty) return DateTime.now();
+    final firstTime = _chartData.first.timestamp;
+    final lastTime = _chartData.last.timestamp;
+    final timeRange = lastTime.difference(firstTime).inMilliseconds;
+    final xOffset = (x - 50) / (width - 50);
+    return firstTime.add(Duration(milliseconds: (timeRange * xOffset).round()));
+  }
+
+  void _showTextInputDialog(double price, DateTime time) {
+    // Simple implementation - in real app, show a dialog
+    final text = 'Note';
+    _drawingManager.addDrawing(
+      TextAnnotation(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        price: price,
+        time: time,
+        text: text,
+        color: _currentDrawingColor,
       ),
     );
   }
@@ -252,10 +719,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
         borderRadius: BorderRadius.circular(4),
         child: CustomPaint(
           size: Size.infinite,
-          painter: VolumeChartPainter(
-            data: _generateSampleData(),
-            theme: _theme,
-          ),
+          painter: VolumeChartPainter(data: _chartData, theme: _theme),
         ),
       ),
     );
@@ -282,7 +746,7 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
                   size: Size.infinite,
                   painter: IndicatorChartPainter(
                     indicator: indicator,
-                    data: _generateSampleData(),
+                    data: _chartData,
                     theme: _theme,
                   ),
                 ),
@@ -458,12 +922,18 @@ class ChartPainter extends CustomPainter {
   final List<PriceData> data;
   final List<IndicatorType> indicators;
   final ChartTheme theme;
+  final List<DrawingObject> drawings;
+  final Map<String, List<PriceData>> comparisonData;
+  final bool showComparison;
 
   ChartPainter({
     required this.chartType,
     required this.data,
     required this.indicators,
     required this.theme,
+    this.drawings = const [],
+    this.comparisonData = const {},
+    this.showComparison = false,
   });
 
   @override
@@ -518,6 +988,358 @@ class ChartPainter extends CustomPainter {
 
     // Draw axes
     _drawAxes(canvas, size, minPrice, maxPrice);
+
+    // Draw user drawings
+    _drawUserDrawings(canvas, size, minPrice, maxPrice);
+
+    // Draw comparison symbols
+    if (showComparison && comparisonData.isNotEmpty) {
+      _drawComparisonCharts(canvas, size, minPrice, maxPrice);
+    }
+  }
+
+  void _drawComparisonCharts(
+    Canvas canvas,
+    Size size,
+    double minPrice,
+    double maxPrice,
+  ) {
+    if (data.isEmpty) return;
+
+    final priceRange = maxPrice - minPrice;
+    if (priceRange == 0) return;
+
+    final candleWidth = (size.width - 50) / data.length;
+    final comparisonColors = [
+      Colors.cyan,
+      Colors.orange,
+      Colors.pink,
+      Colors.lime,
+      Colors.amber,
+    ];
+    int colorIndex = 0;
+
+    for (final entry in comparisonData.entries) {
+      final symbol = entry.key;
+      final compData = entry.value;
+      if (compData.isEmpty) continue;
+
+      final color = comparisonColors[colorIndex % comparisonColors.length];
+      colorIndex++;
+
+      // Normalize comparison data to match the main chart's time range
+      final normalizedData = _normalizeComparisonData(compData);
+      if (normalizedData.isEmpty) continue;
+
+      final linePaint = Paint()
+        ..color = color
+        ..strokeWidth = 2.0
+        ..style = PaintingStyle.stroke;
+
+      final path = Path();
+      bool started = false;
+
+      for (int i = 0; i < normalizedData.length && i < data.length; i++) {
+        final x = 50 + i * candleWidth + candleWidth / 2;
+
+        // Normalize price to percentage of range
+        final normalizedPrice = normalizedData[i];
+        final y = size.height - 20 - (normalizedPrice * (size.height - 40));
+
+        if (!started) {
+          path.moveTo(x, y);
+          started = true;
+        } else {
+          path.lineTo(x, y);
+        }
+      }
+
+      canvas.drawPath(path, linePaint);
+
+      // Draw legend
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: symbol,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(size.width - 50 - (colorIndex * 60), 5));
+    }
+  }
+
+  List<double> _normalizeComparisonData(List<PriceData> compData) {
+    if (compData.isEmpty) return [];
+
+    // Get the first and last close prices for normalization
+    final firstClose = compData.first.close;
+    final lastClose = compData.last.close;
+
+    if (firstClose == 0) return [];
+
+    // Normalize to percentage change from first price
+    return compData.map((d) => (d.close - firstClose) / firstClose).toList();
+  }
+
+  void _drawUserDrawings(
+    Canvas canvas,
+    Size size,
+    double minPrice,
+    double maxPrice,
+  ) {
+    if (drawings.isEmpty) return;
+
+    final priceRange = maxPrice - minPrice;
+    if (priceRange == 0) return;
+
+    final firstTime = data.isNotEmpty
+        ? data.first.timestamp.millisecondsSinceEpoch
+        : 0;
+    final lastTime = data.isNotEmpty
+        ? data.last.timestamp.millisecondsSinceEpoch
+        : 1;
+    final timeRange = lastTime - firstTime;
+
+    for (final drawing in drawings) {
+      if (!drawing.visible) continue;
+
+      switch (drawing) {
+        case Trendline trendline:
+          _drawTrendline(
+            canvas,
+            size,
+            trendline,
+            minPrice,
+            priceRange,
+            firstTime,
+            timeRange,
+          );
+          break;
+        case HorizontalLine hLine:
+          _drawHorizontalLine(canvas, size, hLine, minPrice, priceRange);
+          break;
+        case VerticalLine vLine:
+          _drawVerticalLine(canvas, size, vLine, firstTime, timeRange);
+          break;
+        case FibonacciRetracement fib:
+          _drawFibonacci(canvas, size, fib, minPrice, priceRange);
+          break;
+        case FibonacciExtension fibExt:
+          _drawFibonacci(canvas, size, fibExt, minPrice, priceRange);
+          break;
+        case RectangleDrawing rect:
+          _drawRectangle(
+            canvas,
+            size,
+            rect,
+            minPrice,
+            priceRange,
+            firstTime,
+            timeRange,
+          );
+          break;
+        case TextAnnotation textAnn:
+          _drawTextAnnotation(
+            canvas,
+            size,
+            textAnn,
+            minPrice,
+            priceRange,
+            firstTime,
+            timeRange,
+          );
+          break;
+      }
+    }
+  }
+
+  void _drawTrendline(
+    Canvas canvas,
+    Size size,
+    Trendline line,
+    double minPrice,
+    double priceRange,
+    double firstTime,
+    double timeRange,
+  ) {
+    final paint = Paint()
+      ..color = line.color
+      ..strokeWidth = line.strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final startX = timeRange > 0
+        ? ((line.startTime.millisecondsSinceEpoch - firstTime) / timeRange) *
+                  (size.width - 50) +
+              50
+        : 50;
+    final endX = timeRange > 0
+        ? ((line.endTime.millisecondsSinceEpoch - firstTime) / timeRange) *
+                  (size.width - 50) +
+              50
+        : size.width;
+    final startY =
+        ((priceRange - (line.startPrice - minPrice)) / priceRange) *
+        size.height;
+    final endY =
+        ((priceRange - (line.endPrice - minPrice)) / priceRange) * size.height;
+
+    canvas.drawLine(Offset(startX, startY), Offset(endX, endY), paint);
+
+    final dotPaint = Paint()
+      ..color = line.color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(startX, startY), 4, dotPaint);
+    canvas.drawCircle(Offset(endX, endY), 4, dotPaint);
+  }
+
+  void _drawHorizontalLine(
+    Canvas canvas,
+    Size size,
+    HorizontalLine line,
+    double minPrice,
+    double priceRange,
+  ) {
+    final paint = Paint()
+      ..color = line.color
+      ..strokeWidth = line.strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final y =
+        ((priceRange - (line.price - minPrice)) / priceRange) * size.height;
+    canvas.drawLine(Offset(50, y), Offset(size.width, y), paint);
+  }
+
+  void _drawVerticalLine(
+    Canvas canvas,
+    Size size,
+    VerticalLine line,
+    double firstTime,
+    double timeRange,
+  ) {
+    final paint = Paint()
+      ..color = line.color
+      ..strokeWidth = line.strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final x = timeRange > 0
+        ? ((line.time.millisecondsSinceEpoch - firstTime) / timeRange) *
+                  (size.width - 50) +
+              50
+        : 50;
+    canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+  }
+
+  void _drawFibonacci(
+    Canvas canvas,
+    Size size,
+    dynamic fib,
+    double minPrice,
+    double priceRange,
+  ) {
+    List<double> levels;
+    if (fib is FibonacciRetracement) {
+      levels = FibonacciRetracement.levels;
+    } else {
+      levels = FibonacciExtension.levels;
+    }
+
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    for (int i = 0; i < levels.length; i++) {
+      final price = fib is FibonacciRetracement
+          ? fib.highPrice - (fib.highPrice - fib.lowPrice) * levels[i]
+          : fib.lowPrice + (fib.highPrice - fib.lowPrice) * levels[i];
+      final y = ((priceRange - (price - minPrice)) / priceRange) * size.height;
+
+      final paint = Paint()
+        ..color = fib.color.withOpacity(0.7)
+        ..strokeWidth = fib.strokeWidth
+        ..style = PaintingStyle.stroke;
+
+      canvas.drawLine(Offset(50, y), Offset(size.width, y), paint);
+
+      final label = fib is FibonacciRetracement
+          ? FibonacciRetracement.labels[i]
+          : FibonacciExtension.labels[i];
+      textPainter.text = TextSpan(
+        text: '$label: \$${price.toStringAsFixed(2)}',
+        style: TextStyle(color: fib.color, fontSize: 10),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(5, y - textPainter.height / 2));
+    }
+  }
+
+  void _drawRectangle(
+    Canvas canvas,
+    Size size,
+    RectangleDrawing rect,
+    double minPrice,
+    double priceRange,
+    double firstTime,
+    double timeRange,
+  ) {
+    final fillPaint = Paint()
+      ..color = rect.color.withOpacity(0.2)
+      ..style = PaintingStyle.fill;
+    final strokePaint = Paint()
+      ..color = rect.color
+      ..strokeWidth = rect.strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final topY =
+        ((priceRange - (rect.topPrice - minPrice)) / priceRange) * size.height;
+    final bottomY =
+        ((priceRange - (rect.bottomPrice - minPrice)) / priceRange) *
+        size.height;
+    final startX = timeRange > 0
+        ? ((rect.startTime.millisecondsSinceEpoch - firstTime) / timeRange) *
+                  (size.width - 50) +
+              50
+        : 50;
+    final endX = timeRange > 0
+        ? ((rect.endTime.millisecondsSinceEpoch - firstTime) / timeRange) *
+                  (size.width - 50) +
+              50
+        : size.width;
+
+    final rectToDraw = Rect.fromLTRB(startX, topY, endX, bottomY);
+    canvas.drawRect(rectToDraw, fillPaint);
+    canvas.drawRect(rectToDraw, strokePaint);
+  }
+
+  void _drawTextAnnotation(
+    Canvas canvas,
+    Size size,
+    TextAnnotation ann,
+    double minPrice,
+    double priceRange,
+    double firstTime,
+    double timeRange,
+  ) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: ann.text,
+        style: TextStyle(color: ann.color, fontSize: 12),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+
+    final x = timeRange > 0
+        ? ((ann.time.millisecondsSinceEpoch - firstTime) / timeRange) *
+                  (size.width - 50) +
+              50
+        : 50;
+    final y =
+        ((priceRange - (ann.price - minPrice)) / priceRange) * size.height;
+
+    textPainter.paint(canvas, Offset(x, y));
   }
 
   void _drawGrid(Canvas canvas, Size size, double minPrice, double maxPrice) {

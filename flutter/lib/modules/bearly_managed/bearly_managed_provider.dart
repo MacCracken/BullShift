@@ -325,6 +325,22 @@ class BearlyManagedProvider extends BaseProvider {
         'createdAt': DateTime.now().subtract(const Duration(days: 1)),
         'lastUsed': _formatDateTime(DateTime.now().subtract(const Duration(days: 1))),
       },
+      {
+        'id': _generateId(),
+        'name': 'SecureYeoman Agent',
+        'type': 'SecureYeoman',
+        // SecureYeoman exposes its chat API at /api/v1/chat on its local server.
+        // Start SecureYeoman first: `secureyeoman start`
+        // Full AI bridge implementation is tracked in the 2026.5.x roadmap milestone.
+        'apiEndpoint': 'http://localhost:18789',
+        'modelName': 'auto',
+        'isConfigured': false,
+        'isActive': false,
+        'maxTokens': 4096,
+        'temperature': 0.7,
+        'createdAt': DateTime.now(),
+        'lastUsed': null,
+      },
     ];
 
     // Generate trading strategies
