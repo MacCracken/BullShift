@@ -1091,4 +1091,161 @@ mod tests {
         let provider = test_provider(AIProviderType::OpenAI, "", "key");
         assert!(bearly.validate_provider(&provider).is_err());
     }
+
+    #[tokio::test]
+    async fn test_add_duplicate_provider_name() {
+        let sm = test_security_manager();
+        let mut bearly = BearlyManaged::new(sm);
+
+        let p1 = test_provider(AIProviderType::OpenAI, "same_name", "key-1");
+        let p2 = test_provider(AIProviderType::Anthropic, "same_name", "key-2");
+        let id1 = p1.id;
+        let id2 = p2.id;
+
+        bearly.add_provider(p1).await.unwrap();
+        bearly.add_provider(p2).await.unwrap();
+
+        // Both providers stored (keyed by UUID, not name)
+        assert!(bearly.get_provider(&id1).is_some());
+        assert!(bearly.get_provider(&id2).is_some());
+        assert_eq!(bearly.get_providers().len(), 2);
+
+        // The last store_api_key call for "same_name" wins in SecurityManager,
+        // so resolve_api_key for both returns "key-2"
+        let resolved = bearly
+            .resolve_api_key(bearly.get_provider(&id2).unwrap())
+            .unwrap();
+        assert_eq!(resolved, "key-2");
+    }
+
+    #[test]
+    fn test_get_nonexistent_provider() {
+        let sm = test_security_manager();
+        let bearly = BearlyManaged::new(sm);
+        let random_id = Uuid::new_v4();
+        assert!(bearly.get_provider(&random_id).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_provider_list_multiple() {
+        let sm = test_security_manager();
+        let mut bearly = BearlyManaged::new(sm);
+
+        let p1 = test_provider(AIProviderType::OpenAI, "openai_prod", "k1");
+        let p2 = test_provider(AIProviderType::Anthropic, "anthropic_prod", "k2");
+        let p3 = test_provider(AIProviderType::Ollama, "ollama_local", "");
+
+        bearly.add_provider(p1).await.unwrap();
+        bearly.add_provider(p2).await.unwrap();
+        bearly.add_provider(p3).await.unwrap();
+
+        let providers = bearly.get_providers();
+        assert_eq!(providers.len(), 3);
+
+        let names: Vec<&str> = providers.iter().map(|p| p.name.as_str()).collect();
+        assert!(names.contains(&"openai_prod"));
+        assert!(names.contains(&"anthropic_prod"));
+        assert!(names.contains(&"ollama_local"));
+    }
+
+    #[test]
+    fn test_provider_type_variants() {
+        // Verify all six AIProviderType variants exist and are distinct
+        let variants: Vec<AIProviderType> = vec![
+            AIProviderType::OpenAI,
+            AIProviderType::Anthropic,
+            AIProviderType::Ollama,
+            AIProviderType::LocalLLM,
+            AIProviderType::SecureYeoman,
+            AIProviderType::Custom,
+        ];
+
+        assert_eq!(variants.len(), 6);
+
+        // Each variant should Debug-format to its name
+        let debug_strs: Vec<String> = variants.iter().map(|v| format!("{:?}", v)).collect();
+        assert!(debug_strs.contains(&"OpenAI".to_string()));
+        assert!(debug_strs.contains(&"Anthropic".to_string()));
+        assert!(debug_strs.contains(&"Ollama".to_string()));
+        assert!(debug_strs.contains(&"LocalLLM".to_string()));
+        assert!(debug_strs.contains(&"SecureYeoman".to_string()));
+        assert!(debug_strs.contains(&"Custom".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_configure_provider() {
+        let sm = test_security_manager();
+        let mut bearly = BearlyManaged::new(sm);
+
+        let provider = test_provider(AIProviderType::OpenAI, "cfg_test", "sk-key");
+        let provider_id = provider.id;
+
+        bearly.add_provider(provider).await.unwrap();
+
+        // Before configuration
+        assert!(!bearly.get_provider(&provider_id).unwrap().is_configured);
+        assert!(!bearly.is_provider_configured(&provider_id));
+
+        let config = AIConfiguration {
+            provider_id,
+            api_key: "sk-key".to_string(),
+            organization_id: Some("org-123".to_string()),
+            custom_headers: HashMap::new(),
+            rate_limit: RateLimit {
+                requests_per_minute: 60,
+                tokens_per_minute: 100_000,
+                current_usage: CurrentUsage {
+                    requests_this_minute: 0,
+                    tokens_this_minute: 0,
+                    reset_time: Utc::now(),
+                },
+            },
+            cost_tracking: CostTracking {
+                cost_per_1k_tokens: 0.002,
+                total_tokens_used: 0,
+                total_cost: 0.0,
+                daily_limit: 10.0,
+                daily_usage: 0.0,
+            },
+        };
+
+        bearly.configure_provider(provider_id, config).await.unwrap();
+
+        // After configuration
+        assert!(bearly.get_provider(&provider_id).unwrap().is_configured);
+        assert!(bearly.is_provider_configured(&provider_id));
+    }
+
+    #[test]
+    fn test_provider_fields() {
+        let now = Utc::now();
+        let id = Uuid::new_v4();
+        let provider = AIProvider {
+            id,
+            name: "my_provider".to_string(),
+            provider_type: AIProviderType::Custom,
+            api_endpoint: "https://api.example.com".to_string(),
+            api_key: "secret-key".to_string(),
+            model_name: "gpt-custom-v1".to_string(),
+            is_configured: true,
+            is_active: true,
+            max_tokens: 8192,
+            temperature: 0.5,
+            created_at: now,
+            last_used: Some(now),
+        };
+
+        assert_eq!(provider.id, id);
+        assert_eq!(provider.name, "my_provider");
+        assert!(matches!(provider.provider_type, AIProviderType::Custom));
+        assert_eq!(provider.api_endpoint, "https://api.example.com");
+        assert_eq!(provider.api_key, "secret-key");
+        assert_eq!(provider.model_name, "gpt-custom-v1");
+        assert!(provider.is_configured);
+        assert!(provider.is_active);
+        assert_eq!(provider.max_tokens, 8192);
+        assert!((provider.temperature - 0.5).abs() < f64::EPSILON);
+        assert_eq!(provider.created_at, now);
+        assert_eq!(provider.last_used, Some(now));
+    }
 }

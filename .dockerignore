@@ -1,0 +1,8 @@
+target/
+flutter/build/
+flutter/.dart_tool/
+dist/
+.git/
+.env
+*.md
+docs/

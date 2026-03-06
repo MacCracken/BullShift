@@ -324,6 +324,10 @@ impl TradingApiManager {
             "interactive_brokers" => "Interactive Brokers".to_string(),
             "tradier" => "Tradier".to_string(),
             "robinhood" => "Robinhood".to_string(),
+            "schwab" => "Charles Schwab".to_string(),
+            "coinbase" => "Coinbase".to_string(),
+            "kraken" => "Kraken".to_string(),
+            "webull" => "Webull".to_string(),
             other => other.to_string(),
         }
     }

@@ -540,4 +540,121 @@ mod tests {
         assert_eq!(ExportFormat::Csv.to_string(), "CSV");
         assert_eq!(ExportFormat::GoogleSheets.to_string(), "Google Sheets");
     }
+
+    #[test]
+    fn test_json_export_format() {
+        let trades = sample_trades();
+        let json_str = serde_json::to_string_pretty(&trades).unwrap();
+        // Should be valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert!(parsed.is_array());
+        let arr = parsed.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["symbol"], "AAPL");
+        assert_eq!(arr[1]["symbol"], "TSLA");
+        assert_eq!(arr[0]["quantity"], 100.0);
+        assert_eq!(arr[1]["side"], "SELL");
+    }
+
+    #[test]
+    fn test_empty_trades_export() {
+        let empty: Vec<Trade> = vec![];
+        let csv = SheetsManager::trades_to_csv(&empty);
+        let lines: Vec<&str> = csv.lines().collect();
+        // Should have only the header line
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0], "Order ID,Symbol,Side,Quantity,Price,Commission,Executed At");
+
+        let tsv = SheetsManager::trades_to_tsv(&empty);
+        let tsv_lines: Vec<&str> = tsv.lines().collect();
+        assert_eq!(tsv_lines.len(), 1);
+        assert!(tsv_lines[0].contains("Order ID"));
+    }
+
+    #[test]
+    fn test_csv_escape_special_chars() {
+        // Comma in field
+        assert_eq!(csv_escape("hello,world"), "\"hello,world\"");
+        // Double quotes in field
+        assert_eq!(csv_escape("say \"hi\""), "\"say \"\"hi\"\"\"");
+        // Newline in field
+        assert_eq!(csv_escape("line\nbreak"), "\"line\nbreak\"");
+        // Multiple special chars
+        assert_eq!(csv_escape("a,b\"c\nd"), "\"a,b\"\"c\nd\"");
+        // No special chars — no quoting
+        assert_eq!(csv_escape("plain text"), "plain text");
+        // Empty string — no quoting
+        assert_eq!(csv_escape(""), "");
+
+        // Verify trades_to_csv applies escaping for a symbol with a comma
+        let trades = vec![Trade {
+            order_id: "ord,special".to_string(),
+            symbol: "BRK.B".to_string(),
+            side: "BUY".to_string(),
+            quantity: 10.0,
+            price: 400.0,
+            commission: 0.0,
+            executed_at: "2026-03-05T12:00:00Z".to_string(),
+        }];
+        let csv = SheetsManager::trades_to_csv(&trades);
+        // The order_id with a comma should be quoted
+        assert!(csv.contains("\"ord,special\""));
+    }
+
+    #[test]
+    fn test_positions_to_json() {
+        let positions = vec![
+            ApiPosition {
+                symbol: "AAPL".to_string(),
+                quantity: 100.0,
+                entry_price: 150.0,
+                current_price: 160.0,
+                unrealized_pnl: 1000.0,
+            },
+            ApiPosition {
+                symbol: "GOOG".to_string(),
+                quantity: 50.0,
+                entry_price: 2800.0,
+                current_price: 2750.0,
+                unrealized_pnl: -2500.0,
+            },
+        ];
+        let json_str = serde_json::to_string_pretty(&positions).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert!(parsed.is_array());
+        let arr = parsed.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["symbol"], "AAPL");
+        assert_eq!(arr[0]["unrealized_pnl"], 1000.0);
+        assert_eq!(arr[1]["symbol"], "GOOG");
+        assert_eq!(arr[1]["unrealized_pnl"], -2500.0);
+    }
+
+    #[test]
+    fn test_account_to_tsv() {
+        let account = ApiAccount {
+            balance: 100000.0,
+            available: 85000.0,
+            margin_used: 15000.0,
+        };
+        // Use tabular_export with TSV format for account data
+        let headers = &["Balance", "Available", "Margin Used"];
+        let rows = vec![DataRow {
+            values: vec![
+                account.balance.to_string(),
+                account.available.to_string(),
+                account.margin_used.to_string(),
+            ],
+        }];
+        let tsv = SheetsManager::tabular_export(headers, &rows, &ExportFormat::Tsv);
+        let lines: Vec<&str> = tsv.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "Balance\tAvailable\tMargin Used");
+        assert!(lines[1].contains("100000"));
+        assert!(lines[1].contains("85000"));
+        assert!(lines[1].contains("15000"));
+        // Verify tab separation
+        let fields: Vec<&str> = lines[1].split('\t').collect();
+        assert_eq!(fields.len(), 3);
+    }
 }

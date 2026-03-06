@@ -313,3 +313,200 @@ pub struct Trade {
     pub commission: f64,
     pub executed_at: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_db() -> Database {
+        let dir = std::env::temp_dir().join(format!("bullshift_test_{}", uuid::Uuid::new_v4()));
+        Database::new(dir).unwrap()
+    }
+
+    #[test]
+    fn test_create_database() {
+        let dir = std::env::temp_dir().join(format!("bullshift_test_{}", uuid::Uuid::new_v4()));
+        let result = Database::new(dir);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_save_and_get_portfolio() {
+        let db = test_db();
+        let id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
+        assert!(id > 0);
+
+        let portfolio = db.get_portfolio().unwrap();
+        assert!(portfolio.is_some());
+        let (pid, cash, total, margin) = portfolio.unwrap();
+        assert_eq!(pid, id);
+        assert!((cash - 10000.0).abs() < f64::EPSILON);
+        assert!((total - 25000.0).abs() < f64::EPSILON);
+        assert!((margin - 5000.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_get_portfolio_empty() {
+        let db = test_db();
+        let portfolio = db.get_portfolio().unwrap();
+        assert!(portfolio.is_none());
+    }
+
+    #[test]
+    fn test_update_portfolio() {
+        let db = test_db();
+        let id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
+
+        db.update_portfolio(id, 12000.0, 30000.0, 8000.0).unwrap();
+
+        let portfolio = db.get_portfolio().unwrap().unwrap();
+        assert_eq!(portfolio.0, id);
+        assert!((portfolio.1 - 12000.0).abs() < f64::EPSILON);
+        assert!((portfolio.2 - 30000.0).abs() < f64::EPSILON);
+        assert!((portfolio.3 - 8000.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_save_and_get_positions() {
+        let db = test_db();
+        let portfolio_id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
+
+        let _pos1 = db.save_position(portfolio_id, "AAPL", 10.0, 150.0, 155.0, 50.0, 0.0).unwrap();
+        let _pos2 = db.save_position(portfolio_id, "TSLA", 5.0, 200.0, 210.0, 50.0, 10.0).unwrap();
+
+        let positions = db.get_positions(portfolio_id).unwrap();
+        assert_eq!(positions.len(), 2);
+
+        let symbols: Vec<&str> = positions.iter().map(|p| p.symbol.as_str()).collect();
+        assert!(symbols.contains(&"AAPL"));
+        assert!(symbols.contains(&"TSLA"));
+    }
+
+    #[test]
+    fn test_update_position() {
+        let db = test_db();
+        let portfolio_id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
+        let pos_id = db.save_position(portfolio_id, "AAPL", 10.0, 150.0, 155.0, 50.0, 0.0).unwrap();
+
+        db.update_position(pos_id, 20.0, 148.0, 160.0, 240.0, 25.0).unwrap();
+
+        let positions = db.get_positions(portfolio_id).unwrap();
+        assert_eq!(positions.len(), 1);
+        let pos = &positions[0];
+        assert_eq!(pos.id, pos_id);
+        assert!((pos.quantity - 20.0).abs() < f64::EPSILON);
+        assert!((pos.entry_price - 148.0).abs() < f64::EPSILON);
+        assert!((pos.current_price - 160.0).abs() < f64::EPSILON);
+        assert!((pos.unrealized_pnl - 240.0).abs() < f64::EPSILON);
+        assert!((pos.realized_pnl - 25.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_delete_position() {
+        let db = test_db();
+        let portfolio_id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
+        let pos_id = db.save_position(portfolio_id, "AAPL", 10.0, 150.0, 155.0, 50.0, 0.0).unwrap();
+
+        assert_eq!(db.get_positions(portfolio_id).unwrap().len(), 1);
+
+        db.delete_position(pos_id).unwrap();
+
+        assert_eq!(db.get_positions(portfolio_id).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_save_and_get_trades() {
+        let db = test_db();
+
+        db.save_trade("ord1", "AAPL", "BUY", 10.0, 150.0, 1.0).unwrap();
+        db.save_trade("ord2", "TSLA", "BUY", 5.0, 200.0, 1.5).unwrap();
+        db.save_trade("ord3", "GOOG", "SELL", 3.0, 2800.0, 2.0).unwrap();
+
+        let trades = db.get_trades(None, None).unwrap();
+        assert_eq!(trades.len(), 3);
+    }
+
+    #[test]
+    fn test_get_trades_by_symbol() {
+        let db = test_db();
+
+        db.save_trade("ord1", "AAPL", "BUY", 10.0, 150.0, 1.0).unwrap();
+        db.save_trade("ord2", "TSLA", "BUY", 5.0, 200.0, 1.5).unwrap();
+        db.save_trade("ord3", "AAPL", "SELL", 3.0, 155.0, 1.0).unwrap();
+
+        let trades = db.get_trades(Some("AAPL"), None).unwrap();
+        assert_eq!(trades.len(), 2);
+        for trade in &trades {
+            assert_eq!(trade.symbol, "AAPL");
+        }
+    }
+
+    #[test]
+    fn test_get_trades_with_limit() {
+        let db = test_db();
+
+        for i in 0..5 {
+            db.save_trade(&format!("ord{}", i), "AAPL", "BUY", 1.0, 150.0, 1.0).unwrap();
+        }
+
+        let trades = db.get_trades(None, Some(2)).unwrap();
+        assert_eq!(trades.len(), 2);
+    }
+
+    #[test]
+    fn test_get_trades_by_date_range() {
+        let db = test_db();
+
+        // Insert trades with specific executed_at timestamps directly
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO trades (order_id, symbol, side, quantity, price, commission, executed_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params!["ord1", "AAPL", "BUY", 10.0, 150.0, 1.0, "2025-01-15T10:00:00+00:00"],
+            ).unwrap();
+            conn.execute(
+                "INSERT INTO trades (order_id, symbol, side, quantity, price, commission, executed_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params!["ord2", "TSLA", "BUY", 5.0, 200.0, 1.5, "2025-02-10T10:00:00+00:00"],
+            ).unwrap();
+            conn.execute(
+                "INSERT INTO trades (order_id, symbol, side, quantity, price, commission, executed_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params!["ord3", "GOOG", "SELL", 3.0, 2800.0, 2.0, "2025-03-20T10:00:00+00:00"],
+            ).unwrap();
+        }
+
+        let trades = db.get_trades_by_date_range(
+            "2025-01-01T00:00:00+00:00",
+            "2025-02-28T23:59:59+00:00",
+        ).unwrap();
+
+        assert_eq!(trades.len(), 2);
+        let symbols: Vec<&str> = trades.iter().map(|t| t.symbol.as_str()).collect();
+        assert!(symbols.contains(&"AAPL"));
+        assert!(symbols.contains(&"TSLA"));
+    }
+
+    #[test]
+    fn test_position_fields() {
+        let db = test_db();
+        let portfolio_id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
+
+        let pos_id = db.save_position(
+            portfolio_id, "MSFT", 15.0, 300.0, 315.0, 225.0, 50.0,
+        ).unwrap();
+
+        let positions = db.get_positions(portfolio_id).unwrap();
+        assert_eq!(positions.len(), 1);
+
+        let pos = &positions[0];
+        assert_eq!(pos.id, pos_id);
+        assert_eq!(pos.symbol, "MSFT");
+        assert!((pos.quantity - 15.0).abs() < f64::EPSILON);
+        assert!((pos.entry_price - 300.0).abs() < f64::EPSILON);
+        assert!((pos.current_price - 315.0).abs() < f64::EPSILON);
+        assert!((pos.unrealized_pnl - 225.0).abs() < f64::EPSILON);
+        assert!((pos.realized_pnl - 50.0).abs() < f64::EPSILON);
+    }
+}

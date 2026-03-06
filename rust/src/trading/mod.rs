@@ -80,3 +80,43 @@ impl Order {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_market_buy() {
+        let order = Order::new_market_buy("AAPL".to_string(), 10.0);
+        assert_eq!(order.symbol, "AAPL");
+        assert_eq!(order.quantity, 10.0);
+        assert!(matches!(order.side, OrderSide::Buy));
+        assert!(matches!(order.order_type, OrderType::Market));
+        assert!(matches!(order.status, OrderStatus::Pending));
+        assert!(order.price.is_none());
+    }
+
+    #[test]
+    fn test_new_limit_sell() {
+        let order = Order::new_limit_sell("TSLA".to_string(), 5.0, 250.0);
+        assert_eq!(order.symbol, "TSLA");
+        assert_eq!(order.quantity, 5.0);
+        assert!(matches!(order.side, OrderSide::Sell));
+        assert!(matches!(order.order_type, OrderType::Limit));
+        assert!(matches!(order.status, OrderStatus::Pending));
+        assert_eq!(order.price, Some(250.0));
+    }
+
+    #[test]
+    fn test_order_id_unique() {
+        let order1 = Order::new_market_buy("AAPL".to_string(), 1.0);
+        let order2 = Order::new_market_buy("AAPL".to_string(), 1.0);
+        assert_ne!(order1.id, order2.id);
+    }
+
+    #[test]
+    fn test_order_timestamps() {
+        let order = Order::new_market_buy("AAPL".to_string(), 1.0);
+        assert_eq!(order.created_at, order.updated_at);
+    }
+}

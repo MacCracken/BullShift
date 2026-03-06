@@ -481,13 +481,13 @@ impl SentimentAnalyzer for VaderSentimentAnalyzer {
         // Simplified sentiment analysis
         let positive_words = ["good", "great", "excellent", "bullish", "growth", "profit", "rally"];
         let negative_words = ["bad", "terrible", "awful", "bearish", "decline", "loss", "crash"];
-        
+
         let text_lower = text.to_lowercase();
         let words: Vec<&str> = text_lower.split_whitespace().collect();
-        
+
         let positive_count = words.iter().filter(|&&w| positive_words.contains(&w)).count() as f64;
         let negative_count = words.iter().filter(|&&w| negative_words.contains(&w)).count() as f64;
-        
+
         let score = (positive_count - negative_count) / (words.len() as f64 + 1.0);
         let score = score.clamp(-1.0, 1.0);
 
@@ -498,12 +498,160 @@ impl SentimentAnalyzer for VaderSentimentAnalyzer {
         } else {
             SentimentLabel::Neutral
         };
-        
+
         SentimentAnalysis {
             overall,
             score,
             confidence: score.abs(),
             aspects: HashMap::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sentiment_label_variants() {
+        // Verify all SentimentLabel variants exist and can be constructed
+        let _very_bearish = SentimentLabel::VeryBearish;
+        let _bearish = SentimentLabel::Bearish;
+        let _neutral = SentimentLabel::Neutral;
+        let _bullish = SentimentLabel::Bullish;
+        let _very_bullish = SentimentLabel::VeryBullish;
+
+        // Verify Debug is implemented
+        assert!(format!("{:?}", SentimentLabel::VeryBearish).contains("VeryBearish"));
+        assert!(format!("{:?}", SentimentLabel::Bearish).contains("Bearish"));
+        assert!(format!("{:?}", SentimentLabel::Neutral).contains("Neutral"));
+        assert!(format!("{:?}", SentimentLabel::Bullish).contains("Bullish"));
+        assert!(format!("{:?}", SentimentLabel::VeryBullish).contains("VeryBullish"));
+    }
+
+    #[test]
+    fn test_news_category_variants() {
+        // Verify all NewsCategory variants exist and can be constructed
+        let categories = vec![
+            NewsCategory::Earnings,
+            NewsCategory::MergersAcquisitions,
+            NewsCategory::Regulatory,
+            NewsCategory::MarketAnalysis,
+            NewsCategory::EconomicData,
+            NewsCategory::CompanyNews,
+            NewsCategory::SectorNews,
+            NewsCategory::BreakingNews,
+        ];
+
+        assert_eq!(categories.len(), 8);
+        assert!(format!("{:?}", NewsCategory::Earnings).contains("Earnings"));
+        assert!(format!("{:?}", NewsCategory::Regulatory).contains("Regulatory"));
+        assert!(format!("{:?}", NewsCategory::MarketAnalysis).contains("MarketAnalysis"));
+    }
+
+    #[test]
+    fn test_vader_positive_sentiment() {
+        let analyzer = VaderSentimentAnalyzer::new();
+        let result = analyzer.analyze("great amazing excellent");
+        // "great" and "excellent" are in the positive word list
+        assert!(result.score > 0.0, "Expected positive score, got {}", result.score);
+        assert!(result.confidence > 0.0);
+    }
+
+    #[test]
+    fn test_vader_negative_sentiment() {
+        let analyzer = VaderSentimentAnalyzer::new();
+        let result = analyzer.analyze("terrible crash disaster");
+        // "terrible" and "crash" are in the negative word list
+        assert!(result.score < 0.0, "Expected negative score, got {}", result.score);
+        assert!(result.confidence > 0.0);
+    }
+
+    #[test]
+    fn test_vader_neutral_sentiment() {
+        let analyzer = VaderSentimentAnalyzer::new();
+        let result = analyzer.analyze("the stock traded today");
+        // No positive or negative words in the list
+        assert!(
+            result.score.abs() < 0.01,
+            "Expected near-zero score for neutral text, got {}",
+            result.score
+        );
+    }
+
+    fn make_test_article(id: &str, symbol: &str) -> NewsArticle {
+        NewsArticle {
+            id: id.to_string(),
+            title: format!("Test article {}", id),
+            content: "Some neutral content here".to_string(),
+            source: "test".to_string(),
+            author: None,
+            url: "https://example.com".to_string(),
+            published_at: Utc::now(),
+            symbols: vec![symbol.to_string()],
+            sentiment: SentimentAnalysis {
+                overall: SentimentLabel::Neutral,
+                score: 0.0,
+                confidence: 0.5,
+                aspects: HashMap::new(),
+            },
+            relevance_score: 0.5,
+            category: NewsCategory::CompanyNews,
+        }
+    }
+
+    #[test]
+    fn test_bullrunnr_add_and_get_articles() {
+        let mut runnr = BullRunnr::new();
+        let articles = vec![
+            make_test_article("1", "AAPL"),
+            make_test_article("2", "TSLA"),
+            make_test_article("3", "GOOG"),
+        ];
+
+        // Add articles via update_article_cache (internal method accessible in tests)
+        runnr.update_article_cache(&articles);
+
+        // Verify articles were cached
+        assert_eq!(runnr.article_cache.len(), 3);
+        assert!(runnr.article_cache.contains_key("1"));
+        assert!(runnr.article_cache.contains_key("2"));
+        assert!(runnr.article_cache.contains_key("3"));
+    }
+
+    #[test]
+    fn test_bullrunnr_symbol_filter() {
+        let mut runnr = BullRunnr::new();
+        let articles = vec![
+            make_test_article("1", "AAPL"),
+            make_test_article("2", "TSLA"),
+            make_test_article("3", "AAPL"),
+        ];
+
+        // Update symbol sentiment from articles
+        runnr.update_symbol_sentiment(&articles);
+
+        // Verify AAPL has 2 articles and TSLA has 1
+        let aapl_sentiment = runnr.get_symbol_sentiment("AAPL");
+        assert!(aapl_sentiment.is_some());
+        assert_eq!(aapl_sentiment.unwrap().article_count, 2);
+
+        let tsla_sentiment = runnr.get_symbol_sentiment("TSLA");
+        assert!(tsla_sentiment.is_some());
+        assert_eq!(tsla_sentiment.unwrap().article_count, 1);
+
+        // Verify that a non-existent symbol returns None
+        assert!(runnr.get_symbol_sentiment("MSFT").is_none());
+    }
+
+    #[test]
+    fn test_market_sentiment_default() {
+        let sentiment = MarketSentiment::default();
+        assert_eq!(sentiment.overall_score, 0.0);
+        assert_eq!(sentiment.bullish_count, 0);
+        assert_eq!(sentiment.bearish_count, 0);
+        assert_eq!(sentiment.neutral_count, 0);
+        assert_eq!(sentiment.total_articles, 0);
+        assert_eq!(sentiment.fear_greed_index, 0.0);
     }
 }

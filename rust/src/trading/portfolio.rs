@@ -153,3 +153,66 @@ impl Portfolio {
                 .sum::<f64>();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_position(symbol: &str, quantity: f64, entry_price: f64) -> Position {
+        Position {
+            symbol: symbol.to_string(),
+            quantity,
+            entry_price,
+            current_price: entry_price,
+            unrealized_pnl: 0.0,
+            realized_pnl: 0.0,
+            orders: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn test_new_portfolio() {
+        let portfolio = Portfolio::new(100_000.0);
+        assert_eq!(portfolio.cash_balance, 100_000.0);
+        assert_eq!(portfolio.total_value, 100_000.0);
+        assert_eq!(portfolio.available_margin, 100_000.0);
+    }
+
+    #[test]
+    fn test_add_position() {
+        let mut portfolio = Portfolio::new(100_000.0);
+        let position = make_position("AAPL", 10.0, 150.0);
+        portfolio.add_position(position);
+        assert!(portfolio.positions.contains_key("AAPL"));
+    }
+
+    #[test]
+    fn test_update_position_price() {
+        let mut portfolio = Portfolio::new(100_000.0);
+        let position = make_position("AAPL", 10.0, 100.0);
+        portfolio.add_position(position);
+        portfolio.update_position("AAPL", 110.0);
+
+        let pos = portfolio.positions.get("AAPL").unwrap();
+        assert_eq!(pos.current_price, 110.0);
+        let expected_pnl = (110.0 - 100.0) * 10.0;
+        assert!((pos.unrealized_pnl - expected_pnl).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_calculate_total_value() {
+        let mut portfolio = Portfolio::new(100_000.0);
+        let position = make_position("AAPL", 10.0, 150.0);
+        portfolio.add_position(position);
+        // total_value = cash + (quantity * current_price + unrealized_pnl)
+        // = 100_000 + (10 * 150 + 0) = 101_500
+        assert!((portfolio.total_value - 101_500.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_portfolio_no_db() {
+        let mut portfolio = Portfolio::new(100_000.0);
+        let result = portfolio.load();
+        assert!(result.is_err());
+    }
+}

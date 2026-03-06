@@ -915,4 +915,304 @@ mod tests {
             "Custom: My Algo"
         );
     }
+
+    #[test]
+    fn test_breakout_signal() {
+        let mut engine = AlgoEngine::new();
+        let mut params = AlgoParameters {
+            symbols: vec!["BTC".to_string()],
+            ..Default::default()
+        };
+        params.custom.insert("lookback".to_string(), serde_json::json!(5));
+
+        let id = engine.add_strategy("Breakout", AlgoStrategyType::Breakout, params);
+        engine.start_strategy(&id).unwrap();
+
+        // Feed 5 bars with moderate highs
+        let base_prices = vec![100.0, 101.0, 102.0, 100.0, 99.0];
+        for p in &base_prices {
+            let bar = PriceBar {
+                symbol: "BTC".to_string(),
+                open: *p,
+                high: *p + 2.0,
+                low: *p - 2.0,
+                close: *p,
+                volume: 1000.0,
+                timestamp: Utc::now(),
+            };
+            engine.on_price_update(bar);
+        }
+
+        // The breakout bar's close must exceed the max high in the lookback window,
+        // which includes the breakout bar itself. So set high <= close to allow
+        // close > all previous highs (max previous high = 104.0).
+        let breakout_bar = PriceBar {
+            symbol: "BTC".to_string(),
+            open: 108.0,
+            high: 108.0, // high == close so the lookback max high is 108
+            low: 107.0,
+            close: 110.0, // close > high (108) => breakout triggered
+            volume: 2000.0,
+            timestamp: Utc::now(),
+        };
+        let signals = engine.on_price_update(breakout_bar);
+
+        assert!(!signals.is_empty(), "Expected a breakout Buy signal");
+        assert!(matches!(signals[0].side, OrderSide::Buy));
+        assert!(signals[0].reason.contains("Breakout"));
+    }
+
+    #[test]
+    fn test_trailing_stop_signal() {
+        let mut engine = AlgoEngine::new();
+        let mut params = AlgoParameters {
+            symbols: vec!["ETH".to_string()],
+            ..Default::default()
+        };
+        params.custom.insert("trail_pct".to_string(), serde_json::json!(0.05));
+
+        let id = engine.add_strategy("Trail", AlgoStrategyType::TrailingStop, params);
+        engine.start_strategy(&id).unwrap();
+
+        // Feed rising prices to establish a high
+        let rising = vec![100.0, 105.0, 110.0, 115.0, 120.0, 125.0];
+        for p in &rising {
+            let bar = PriceBar {
+                symbol: "ETH".to_string(),
+                open: *p,
+                high: *p + 1.0,
+                low: *p - 1.0,
+                close: *p,
+                volume: 1000.0,
+                timestamp: Utc::now(),
+            };
+            engine.on_price_update(bar);
+        }
+
+        // Now feed a bar that drops well below the trailing stop
+        // Recent high is 126.0, trail at 5% => stop = 126.0 * 0.95 = 119.7
+        let drop_bar = PriceBar {
+            symbol: "ETH".to_string(),
+            open: 115.0,
+            high: 115.0,
+            low: 112.0,
+            close: 113.0, // below 119.7
+            volume: 1500.0,
+            timestamp: Utc::now(),
+        };
+        let signals = engine.on_price_update(drop_bar);
+
+        assert!(!signals.is_empty(), "Expected a trailing stop Sell signal");
+        assert!(matches!(signals[0].side, OrderSide::Sell));
+        assert!(signals[0].reason.contains("Trailing stop"));
+    }
+
+    #[test]
+    fn test_grid_signal() {
+        let mut engine = AlgoEngine::new();
+        let mut params = AlgoParameters {
+            symbols: vec!["DOGE".to_string()],
+            ..Default::default()
+        };
+        params.custom.insert("grid_size".to_string(), serde_json::json!(10.0));
+        params.custom.insert("base_price".to_string(), serde_json::json!(100.0));
+
+        let id = engine.add_strategy("Grid", AlgoStrategyType::Grid, params);
+        engine.start_strategy(&id).unwrap();
+
+        // Feed a bar at exactly one grid level below base (price=90, distance=-10, levels=1.0)
+        // (1.0 % 1.0) = 0.0 < 0.1, so it should trigger
+        let bar = PriceBar {
+            symbol: "DOGE".to_string(),
+            open: 90.0,
+            high: 91.0,
+            low: 89.0,
+            close: 90.0,
+            volume: 500.0,
+            timestamp: Utc::now(),
+        };
+        let signals = engine.on_price_update(bar);
+
+        assert!(!signals.is_empty(), "Expected a grid Buy signal at one grid level below");
+        assert!(matches!(signals[0].side, OrderSide::Buy));
+        assert!(signals[0].reason.contains("Grid"));
+        assert!((signals[0].strength - 0.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_strategy_performance_tracking() {
+        let mut engine = AlgoEngine::new();
+        let params = AlgoParameters {
+            symbols: vec!["AAPL".to_string()],
+            ..Default::default()
+        };
+        let id = engine.add_strategy("perf_test", AlgoStrategyType::Breakout, params);
+
+        // Record 3 wins and 2 losses
+        engine.record_trade_result(&id, 100.0).unwrap();
+        engine.record_trade_result(&id, 200.0).unwrap();
+        engine.record_trade_result(&id, -50.0).unwrap();
+        engine.record_trade_result(&id, -150.0).unwrap();
+        engine.record_trade_result(&id, 300.0).unwrap();
+
+        let perf = &engine.get_strategy(&id).unwrap().performance;
+        assert_eq!(perf.total_trades, 5);
+        assert_eq!(perf.winning_trades, 3);
+        assert_eq!(perf.losing_trades, 2);
+        // win_rate = 3/5 = 0.6
+        assert!((perf.win_rate - 0.6).abs() < 0.001);
+        // total_pnl = 100+200-50-150+300 = 400
+        assert!((perf.total_pnl - 400.0).abs() < 0.01);
+        // avg_win = (100+200+300)/3 = 200
+        assert!((perf.avg_win - 200.0).abs() < 0.01);
+        // avg_loss = (50+150)/2 = 100
+        assert!((perf.avg_loss - 100.0).abs() < 0.01);
+        // max_drawdown = 150
+        assert!((perf.max_drawdown - 150.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_price_history_management() {
+        let mut engine = AlgoEngine::new();
+
+        // Feed bars for two different symbols
+        for i in 0..5 {
+            let bar = PriceBar {
+                symbol: "AAPL".to_string(),
+                open: 100.0 + i as f64,
+                high: 101.0 + i as f64,
+                low: 99.0 + i as f64,
+                close: 100.0 + i as f64,
+                volume: 1000.0,
+                timestamp: Utc::now(),
+            };
+            engine.on_price_update(bar);
+        }
+        for i in 0..3 {
+            let bar = PriceBar {
+                symbol: "TSLA".to_string(),
+                open: 200.0 + i as f64,
+                high: 201.0 + i as f64,
+                low: 199.0 + i as f64,
+                close: 200.0 + i as f64,
+                volume: 500.0,
+                timestamp: Utc::now(),
+            };
+            engine.on_price_update(bar);
+        }
+
+        let aapl_history = engine.get_price_history("AAPL").unwrap();
+        assert_eq!(aapl_history.len(), 5);
+
+        let tsla_history = engine.get_price_history("TSLA").unwrap();
+        assert_eq!(tsla_history.len(), 3);
+
+        assert!(engine.get_price_history("NVDA").is_none());
+    }
+
+    #[test]
+    fn test_duplicate_strategy_name() {
+        let mut engine = AlgoEngine::new();
+        let params1 = AlgoParameters {
+            symbols: vec!["AAPL".to_string()],
+            ..Default::default()
+        };
+        let params2 = AlgoParameters {
+            symbols: vec!["TSLA".to_string()],
+            ..Default::default()
+        };
+
+        let id1 = engine.add_strategy("Same Name", AlgoStrategyType::Breakout, params1);
+        let id2 = engine.add_strategy("Same Name", AlgoStrategyType::Grid, params2);
+
+        // Both are added (different UUIDs), engine does not prevent duplicate names
+        assert_ne!(id1, id2);
+        assert_eq!(engine.list_strategies().len(), 2);
+
+        let s1 = engine.get_strategy(&id1).unwrap();
+        let s2 = engine.get_strategy(&id2).unwrap();
+        assert_eq!(s1.name, s2.name);
+    }
+
+    #[test]
+    fn test_evaluate_with_insufficient_data() {
+        let mut engine = AlgoEngine::new();
+        let mut params = AlgoParameters {
+            symbols: vec!["XYZ".to_string()],
+            ..Default::default()
+        };
+        // MA crossover needs slow_period + 2 bars (default slow=30, so 32 bars)
+        params.custom.insert("fast_period".to_string(), serde_json::json!(10));
+        params.custom.insert("slow_period".to_string(), serde_json::json!(30));
+
+        let id = engine.add_strategy("MA", AlgoStrategyType::MovingAverageCrossover, params);
+        engine.start_strategy(&id).unwrap();
+
+        // Feed only 5 bars — well below the 32 required
+        let mut all_signals = Vec::new();
+        for i in 0..5 {
+            let bar = PriceBar {
+                symbol: "XYZ".to_string(),
+                open: 50.0 + i as f64,
+                high: 51.0 + i as f64,
+                low: 49.0 + i as f64,
+                close: 50.0 + i as f64,
+                volume: 100.0,
+                timestamp: Utc::now(),
+            };
+            all_signals.extend(engine.on_price_update(bar));
+        }
+
+        assert!(all_signals.is_empty(), "Should not generate signals with insufficient data");
+    }
+
+    #[test]
+    fn test_signal_strength_bounds() {
+        let mut engine = AlgoEngine::new();
+
+        // Test breakout signal strength — close must exceed the bar's own high
+        // in the lookback window, so set high <= close on the breakout bar
+        let mut params = AlgoParameters {
+            symbols: vec!["TEST".to_string()],
+            ..Default::default()
+        };
+        params.custom.insert("lookback".to_string(), serde_json::json!(5));
+        let id = engine.add_strategy("Breakout", AlgoStrategyType::Breakout, params);
+        engine.start_strategy(&id).unwrap();
+
+        // Feed history bars with moderate highs
+        for _ in 0..6 {
+            let bar = PriceBar {
+                symbol: "TEST".to_string(),
+                open: 100.0,
+                high: 102.0,
+                low: 98.0,
+                close: 100.0,
+                volume: 1000.0,
+                timestamp: Utc::now(),
+            };
+            engine.on_price_update(bar);
+        }
+
+        // Massive breakout with high <= close so close exceeds all lookback highs
+        let breakout = PriceBar {
+            symbol: "TEST".to_string(),
+            open: 200.0,
+            high: 200.0,
+            low: 195.0,
+            close: 500.0, // extreme breakout, strength should be clamped to 1.0
+            volume: 5000.0,
+            timestamp: Utc::now(),
+        };
+        let signals = engine.on_price_update(breakout);
+
+        assert!(!signals.is_empty(), "Expected at least one breakout signal");
+        for signal in &signals {
+            assert!(
+                signal.strength >= 0.0 && signal.strength <= 1.0,
+                "Signal strength {} is out of bounds [0.0, 1.0]",
+                signal.strength
+            );
+        }
+    }
 }

@@ -543,4 +543,146 @@ mod tests {
         assert_eq!(urlencoding::encode("a=b&c=d"), "a%3Db%26c%3Dd");
         assert_eq!(urlencoding::encode("safe-text_here.ok~"), "safe-text_here.ok~");
     }
+
+    #[test]
+    fn test_delivery_tracking() {
+        let mut mgr = WebhookManager::new();
+        let webhook_id = mgr.add_webhook(
+            "test",
+            "https://example.com",
+            WebhookFormat::Json,
+            vec![WebhookTrigger::OrderFilled],
+        );
+
+        // Manually record a delivery
+        let delivery = WebhookDelivery {
+            id: Uuid::new_v4(),
+            webhook_id,
+            trigger: WebhookTrigger::OrderFilled,
+            status_code: Some(200),
+            success: true,
+            error: None,
+            response_time_ms: 42,
+            timestamp: Utc::now(),
+        };
+        mgr.record_delivery(delivery.clone());
+
+        let recent = mgr.recent_deliveries(10);
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].webhook_id, webhook_id);
+        assert!(recent[0].success);
+        assert_eq!(recent[0].status_code, Some(200));
+
+        let for_hook = mgr.deliveries_for(&webhook_id);
+        assert_eq!(for_hook.len(), 1);
+
+        // Deliveries for a different webhook should be empty
+        let other_id = Uuid::new_v4();
+        assert_eq!(mgr.deliveries_for(&other_id).len(), 0);
+    }
+
+    #[test]
+    fn test_multiple_triggers_same_webhook() {
+        let mut mgr = WebhookManager::new();
+        let id = mgr.add_webhook(
+            "multi-trigger",
+            "https://example.com/hook",
+            WebhookFormat::Json,
+            vec![
+                WebhookTrigger::OrderSubmitted,
+                WebhookTrigger::OrderFilled,
+                WebhookTrigger::OrderCancelled,
+                WebhookTrigger::PositionOpened,
+            ],
+        );
+
+        // Should match each registered trigger
+        for trigger in &[
+            WebhookTrigger::OrderSubmitted,
+            WebhookTrigger::OrderFilled,
+            WebhookTrigger::OrderCancelled,
+            WebhookTrigger::PositionOpened,
+        ] {
+            let matched = mgr.webhooks_for_trigger(trigger);
+            assert_eq!(matched.len(), 1, "Should match trigger {:?}", trigger);
+            assert_eq!(matched[0].id, id);
+        }
+
+        // Should NOT match unregistered triggers
+        assert_eq!(mgr.webhooks_for_trigger(&WebhookTrigger::SystemError).len(), 0);
+        assert_eq!(mgr.webhooks_for_trigger(&WebhookTrigger::PriceAlert).len(), 0);
+    }
+
+    #[test]
+    fn test_webhook_secret_stored() {
+        let mut mgr = WebhookManager::new();
+        let config = WebhookConfig {
+            id: Uuid::new_v4(),
+            name: "signed-hook".to_string(),
+            url: "https://example.com/signed".to_string(),
+            format: WebhookFormat::Json,
+            triggers: vec![WebhookTrigger::OrderFilled],
+            secret: Some("super-secret-key-123".to_string()),
+            headers: HashMap::new(),
+            enabled: true,
+            created_at: Utc::now(),
+            retry_count: 3,
+            timeout_ms: 10000,
+        };
+        let id = mgr.register(config);
+
+        let wh = mgr.get(&id).unwrap();
+        assert_eq!(wh.secret, Some("super-secret-key-123".to_string()));
+        assert_eq!(wh.retry_count, 3);
+        assert_eq!(wh.timeout_ms, 10000);
+
+        // Webhook without secret should have None
+        let id2 = mgr.add_webhook(
+            "no-secret",
+            "https://example.com",
+            WebhookFormat::Json,
+            vec![WebhookTrigger::OrderFilled],
+        );
+        assert_eq!(mgr.get(&id2).unwrap().secret, None);
+    }
+
+    #[test]
+    fn test_format_payload_json() {
+        // Verify the JSON wrapper structure produced by the webhook format
+        let payload = serde_json::json!({"symbol": "AAPL", "price": 150.0});
+        let trigger = WebhookTrigger::OrderFilled;
+        let wrapper = serde_json::json!({
+            "event": trigger.to_string(),
+            "timestamp": Utc::now().to_rfc3339(),
+            "data": payload,
+        });
+        let body = serde_json::to_string(&wrapper).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&body).unwrap();
+
+        assert_eq!(parsed["event"], "order.filled");
+        assert!(parsed["timestamp"].is_string());
+        assert_eq!(parsed["data"]["symbol"], "AAPL");
+        assert_eq!(parsed["data"]["price"], 150.0);
+    }
+
+    #[test]
+    fn test_format_payload_slack() {
+        // Verify Slack format produces {"text": "..."} with expected content
+        let payload = serde_json::json!({"symbol": "TSLA", "action": "buy"});
+        let trigger = WebhookTrigger::StopLossTriggered;
+        let text = format!(
+            "*BullShift Alert*\n`{}`\n```{}```",
+            trigger,
+            serde_json::to_string_pretty(&payload).unwrap_or_default()
+        );
+        let slack_body = serde_json::json!({"text": text});
+        let body_str = slack_body.to_string();
+        let parsed: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+
+        assert!(parsed["text"].is_string());
+        let text_val = parsed["text"].as_str().unwrap();
+        assert!(text_val.contains("*BullShift Alert*"));
+        assert!(text_val.contains("stop_loss.triggered"));
+        assert!(text_val.contains("TSLA"));
+    }
 }

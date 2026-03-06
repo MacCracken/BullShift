@@ -562,4 +562,132 @@ mod tests {
         mgr.close_position(&id).unwrap();
         assert_eq!(mgr.list_positions().len(), 0);
     }
+
+    #[test]
+    fn test_deep_itm_call() {
+        let mgr = OptionsManager::new();
+        // Deep ITM: spot=200, strike=100, 90 days, 30% vol
+        let spot = 200.0;
+        let strike = 100.0;
+        let t = 90.0 / 365.0;
+        let vol = 0.30;
+        let price = mgr.black_scholes(&OptionType::Call, spot, strike, t, vol);
+        let intrinsic = spot - strike; // 100.0
+
+        // Deep ITM call should be very close to intrinsic + time value
+        // At minimum it must be >= intrinsic (no arbitrage)
+        assert!(
+            price >= intrinsic * 0.99,
+            "Deep ITM call price {} should be near intrinsic {}",
+            price,
+            intrinsic
+        );
+        // Should not exceed spot price
+        assert!(price <= spot);
+    }
+
+    #[test]
+    fn test_deep_otm_put() {
+        let mgr = OptionsManager::new();
+        // Deep OTM put: spot=200, strike=50, 30 days, 25% vol
+        let price = mgr.black_scholes(&OptionType::Put, 200.0, 50.0, 30.0 / 365.0, 0.25);
+
+        // Far OTM put should be nearly worthless
+        assert!(
+            price < 0.01,
+            "Deep OTM put should be near zero, got {}",
+            price
+        );
+        assert!(price >= 0.0, "Option price should never be negative");
+    }
+
+    #[test]
+    fn test_greeks_sum_properties() {
+        let mgr = OptionsManager::new();
+        let spot = 100.0;
+        let strike = 100.0;
+        let t = 0.5;
+        let vol = 0.30;
+
+        let call_greeks = mgr.calculate_greeks(&OptionType::Call, spot, strike, t, vol);
+        let put_greeks = mgr.calculate_greeks(&OptionType::Put, spot, strike, t, vol);
+
+        // Put-call parity for delta: call_delta - put_delta = 1
+        // (since put delta is negative, call_delta + |put_delta| = 1)
+        let delta_sum = call_greeks.delta - put_greeks.delta;
+        assert!(
+            (delta_sum - 1.0).abs() < 0.02,
+            "Call delta ({}) - Put delta ({}) = {} should be ~1.0",
+            call_greeks.delta,
+            put_greeks.delta,
+            delta_sum
+        );
+
+        // Gamma should be the same for call and put at the same strike
+        assert!(
+            (call_greeks.gamma - put_greeks.gamma).abs() < 0.001,
+            "Call gamma ({}) and put gamma ({}) should be equal",
+            call_greeks.gamma,
+            put_greeks.gamma
+        );
+
+        // Vega should be the same for call and put at the same strike
+        assert!(
+            (call_greeks.vega - put_greeks.vega).abs() < 0.001,
+            "Call vega ({}) and put vega ({}) should be equal",
+            call_greeks.vega,
+            put_greeks.vega
+        );
+    }
+
+    #[test]
+    fn test_theta_negative() {
+        let mgr = OptionsManager::new();
+        // Test across various moneyness levels
+        for &(spot, strike) in &[(100.0, 100.0), (110.0, 100.0), (90.0, 100.0)] {
+            let call_greeks = mgr.calculate_greeks(&OptionType::Call, spot, strike, 0.25, 0.30);
+            let put_greeks = mgr.calculate_greeks(&OptionType::Put, spot, strike, 0.25, 0.30);
+
+            assert!(
+                call_greeks.theta < 0.0,
+                "Call theta should be negative for spot={}, strike={}, got {}",
+                spot, strike, call_greeks.theta
+            );
+            assert!(
+                put_greeks.theta < 0.0,
+                "Put theta should be negative for spot={}, strike={}, got {}",
+                spot, strike, put_greeks.theta
+            );
+        }
+    }
+
+    #[test]
+    fn test_vega_positive() {
+        let mgr = OptionsManager::new();
+        // Test across ATM, ITM, OTM
+        for &(spot, strike) in &[(100.0, 100.0), (120.0, 100.0), (80.0, 100.0)] {
+            let call_greeks = mgr.calculate_greeks(&OptionType::Call, spot, strike, 0.5, 0.25);
+            let put_greeks = mgr.calculate_greeks(&OptionType::Put, spot, strike, 0.5, 0.25);
+
+            assert!(
+                call_greeks.vega > 0.0,
+                "Call vega should be positive for spot={}, strike={}, got {}",
+                spot, strike, call_greeks.vega
+            );
+            assert!(
+                put_greeks.vega > 0.0,
+                "Put vega should be positive for spot={}, strike={}, got {}",
+                spot, strike, put_greeks.vega
+            );
+        }
+
+        // ATM vega should be highest
+        let atm_vega = mgr.calculate_greeks(&OptionType::Call, 100.0, 100.0, 0.5, 0.25).vega;
+        let otm_vega = mgr.calculate_greeks(&OptionType::Call, 80.0, 100.0, 0.5, 0.25).vega;
+        assert!(
+            atm_vega > otm_vega,
+            "ATM vega ({}) should be greater than OTM vega ({})",
+            atm_vega, otm_vega
+        );
+    }
 }

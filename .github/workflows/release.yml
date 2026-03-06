@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: Build & Release
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: api_server
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: api_server
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: api_server
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust -> target
+      - name: Build
+        working-directory: rust
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp rust/target/${{ matrix.target }}/release/${{ matrix.artifact }} dist/
+          tar -czf bullshift-${{ matrix.target }}.tar.gz -C dist ${{ matrix.artifact }}
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bullshift-${{ matrix.target }}.tar.gz

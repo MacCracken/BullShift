@@ -398,4 +398,91 @@ mod tests {
 
         assert_eq!(logger.entries.borrow().len(), 0);
     }
+
+    #[test]
+    fn test_log_level_ordering() {
+        // Verify numeric ordering: Trace < Debug < Info < Warn < Error < Critical
+        assert!((LogLevel::Trace as u8) < (LogLevel::Debug as u8));
+        assert!((LogLevel::Debug as u8) < (LogLevel::Info as u8));
+        assert!((LogLevel::Info as u8) < (LogLevel::Warn as u8));
+        assert!((LogLevel::Warn as u8) < (LogLevel::Error as u8));
+        assert!((LogLevel::Error as u8) < (LogLevel::Critical as u8));
+    }
+
+    #[test]
+    fn test_structured_logger_component_name() {
+        let logger = StructuredLogger::new("my_component".to_string(), LogLevel::Info);
+        assert_eq!(logger.app_name, "my_component");
+        assert_eq!(logger.min_level, LogLevel::Info);
+        assert_eq!(logger.max_buffer_size, 500);
+    }
+
+    #[test]
+    fn test_log_with_metadata() {
+        let logger = StructuredLogger::new("test_app".to_string(), LogLevel::Debug);
+
+        let mut context = HashMap::new();
+        context.insert(
+            "request_id".to_string(),
+            serde_json::Value::String("req-001".to_string()),
+        );
+        context.insert(
+            "latency_ms".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(42)),
+        );
+
+        logger.log_with_context(LogLevel::Info, "api", "request completed", context);
+
+        let entries = logger.entries.borrow();
+        assert_eq!(entries.len(), 1);
+        let ctx = entries[0].context.as_ref().unwrap();
+        assert_eq!(
+            ctx.get("request_id"),
+            Some(&serde_json::Value::String("req-001".to_string()))
+        );
+        assert_eq!(
+            ctx.get("latency_ms"),
+            Some(&serde_json::Value::Number(serde_json::Number::from(42)))
+        );
+    }
+
+    #[test]
+    fn test_multiple_log_entries() {
+        let logger = StructuredLogger::new("test_app".to_string(), LogLevel::Debug);
+
+        logger.log(LogLevel::Debug, "mod_a", "first");
+        logger.log(LogLevel::Info, "mod_b", "second");
+        logger.log(LogLevel::Warn, "mod_c", "third");
+        logger.log(LogLevel::Error, "mod_d", "fourth");
+
+        assert_eq!(logger.entries.borrow().len(), 4);
+
+        // Verify messages are in insertion order
+        let entries = logger.entries.borrow();
+        assert_eq!(entries[0].message, "first");
+        assert_eq!(entries[1].message, "second");
+        assert_eq!(entries[2].message, "third");
+        assert_eq!(entries[3].message, "fourth");
+    }
+
+    #[test]
+    fn test_warn_and_error_levels() {
+        let logger = StructuredLogger::new("test_app".to_string(), LogLevel::Warn);
+
+        // Debug and Info should be filtered out
+        logger.log(LogLevel::Debug, "mod", "debug msg");
+        logger.log(LogLevel::Info, "mod", "info msg");
+        assert_eq!(logger.entries.borrow().len(), 0);
+
+        // Warn, Error, Critical should be captured
+        logger.log(LogLevel::Warn, "mod", "warn msg");
+        logger.log(LogLevel::Error, "mod", "error msg");
+        logger.log(LogLevel::Critical, "mod", "critical msg");
+        assert_eq!(logger.entries.borrow().len(), 3);
+
+        let entries = logger.entries.borrow();
+        assert_eq!(entries[0].level, LogLevel::Warn);
+        assert_eq!(entries[1].level, LogLevel::Error);
+        assert_eq!(entries[2].level, LogLevel::Critical);
+    }
 }

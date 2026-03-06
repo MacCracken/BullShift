@@ -1,6 +1,10 @@
+pub mod coinbase;
 pub mod interactive_brokers;
+pub mod kraken;
 pub mod robinhood;
+pub mod schwab;
 pub mod tradier;
+pub mod webull;
 
 use serde::{Deserialize, Serialize};
 

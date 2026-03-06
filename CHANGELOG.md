@@ -2,6 +2,78 @@
 
 All notable changes to BullShift Trading Platform will be documented in this file.
 
+## [2027.2.0] - 2026-03-05
+
+### Added
+- **Charles Schwab broker** — `SchwabApi` in `src/trading/brokers/schwab.rs` with
+  OAuth2 Bearer auth, sandbox/production URLs, JSON order body with
+  orderLegCollection, position parsing from longQuantity/shortQuantity. 7 tests.
+- **Coinbase broker** — `CoinbaseApi` in `src/trading/brokers/coinbase.rs` for
+  crypto trading via Advanced Trade API. Market/limit order configs, account
+  balances parsed as positions. Sandbox support. 7 tests.
+- **Kraken broker** — `KrakenApi` in `src/trading/brokers/kraken.rs` for crypto
+  with API-Key/API-Sign HMAC-SHA512 auth. Form-encoded POST orders, Kraken
+  response format parsing. Production only. 7 tests.
+- **Webull broker** — `WebullApi` in `src/trading/brokers/webull.rs` with
+  access_token/device_id auth. Supports options, fractional shares, crypto,
+  extended hours. Production only. 7 tests.
+- **Plugin system** — `PluginRegistry` in `src/plugins/` with `Plugin` trait,
+  6 plugin types, 6 event types, 6 action types. Full lifecycle management
+  (register, unregister, pause, resume). Event dispatch to active plugins
+  with action collection. 12 tests.
+- **Custom indicator framework** — `IndicatorRegistry` in `src/indicators/` with
+  `Indicator` trait and 7 built-in indicators: SMA, EMA, RSI, MACD, Bollinger
+  Bands, ATR, Stochastic. `IndicatorParams` builder for configuration. Factory
+  pattern creation by name. Custom indicator registration. 14 tests.
+- **Mobile app support** — `src/mobile/` with three subsystems:
+  - Push notifications: device registration, platform-specific payloads (APNs,
+    FCM, Web), topic-based filtering
+  - Offline sync: change queue, conflict detection, resolution (KeepLocal,
+    KeepServer, Merge)
+  - Biometric auth: FaceID/TouchID/Fingerprint/PIN registration with
+    challenge-response verification. 14 tests.
+
+### Technical
+- 209 tests total (208 lib + 1 bin), 0 failures, 0 clippy warnings
+- 68 new tests across brokers (28), plugins (12), indicators (14), mobile (14)
+- Total broker count: 8 (Alpaca, Interactive Brokers, Tradier, Robinhood,
+  Schwab, Coinbase, Kraken, Webull)
+- No new Rust dependencies added
+
+---
+
+## [2027.1.0] - 2026-03-05
+
+### Added
+- **Docker containerization** — multi-stage `Dockerfile` with dependency caching,
+  non-root `bullshift` user, built-in health check. `docker-compose.yml` with
+  resource limits, volume mounts, and `.env.example` for configuration.
+- **CI/CD pipelines** — GitHub Actions workflows:
+  - `ci.yml`: formatting, clippy (warnings as errors), tests, release build,
+    Docker build on main branch
+  - `release.yml`: cross-compiles for Linux x86_64, macOS x86_64, macOS ARM64
+    on version tags, uploads to GitHub Releases
+- **Cloud deployment configs** — ready-to-use templates:
+  - AWS ECS Fargate task definition with Secrets Manager integration
+  - Google Cloud Run Knative service with Secret Manager refs
+  - Azure Container Apps ARM template with auto-scaling rules
+- **Monitoring and alerting** — `monitoring` module in `src/monitoring/` with:
+  - Component-level health checks with latency tracking
+  - Atomic counters, gauges, and histograms
+  - Prometheus text exposition format export
+  - Threshold-based alert rules with severity levels and cooldown periods
+  - Alert lifecycle management (fire, resolve, query active)
+- **Production deployment guide** — `docs/guides/production-deployment.md`
+  covering Docker, AWS/GCP/Azure, bare-metal systemd, Prometheus integration,
+  and security checklist.
+
+### Technical
+- 141 tests total (140 lib + 1 bin), 0 failures, 0 clippy warnings
+- 16 new tests for monitoring module (health checks, metrics, alerting)
+- No new Rust dependencies added
+
+---
+
 ## [2026.3.6] - 2026-03-05
 
 ### Added

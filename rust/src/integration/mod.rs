@@ -421,4 +421,105 @@ mod tests {
         bridge.emit_event(event).await.unwrap();
         assert_eq!(bridge.recent_events(10).len(), 1);
     }
+
+    #[test]
+    fn test_config_custom_values() {
+        let config = IntegrationConfig {
+            base_url: "https://secureyeoman.example.com:9443".to_string(),
+            api_key: Some("my-api-key-xyz".to_string()),
+            event_buffer_size: 2000,
+            auto_emit_events: false,
+            subscribe_to_events: false,
+        };
+        assert_eq!(config.base_url, "https://secureyeoman.example.com:9443");
+        assert_eq!(config.api_key, Some("my-api-key-xyz".to_string()));
+        assert_eq!(config.event_buffer_size, 2000);
+        assert!(!config.auto_emit_events);
+        assert!(!config.subscribe_to_events);
+    }
+
+    fn make_test_event(symbol: &str, event_type: TradeEventType) -> TradeEvent {
+        TradeEvent {
+            id: Uuid::new_v4(),
+            event_type,
+            order_id: Uuid::new_v4(),
+            symbol: symbol.to_string(),
+            side: "BUY".to_string(),
+            quantity: 10.0,
+            price: Some(100.0),
+            status: "SUBMITTED".to_string(),
+            timestamp: Utc::now(),
+            metadata: std::collections::HashMap::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_event_history_ordering() {
+        let mut bridge = SecureYeomanBridge::new(IntegrationConfig {
+            auto_emit_events: false,
+            ..Default::default()
+        });
+
+        let symbols = ["AAPL", "GOOG", "MSFT"];
+        for sym in &symbols {
+            bridge
+                .emit_event(make_test_event(sym, TradeEventType::OrderSubmitted))
+                .await
+                .unwrap();
+        }
+
+        // recent_events returns newest first (rev iterator)
+        let events = bridge.recent_events(10);
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0].symbol, "MSFT");
+        assert_eq!(events[1].symbol, "GOOG");
+        assert_eq!(events[2].symbol, "AAPL");
+    }
+
+    #[tokio::test]
+    async fn test_event_history_limit() {
+        let mut bridge = SecureYeomanBridge::new(IntegrationConfig {
+            auto_emit_events: false,
+            ..Default::default()
+        });
+
+        // The history is capped at 500 entries (see emit_event)
+        for i in 0..510 {
+            let mut event = make_test_event("TEST", TradeEventType::OrderFilled);
+            event.quantity = i as f64;
+            bridge.emit_event(event).await.unwrap();
+        }
+
+        // History should be bounded to 500
+        assert_eq!(bridge.event_history.len(), 500);
+
+        // The oldest entries (0..9) should have been evicted;
+        // the first remaining entry should have quantity 10.0
+        let oldest = bridge.event_history.front().unwrap();
+        assert_eq!(oldest.quantity, 10.0);
+    }
+
+    #[test]
+    fn test_validate_agent_order_negative_price() {
+        let bridge = SecureYeomanBridge::new(IntegrationConfig::default());
+
+        // Negative price in the price field is allowed (it's Option<f64>
+        // used for limit orders); validation only checks quantity.
+        let order = bridge
+            .validate_agent_order("AAPL", "BUY", 50.0, "LIMIT", Some(-5.0))
+            .unwrap();
+        assert_eq!(order.price, Some(-5.0));
+
+        // But negative quantity must be rejected
+        let result = bridge.validate_agent_order("AAPL", "SELL", -1.0, "MARKET", None);
+        assert!(result.is_err());
+
+        // NaN quantity must also be rejected
+        let result = bridge.validate_agent_order("AAPL", "BUY", f64::NAN, "MARKET", None);
+        assert!(result.is_err());
+
+        // Infinity quantity must also be rejected
+        let result = bridge.validate_agent_order("AAPL", "BUY", f64::INFINITY, "MARKET", None);
+        assert!(result.is_err());
+    }
 }

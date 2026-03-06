@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "containerAppName": { "type": "string", "defaultValue": "bullshift-api" },
+    "location": { "type": "string", "defaultValue": "[resourceGroup().location]" },
+    "containerImage": { "type": "string" },
+    "alpacaApiKey": { "type": "securestring" },
+    "alpacaApiSecret": { "type": "securestring" }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2023-05-01",
+      "name": "bullshift-env",
+      "location": "[parameters('location')]",
+      "properties": {
+        "zoneRedundant": false
+      }
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('containerAppName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": ["[resourceId('Microsoft.App/managedEnvironments', 'bullshift-env')]"],
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', 'bullshift-env')]",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": 8787
+          },
+          "secrets": [
+            { "name": "alpaca-api-key", "value": "[parameters('alpacaApiKey')]" },
+            { "name": "alpaca-api-secret", "value": "[parameters('alpacaApiSecret')]" }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "api",
+              "image": "[parameters('containerImage')]",
+              "resources": {
+                "cpu": 0.5,
+                "memory": "1Gi"
+              },
+              "env": [
+                { "name": "RUST_LOG", "value": "info" },
+                { "name": "BULLSHIFT_PORT", "value": "8787" },
+                { "name": "ALPACA_SANDBOX", "value": "true" },
+                { "name": "ALPACA_API_KEY", "secretRef": "alpaca-api-key" },
+                { "name": "ALPACA_API_SECRET", "secretRef": "alpaca-api-secret" }
+              ],
+              "probes": [
+                {
+                  "type": "liveness",
+                  "httpGet": { "path": "/health", "port": 8787 },
+                  "periodSeconds": 30
+                },
+                {
+                  "type": "startup",
+                  "httpGet": { "path": "/health", "port": 8787 },
+                  "periodSeconds": 5,
+                  "failureThreshold": 3
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 10,
+            "rules": [
+              {
+                "name": "http-scaling",
+                "http": { "metadata": { "concurrentRequests": "100" } }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

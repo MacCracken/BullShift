@@ -731,4 +731,168 @@ mod tests {
         assert_eq!(SentimentSourceType::RssFeed.to_string(), "RSS");
         assert_eq!(SentimentSourceType::Webhook.to_string(), "Webhook");
     }
+
+    fn make_signal(symbol: &str, score: f64, confidence: f64, source: SentimentSourceType) -> SentimentSignal {
+        SentimentSignal {
+            id: Uuid::new_v4(),
+            source_type: source,
+            source_name: "test".to_string(),
+            symbol: Some(symbol.to_string()),
+            headline: "test headline".to_string(),
+            content: "test content".to_string(),
+            sentiment_score: score,
+            confidence,
+            url: None,
+            timestamp: Utc::now(),
+            raw_data: None,
+        }
+    }
+
+    #[test]
+    fn test_weighted_sentiment_calculation() {
+        let mut router = SentimentRouter::new();
+
+        // Signal 1: score=0.6, confidence=0.8 => weighted contribution = 0.48
+        router.ingest_signal(make_signal("GOOG", 0.6, 0.8, SentimentSourceType::RssFeed));
+        // Signal 2: score=-0.4, confidence=0.2 => weighted contribution = -0.08
+        router.ingest_signal(make_signal("GOOG", -0.4, 0.2, SentimentSourceType::TwitterApi));
+
+        let agg = router.aggregate_sentiment("GOOG").unwrap();
+        // Expected weighted average: (0.6*0.8 + (-0.4)*0.2) / (0.8 + 0.2) = (0.48 - 0.08) / 1.0 = 0.4
+        assert!((agg.overall_score - 0.4).abs() < 0.001, "Expected ~0.4, got {}", agg.overall_score);
+        assert_eq!(agg.signal_count, 2);
+    }
+
+    #[test]
+    fn test_sentiment_signal_expiry() {
+        use chrono::Duration;
+
+        let mut router = SentimentRouter::new();
+
+        // Create an old signal (1 hour ago)
+        let mut old_signal = make_signal("AAPL", 0.5, 0.9, SentimentSourceType::RssFeed);
+        old_signal.timestamp = Utc::now() - Duration::hours(1);
+        router.ingest_signal(old_signal);
+
+        // Create a recent signal
+        let recent_signal = make_signal("AAPL", -0.3, 0.8, SentimentSourceType::TwitterApi);
+        router.ingest_signal(recent_signal);
+
+        let all = router.signals_for_symbol("AAPL", 10);
+        assert_eq!(all.len(), 2);
+
+        // Verify we can distinguish old from recent by timestamp
+        let now = Utc::now();
+        let recent_count = all.iter().filter(|s| (now - s.timestamp).num_minutes() < 5).count();
+        let old_count = all.iter().filter(|s| (now - s.timestamp).num_minutes() >= 30).count();
+        assert_eq!(recent_count, 1);
+        assert_eq!(old_count, 1);
+    }
+
+    #[test]
+    fn test_multiple_symbols_sentiment() {
+        let mut router = SentimentRouter::new();
+
+        router.ingest_signal(make_signal("AAPL", 0.7, 0.9, SentimentSourceType::RssFeed));
+        router.ingest_signal(make_signal("AAPL", 0.3, 0.5, SentimentSourceType::TwitterApi));
+        router.ingest_signal(make_signal("TSLA", -0.8, 0.7, SentimentSourceType::RedditApi));
+        router.ingest_signal(make_signal("NVDA", 0.5, 0.6, SentimentSourceType::Webhook));
+
+        let aapl = router.signals_for_symbol("AAPL", 10);
+        assert_eq!(aapl.len(), 2);
+
+        let tsla = router.signals_for_symbol("TSLA", 10);
+        assert_eq!(tsla.len(), 1);
+
+        let nvda = router.signals_for_symbol("NVDA", 10);
+        assert_eq!(nvda.len(), 1);
+
+        // Aggregate per symbol
+        let aapl_agg = router.aggregate_sentiment("AAPL").unwrap();
+        assert!(aapl_agg.overall_score > 0.0, "AAPL should have positive sentiment");
+
+        let tsla_agg = router.aggregate_sentiment("TSLA").unwrap();
+        assert!(tsla_agg.overall_score < 0.0, "TSLA should have negative sentiment");
+
+        // No signals for AMZN
+        assert!(router.aggregate_sentiment("AMZN").is_none());
+    }
+
+    #[test]
+    fn test_sentiment_score_range() {
+        let mut router = SentimentRouter::new();
+
+        // Ingest signals with extreme scores
+        router.ingest_signal(make_signal("TEST", 1.0, 1.0, SentimentSourceType::RssFeed));
+        router.ingest_signal(make_signal("TEST", -1.0, 1.0, SentimentSourceType::TwitterApi));
+        router.ingest_signal(make_signal("TEST", 0.0, 0.5, SentimentSourceType::Webhook));
+
+        let agg = router.aggregate_sentiment("TEST").unwrap();
+        assert!(
+            agg.overall_score >= -1.0 && agg.overall_score <= 1.0,
+            "Aggregate score {} should be in [-1.0, 1.0]",
+            agg.overall_score
+        );
+
+        // Verify individual signals maintain score range
+        for signal in router.recent_signals(10, None) {
+            assert!(
+                signal.sentiment_score >= -1.0 && signal.sentiment_score <= 1.0,
+                "Signal score {} out of range",
+                signal.sentiment_score
+            );
+        }
+    }
+
+    #[test]
+    fn test_empty_source_list() {
+        let router = SentimentRouter::new();
+
+        // Operations on empty router should not panic
+        assert!(router.list_sources().is_empty());
+        assert!(router.aggregate_sentiment("ANY").is_none());
+        assert!(router.signals_for_symbol("ANY", 10).is_empty());
+        assert!(router.recent_signals(10, None).is_empty());
+        assert!(router.recent_signals(10, Some(&SentimentSourceType::RssFeed)).is_empty());
+
+        let fake_id = Uuid::new_v4();
+        assert!(router.get_source(&fake_id).is_none());
+    }
+
+    #[test]
+    fn test_duplicate_source_names() {
+        let mut router = SentimentRouter::new();
+
+        let config1 = SentimentSourceConfig {
+            id: Uuid::new_v4(),
+            name: "My Feed".to_string(),
+            source_type: SentimentSourceType::RssFeed,
+            endpoint: "https://example.com/feed1.xml".to_string(),
+            api_key: None,
+            enabled: true,
+            poll_interval_secs: 300,
+            symbols_filter: vec!["AAPL".to_string()],
+        };
+        let config2 = SentimentSourceConfig {
+            id: Uuid::new_v4(),
+            name: "My Feed".to_string(), // same name, different id
+            source_type: SentimentSourceType::RssFeed,
+            endpoint: "https://example.com/feed2.xml".to_string(),
+            api_key: None,
+            enabled: true,
+            poll_interval_secs: 600,
+            symbols_filter: vec!["TSLA".to_string()],
+        };
+
+        let id1 = router.add_source(config1);
+        let id2 = router.add_source(config2);
+
+        // Both sources added since they have different UUIDs
+        assert_ne!(id1, id2);
+        assert_eq!(router.list_sources().len(), 2);
+
+        // Both retrievable by their own ID
+        assert_eq!(router.get_source(&id1).unwrap().endpoint, "https://example.com/feed1.xml");
+        assert_eq!(router.get_source(&id2).unwrap().endpoint, "https://example.com/feed2.xml");
+    }
 }

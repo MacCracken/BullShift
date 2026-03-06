@@ -1,0 +1,50 @@
+{
+  "family": "bullshift-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "api",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/bullshift-api:latest",
+      "portMappings": [
+        {
+          "containerPort": 8787,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "RUST_LOG", "value": "info" },
+        { "name": "BULLSHIFT_PORT", "value": "8787" },
+        { "name": "ALPACA_SANDBOX", "value": "true" }
+      ],
+      "secrets": [
+        {
+          "name": "ALPACA_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:bullshift/alpaca:api_key::"
+        },
+        {
+          "name": "ALPACA_API_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:bullshift/alpaca:api_secret::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/bullshift-api",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "api"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -sf http://localhost:8787/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 10
+      }
+    }
+  ]
+}

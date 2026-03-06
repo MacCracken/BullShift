@@ -524,3 +524,168 @@ pub mod fallback_storage {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(test)]
+    impl SecurityManager {
+        fn new_for_test() -> Self {
+            Self {
+                key_bytes: vec![0x42u8; 32],
+                rng: SystemRandom::new(),
+                credential_store: HashMap::new(),
+                logger: StructuredLogger::new("test_security".to_string(), LogLevel::Info),
+                nonce_counter: std::sync::atomic::AtomicU64::new(0),
+            }
+        }
+    }
+
+    #[test]
+    fn test_encrypt_decrypt_roundtrip() {
+        let mgr = SecurityManager::new_for_test();
+        let plaintext = "hello world secret data";
+        let encrypted = mgr.encrypt_sensitive_data(plaintext).unwrap();
+        let decrypted = mgr.decrypt_sensitive_data(&encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_encrypt_different_nonces() {
+        let mgr = SecurityManager::new_for_test();
+        let plaintext = "same input twice";
+        let enc1 = mgr.encrypt_sensitive_data(plaintext).unwrap();
+        let enc2 = mgr.encrypt_sensitive_data(plaintext).unwrap();
+        assert_ne!(enc1, enc2, "Two encryptions of the same plaintext should produce different ciphertexts");
+    }
+
+    #[test]
+    fn test_decrypt_invalid_data() {
+        let mgr = SecurityManager::new_for_test();
+        // Valid hex but garbage ciphertext (long enough to have a 12-byte nonce prefix)
+        let garbage_hex = hex::encode(vec![0xFFu8; 64]);
+        let result = mgr.decrypt_sensitive_data(&garbage_hex);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decrypt_short_data() {
+        let mgr = SecurityManager::new_for_test();
+        // Hex that decodes to less than 12 bytes
+        let short_hex = hex::encode(vec![0xAAu8; 8]);
+        let result = mgr.decrypt_sensitive_data(&short_hex);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_store_and_get_credentials() {
+        let mut mgr = SecurityManager::new_for_test();
+        mgr.store_credentials(
+            "test_broker".to_string(),
+            "my_api_key_12345".to_string(),
+            "my_api_secret_67890".to_string(),
+        )
+        .unwrap();
+
+        let (key, secret) = mgr.get_credentials("test_broker").unwrap();
+        assert_eq!(key, "my_api_key_12345");
+        assert_eq!(secret, "my_api_secret_67890");
+    }
+
+    #[test]
+    fn test_get_credentials_not_found() {
+        let mgr = SecurityManager::new_for_test();
+        let result = mgr.get_credentials("nonexistent_broker");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_list_brokers() {
+        let mut mgr = SecurityManager::new_for_test();
+        mgr.store_credentials(
+            "broker_a".to_string(),
+            "key_aaaaaaaaaaa".to_string(),
+            "secret_a".to_string(),
+        )
+        .unwrap();
+        mgr.store_credentials(
+            "broker_b".to_string(),
+            "key_bbbbbbbbbbb".to_string(),
+            "secret_b".to_string(),
+        )
+        .unwrap();
+
+        let mut brokers = mgr.list_brokers();
+        brokers.sort();
+        assert_eq!(brokers, vec!["broker_a", "broker_b"]);
+    }
+
+    #[test]
+    fn test_remove_credentials() {
+        let mut mgr = SecurityManager::new_for_test();
+        mgr.store_credentials(
+            "removable".to_string(),
+            "key_removable11".to_string(),
+            "secret_removable".to_string(),
+        )
+        .unwrap();
+        assert!(mgr.get_credentials("removable").is_ok());
+
+        mgr.remove_credentials("removable").unwrap();
+        assert!(mgr.get_credentials("removable").is_err());
+    }
+
+    #[test]
+    fn test_remove_credentials_not_found() {
+        let mut mgr = SecurityManager::new_for_test();
+        let result = mgr.remove_credentials("ghost_broker");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_credentials_valid() {
+        let mut mgr = SecurityManager::new_for_test();
+        mgr.store_credentials(
+            "valid_broker".to_string(),
+            "long_enough_key".to_string(),
+            "some_secret_value".to_string(),
+        )
+        .unwrap();
+        let valid = mgr.validate_credentials("valid_broker").unwrap();
+        assert!(valid, "Credentials with api_key length > 10 should validate as true");
+    }
+
+    #[test]
+    fn test_validate_credentials_not_found() {
+        let mgr = SecurityManager::new_for_test();
+        let result = mgr.validate_credentials("missing_broker").unwrap();
+        assert!(!result, "Validating non-existent broker should return Ok(false)");
+    }
+
+    #[test]
+    fn test_store_and_get_api_key() {
+        let mut mgr = SecurityManager::new_for_test();
+        let original_key = "sk-test-1234567890abcdef";
+        mgr.store_api_key("openai", original_key).unwrap();
+        let retrieved = mgr.get_api_key("openai").unwrap();
+        assert_eq!(retrieved, original_key);
+    }
+
+    #[test]
+    fn test_has_api_key() {
+        let mut mgr = SecurityManager::new_for_test();
+        assert!(!mgr.has_api_key("anthropic"), "Should not have key before storing");
+        mgr.store_api_key("anthropic", "sk-ant-test-key-value").unwrap();
+        assert!(mgr.has_api_key("anthropic"), "Should have key after storing");
+    }
+
+    #[test]
+    fn test_remove_api_key() {
+        let mut mgr = SecurityManager::new_for_test();
+        mgr.store_api_key("deepmind", "dm-key-abcdef12345").unwrap();
+        assert!(mgr.has_api_key("deepmind"));
+        mgr.remove_api_key("deepmind").unwrap();
+        assert!(!mgr.has_api_key("deepmind"), "Key should be gone after removal");
+    }
+}

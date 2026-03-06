@@ -1,0 +1,55 @@
+# Google Cloud Run service definition
+# Deploy: gcloud run services replace deploy/gcp/cloudrun.yml --region=REGION
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: bullshift-api
+  annotations:
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minInstances: "1"
+        autoscaling.knative.dev/maxInstances: "10"
+        run.googleapis.com/cpu-throttling: "false"
+    spec:
+      containerConcurrency: 250
+      timeoutSeconds: 300
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT_ID/bullshift/api:latest
+          ports:
+            - containerPort: 8787
+          env:
+            - name: RUST_LOG
+              value: info
+            - name: BULLSHIFT_PORT
+              value: "8787"
+            - name: ALPACA_SANDBOX
+              value: "true"
+            - name: ALPACA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: alpaca-api-key
+            - name: ALPACA_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: alpaca-api-secret
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8787
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8787
+            periodSeconds: 30

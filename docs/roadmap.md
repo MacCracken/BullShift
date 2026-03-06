@@ -68,15 +68,57 @@
 
 ---
 
-## 2027.1.x - Production Ready
+## 2027.1.x - Production Ready (Complete)
 
 ### Focus: Production deployment features
 
-- [ ] Production deployment guide
-- [ ] Docker containerization
-- [ ] Cloud deployment (AWS, GCP, Azure)
-- [ ] CI/CD pipeline setup
-- [ ] Monitoring and alerting
+**Status:** Complete
+
+- [x] **Production deployment guide** — comprehensive guide covering Docker,
+      cloud deployments, bare-metal systemd setup, security checklist, and
+      monitoring integration (`docs/guides/production-deployment.md`)
+- [x] **Docker containerization** — multi-stage Dockerfile with non-root user,
+      health checks, docker-compose with resource limits (`Dockerfile`,
+      `docker-compose.yml`, `.env.example`, `.dockerignore`)
+- [x] **Cloud deployment (AWS, GCP, Azure)** — ECS Fargate task definition with
+      Secrets Manager, Cloud Run Knative service, Azure Container Apps ARM
+      template (`deploy/aws/`, `deploy/gcp/`, `deploy/azure/`)
+- [x] **CI/CD pipeline setup** — GitHub Actions for check/lint/test/build on
+      every push, Docker build on main, cross-platform release on version tags
+      (`.github/workflows/ci.yml`, `.github/workflows/release.yml`)
+- [x] **Monitoring and alerting** — `monitoring` module with health checks
+      (component-level with latency), metrics (counters, gauges, histograms),
+      Prometheus text export, threshold-based alert rules with severity levels
+      and cooldown (`src/monitoring/`)
+
+---
+
+## 2027.2.x - Platform Extensions (Complete)
+
+### Focus: Additional brokers, plugin system, indicator framework, mobile improvements
+
+**Status:** Complete
+
+- [x] **Additional broker integrations** — 4 new brokers added to `src/trading/brokers/`:
+      Charles Schwab (`schwab.rs`) with OAuth2 Bearer auth and sandbox support,
+      Coinbase (`coinbase.rs`) for crypto trading via Advanced Trade API,
+      Kraken (`kraken.rs`) for crypto with API-Key/API-Sign auth,
+      Webull (`webull.rs`) with options and fractional shares support.
+      Total brokers: 8 (Alpaca, Interactive Brokers, Tradier, Robinhood, Schwab,
+      Coinbase, Kraken, Webull)
+- [x] **Plugin system** — `PluginRegistry` in `src/plugins/` with Plugin trait,
+      event-driven architecture (TradeExecuted, PriceUpdate, OrderFilled, etc.),
+      plugin lifecycle management (register, pause, resume, shutdown), and
+      action dispatch (SubmitOrder, SendNotification, EmitEvent). Supports
+      DataSource, Indicator, Strategy, Notification, Integration, and Custom types.
+- [x] **Custom indicator framework** — `IndicatorRegistry` in `src/indicators/`
+      with Indicator trait and 7 built-in indicators: SMA, EMA, RSI, MACD,
+      Bollinger Bands, ATR, Stochastic. Factory pattern for creating indicators
+      by name with configurable parameters. Custom indicator registration support.
+- [x] **Mobile app improvements** — `src/mobile/` with push notification manager
+      (iOS APNs, Android FCM, Web payloads), offline data sync (change queue,
+      conflict detection and resolution), and biometric authentication support
+      (FaceID, TouchID, Fingerprint, PIN with challenge-response verification).
 
 ---
 
@@ -84,13 +126,9 @@
 
 ### Nice to Have
 
-- Mobile app improvements
-- Plugin system for extensions
-
-### Community Requests
-
-- Additional broker integrations (based on user feedback)
-- Custom indicator development framework
+- Real-time WebSocket streaming API
+- Multi-currency portfolio support
+- Tax lot tracking and reporting
 
 ---
 
