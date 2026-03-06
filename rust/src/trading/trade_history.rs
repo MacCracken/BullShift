@@ -1,6 +1,6 @@
-use crate::database::{Database, Trade as DbTrade};
+use crate::database::Database;
 use crate::error::BullShiftError;
-use crate::trading::{Order, OrderSide, OrderStatus};
+use crate::trading::{Order, OrderSide};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -96,7 +96,11 @@ impl TradeHistory {
             .collect())
     }
 
-    pub fn record_order_fill(&self, order: &Order, executed_price: f64) -> Result<i64, BullShiftError> {
+    pub fn record_order_fill(
+        &self,
+        order: &Order,
+        executed_price: f64,
+    ) -> Result<i64, BullShiftError> {
         let trade = Trade::from_order(order, executed_price, 0.0);
         self.record_trade(&trade)
     }

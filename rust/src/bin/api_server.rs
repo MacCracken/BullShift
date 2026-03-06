@@ -34,11 +34,9 @@ use axum::{
     routing::{delete, get, post},
     Json, Router,
 };
-use bullshift_core::trading::api::{AlpacaApi, ApiOrderRequest, TradingApi, TradingCredentials};
-use bullshift_core::ai_bridge::{
-    AIProvider, AIProviderType, BearlyManaged,
-};
+use bullshift_core::ai_bridge::{AIProvider, AIProviderType, BearlyManaged};
 use bullshift_core::security::SecurityManager;
+use bullshift_core::trading::api::{AlpacaApi, ApiOrderRequest, TradingApi, TradingCredentials};
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -54,10 +52,9 @@ struct AppState {
 async fn main() {
     env_logger::init();
 
-    let api_key = std::env::var("ALPACA_API_KEY")
-        .expect("ALPACA_API_KEY env var is required");
-    let api_secret = std::env::var("ALPACA_API_SECRET")
-        .expect("ALPACA_API_SECRET env var is required");
+    let api_key = std::env::var("ALPACA_API_KEY").expect("ALPACA_API_KEY env var is required");
+    let api_secret =
+        std::env::var("ALPACA_API_SECRET").expect("ALPACA_API_SECRET env var is required");
 
     // Default to sandbox — explicit opt-in required for live trading
     let sandbox = std::env::var("ALPACA_SANDBOX")
@@ -93,7 +90,10 @@ async fn main() {
         // AI provider endpoints
         .route("/v1/ai/providers", get(list_providers_handler))
         .route("/v1/ai/providers", post(add_provider_handler))
-        .route("/v1/ai/providers/:id/configure", post(configure_provider_handler))
+        .route(
+            "/v1/ai/providers/:id/configure",
+            post(configure_provider_handler),
+        )
         .route("/v1/ai/providers/:id/test", post(test_provider_handler))
         .route("/v1/ai/chat", post(chat_handler))
         .with_state(state);
@@ -123,7 +123,11 @@ async fn submit_order_handler(
     match state.api.submit_order(order).await {
         Ok(resp) => match serde_json::to_value(resp) {
             Ok(val) => (StatusCode::OK, Json(val)).into_response(),
-            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": format!("Serialization error: {}", e) }))).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Serialization error: {}", e) })),
+            )
+                .into_response(),
         },
         Err(e) => (
             StatusCode::BAD_REQUEST,
@@ -137,7 +141,11 @@ async fn get_positions_handler(State(state): State<Arc<AppState>>) -> impl IntoR
     match state.api.get_positions().await {
         Ok(positions) => match serde_json::to_value(positions) {
             Ok(val) => (StatusCode::OK, Json(val)).into_response(),
-            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": format!("Serialization error: {}", e) }))).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Serialization error: {}", e) })),
+            )
+                .into_response(),
         },
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -151,7 +159,11 @@ async fn get_account_handler(State(state): State<Arc<AppState>>) -> impl IntoRes
     match state.api.get_account().await {
         Ok(account) => match serde_json::to_value(account) {
             Ok(val) => (StatusCode::OK, Json(val)).into_response(),
-            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": format!("Serialization error: {}", e) }))).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Serialization error: {}", e) })),
+            )
+                .into_response(),
         },
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -202,8 +214,12 @@ struct AddProviderRequest {
     temperature: f64,
 }
 
-fn default_max_tokens() -> u32 { 4096 }
-fn default_temperature() -> f64 { 0.7 }
+fn default_max_tokens() -> u32 {
+    4096
+}
+fn default_temperature() -> f64 {
+    0.7
+}
 
 fn parse_provider_type(s: &str) -> AIProviderType {
     match s {
@@ -218,20 +234,24 @@ fn parse_provider_type(s: &str) -> AIProviderType {
 
 async fn list_providers_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let ai = state.ai.lock().await;
-    let providers: Vec<serde_json::Value> = ai.get_providers().iter().map(|p| {
-        serde_json::json!({
-            "id": p.id.to_string(),
-            "name": p.name,
-            "provider_type": format!("{:?}", p.provider_type),
-            "api_endpoint": p.api_endpoint,
-            "model_name": p.model_name,
-            "is_configured": p.is_configured,
-            "is_active": p.is_active,
-            "max_tokens": p.max_tokens,
-            "temperature": p.temperature,
-            "has_api_key": ai.has_encrypted_api_key(&p.id),
+    let providers: Vec<serde_json::Value> = ai
+        .get_providers()
+        .iter()
+        .map(|p| {
+            serde_json::json!({
+                "id": p.id.to_string(),
+                "name": p.name,
+                "provider_type": format!("{:?}", p.provider_type),
+                "api_endpoint": p.api_endpoint,
+                "model_name": p.model_name,
+                "is_configured": p.is_configured,
+                "is_active": p.is_active,
+                "max_tokens": p.max_tokens,
+                "temperature": p.temperature,
+                "has_api_key": ai.has_encrypted_api_key(&p.id),
+            })
         })
-    }).collect();
+        .collect();
 
     Json(serde_json::json!({ "providers": providers }))
 }
@@ -261,11 +281,13 @@ async fn add_provider_handler(
         Ok(_) => (
             StatusCode::CREATED,
             Json(serde_json::json!({ "id": provider_id.to_string() })),
-        ).into_response(),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": format!("{}", e) })),
-        ).into_response(),
+        )
+            .into_response(),
     }
 }
 
@@ -281,10 +303,13 @@ async fn configure_provider_handler(
 ) -> impl IntoResponse {
     let provider_id = match Uuid::parse_str(&id) {
         Ok(id) => id,
-        Err(_) => return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": "Invalid provider ID" })),
-        ).into_response(),
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": "Invalid provider ID" })),
+            )
+                .into_response()
+        }
     };
 
     let mut ai = state.ai.lock().await;
@@ -292,11 +317,13 @@ async fn configure_provider_handler(
         Ok(_) => (
             StatusCode::OK,
             Json(serde_json::json!({ "configured": true })),
-        ).into_response(),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": format!("{}", e) })),
-        ).into_response(),
+        )
+            .into_response(),
     }
 }
 
@@ -304,15 +331,26 @@ async fn test_provider_handler(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let provider_id = Uuid::parse_str(&id)
-        .map_err(|_| (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "Invalid provider ID" }))))?;
+    let provider_id = Uuid::parse_str(&id).map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Invalid provider ID" })),
+        )
+    })?;
 
     // Get the provider endpoint info while holding the lock briefly
     let (api_endpoint, provider_type) = {
         let ai = state.ai.lock().await;
-        let provider = ai.get_provider(&provider_id)
-            .ok_or_else(|| (StatusCode::NOT_FOUND, Json(serde_json::json!({ "error": "Provider not found" }))))?;
-        (provider.api_endpoint.clone(), format!("{:?}", provider.provider_type))
+        let provider = ai.get_provider(&provider_id).ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "error": "Provider not found" })),
+            )
+        })?;
+        (
+            provider.api_endpoint.clone(),
+            format!("{:?}", provider.provider_type),
+        )
     };
 
     // Test connection without holding the lock
@@ -326,7 +364,9 @@ async fn test_provider_handler(
     };
 
     let connected = match client.get(&test_url).send().await {
-        Ok(resp) => resp.status().is_success() || resp.status() == reqwest::StatusCode::UNAUTHORIZED,
+        Ok(resp) => {
+            resp.status().is_success() || resp.status() == reqwest::StatusCode::UNAUTHORIZED
+        }
         Err(_) => false,
     };
 
@@ -345,28 +385,37 @@ async fn chat_handler(
 ) -> impl IntoResponse {
     let provider_id = match Uuid::parse_str(&req.provider_id) {
         Ok(id) => id,
-        Err(_) => return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": "Invalid provider ID" })),
-        ).into_response(),
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": "Invalid provider ID" })),
+            )
+                .into_response()
+        }
     };
 
     let ai = state.ai.lock().await;
     let provider = match ai.get_provider(&provider_id) {
         Some(p) => p.clone(),
-        None => return (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "error": "Provider not found" })),
-        ).into_response(),
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "error": "Provider not found" })),
+            )
+                .into_response()
+        }
     };
 
     // Resolve the decrypted API key and send
     let decrypted_key = match ai.resolve_api_key(&provider) {
         Ok(k) => k,
-        Err(e) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("{}", e) })),
-        ).into_response(),
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("{}", e) })),
+            )
+                .into_response()
+        }
     };
 
     // Build a temporary provider with the decrypted key for the request
@@ -387,21 +436,15 @@ async fn chat_handler(
     // matching the provider type. This avoids needing to expose BearlyManaged internals.
     let client = reqwest::Client::new();
     let result = match provider_with_key.provider_type {
-        AIProviderType::OpenAI => {
-            send_openai_chat(&client, &provider_with_key, &req.prompt).await
-        }
+        AIProviderType::OpenAI => send_openai_chat(&client, &provider_with_key, &req.prompt).await,
         AIProviderType::Anthropic => {
             send_anthropic_chat(&client, &provider_with_key, &req.prompt).await
         }
-        AIProviderType::Ollama => {
-            send_ollama_chat(&client, &provider_with_key, &req.prompt).await
-        }
+        AIProviderType::Ollama => send_ollama_chat(&client, &provider_with_key, &req.prompt).await,
         AIProviderType::SecureYeoman => {
             send_secureyeoman_chat(&client, &provider_with_key, &req.prompt).await
         }
-        _ => {
-            send_generic_chat(&client, &provider_with_key, &req.prompt).await
-        }
+        _ => send_generic_chat(&client, &provider_with_key, &req.prompt).await,
     };
 
     match result {
@@ -409,7 +452,8 @@ async fn chat_handler(
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": format!("{}", e) })),
-        ).into_response(),
+        )
+            .into_response(),
     }
 }
 
@@ -430,10 +474,12 @@ async fn send_openai_chat(
         "temperature": provider.temperature,
     });
 
-    let resp = client.post(&url)
+    let resp = client
+        .post(&url)
         .header("Authorization", format!("Bearer {}", provider.api_key))
         .json(&body)
-        .send().await
+        .send()
+        .await
         .map_err(|e| format!("Request failed: {}", e))?;
 
     if !resp.status().is_success() {
@@ -442,11 +488,15 @@ async fn send_openai_chat(
         return Err(format!("OpenAI API error ({}): {}", status, text));
     }
 
-    let data: serde_json::Value = resp.json().await
+    let data: serde_json::Value = resp
+        .json()
+        .await
         .map_err(|e| format!("Parse error: {}", e))?;
 
     let content = data["choices"][0]["message"]["content"]
-        .as_str().unwrap_or("").to_string();
+        .as_str()
+        .unwrap_or("")
+        .to_string();
     let tokens = data["usage"]["total_tokens"].as_u64().unwrap_or(0);
 
     Ok(serde_json::json!({
@@ -469,12 +519,14 @@ async fn send_anthropic_chat(
         "messages": [{"role": "user", "content": prompt}],
     });
 
-    let resp = client.post(&url)
+    let resp = client
+        .post(&url)
         .header("x-api-key", &provider.api_key)
         .header("anthropic-version", "2023-06-01")
         .header("Content-Type", "application/json")
         .json(&body)
-        .send().await
+        .send()
+        .await
         .map_err(|e| format!("Request failed: {}", e))?;
 
     if !resp.status().is_success() {
@@ -483,11 +535,15 @@ async fn send_anthropic_chat(
         return Err(format!("Anthropic API error ({}): {}", status, text));
     }
 
-    let data: serde_json::Value = resp.json().await
+    let data: serde_json::Value = resp
+        .json()
+        .await
         .map_err(|e| format!("Parse error: {}", e))?;
 
     let content = data["content"][0]["text"]
-        .as_str().unwrap_or("").to_string();
+        .as_str()
+        .unwrap_or("")
+        .to_string();
     let tokens = data["usage"]["input_tokens"].as_u64().unwrap_or(0)
         + data["usage"]["output_tokens"].as_u64().unwrap_or(0);
 
@@ -514,9 +570,11 @@ async fn send_ollama_chat(
         },
     });
 
-    let resp = client.post(&url)
+    let resp = client
+        .post(&url)
         .json(&body)
-        .send().await
+        .send()
+        .await
         .map_err(|e| format!("Request failed: {}", e))?;
 
     if !resp.status().is_success() {
@@ -525,12 +583,14 @@ async fn send_ollama_chat(
         return Err(format!("Ollama API error ({}): {}", status, text));
     }
 
-    let data: serde_json::Value = resp.json().await
+    let data: serde_json::Value = resp
+        .json()
+        .await
         .map_err(|e| format!("Parse error: {}", e))?;
 
     let content = data["response"].as_str().unwrap_or("").to_string();
-    let tokens = data["prompt_eval_count"].as_u64().unwrap_or(0)
-        + data["eval_count"].as_u64().unwrap_or(0);
+    let tokens =
+        data["prompt_eval_count"].as_u64().unwrap_or(0) + data["eval_count"].as_u64().unwrap_or(0);
 
     Ok(serde_json::json!({
         "response": content,
@@ -556,7 +616,9 @@ async fn send_secureyeoman_chat(
         req = req.header("Authorization", format!("Bearer {}", provider.api_key));
     }
 
-    let resp = req.send().await
+    let resp = req
+        .send()
+        .await
         .map_err(|e| format!("Request failed: {}", e))?;
 
     if !resp.status().is_success() {
@@ -565,13 +627,17 @@ async fn send_secureyeoman_chat(
         return Err(format!("SecureYeoman API error ({}): {}", status, text));
     }
 
-    let data: serde_json::Value = resp.json().await
+    let data: serde_json::Value = resp
+        .json()
+        .await
         .map_err(|e| format!("Parse error: {}", e))?;
 
-    let content = data["choices"][0]["message"]["content"].as_str()
+    let content = data["choices"][0]["message"]["content"]
+        .as_str()
         .or_else(|| data["response"].as_str())
         .or_else(|| data["content"].as_str())
-        .unwrap_or("").to_string();
+        .unwrap_or("")
+        .to_string();
     let tokens = data["usage"]["total_tokens"].as_u64().unwrap_or(0);
 
     Ok(serde_json::json!({
@@ -594,9 +660,11 @@ async fn send_generic_chat(
         "temperature": provider.temperature,
     });
 
-    let resp = client.post(&url)
+    let resp = client
+        .post(&url)
         .json(&body)
-        .send().await
+        .send()
+        .await
         .map_err(|e| format!("Request failed: {}", e))?;
 
     if !resp.status().is_success() {
@@ -605,13 +673,17 @@ async fn send_generic_chat(
         return Err(format!("API error ({}): {}", status, text));
     }
 
-    let data: serde_json::Value = resp.json().await
+    let data: serde_json::Value = resp
+        .json()
+        .await
         .map_err(|e| format!("Parse error: {}", e))?;
 
-    let content = data["text"].as_str()
+    let content = data["text"]
+        .as_str()
         .or_else(|| data["response"].as_str())
         .or_else(|| data["completion"].as_str())
-        .unwrap_or("").to_string();
+        .unwrap_or("")
+        .to_string();
 
     Ok(serde_json::json!({
         "response": content,

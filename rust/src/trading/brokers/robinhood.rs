@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use reqwest::Client;
 
+use super::{BrokerCapabilities, BrokerStatus};
 use crate::error::BullShiftError;
 use crate::trading::api::{
     ApiAccount, ApiOrderRequest, ApiOrderResponse, ApiPosition, TradingApi, TradingCredentials,
 };
-use super::{BrokerCapabilities, BrokerStatus};
 
 /// Robinhood brokerage integration.
 ///
@@ -51,7 +51,8 @@ impl RobinhoodApi {
 
     pub async fn check_status(&self) -> BrokerStatus {
         let url = format!("{}/user/", self.base_url);
-        match self.client
+        match self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .send()
@@ -69,7 +70,8 @@ impl RobinhoodApi {
     /// Look up Robinhood's internal instrument URL for a ticker symbol.
     async fn resolve_instrument_url(&self, symbol: &str) -> Result<String, BullShiftError> {
         let url = format!("{}/instruments/?symbol={}", self.base_url, symbol);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .send()
@@ -82,13 +84,17 @@ impl RobinhoodApi {
                 .map(|s| s.to_string())
                 .ok_or_else(|| BullShiftError::Api(format!("Instrument not found: {}", symbol)))
         } else {
-            Err(BullShiftError::Api(format!("Instrument lookup failed: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "Instrument lookup failed: {}",
+                response.status()
+            )))
         }
     }
 
     /// Resolve a Robinhood instrument URL back to a ticker symbol.
     async fn resolve_symbol(&self, instrument_url: &str) -> Result<String, BullShiftError> {
-        let response = self.client
+        let response = self
+            .client
             .get(instrument_url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .send()
@@ -105,7 +111,8 @@ impl RobinhoodApi {
     /// Get a current quote for a symbol.
     async fn get_quote(&self, symbol: &str) -> Result<f64, BullShiftError> {
         let url = format!("{}/quotes/{}/", self.base_url, symbol);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .send()
@@ -118,7 +125,10 @@ impl RobinhoodApi {
                 .and_then(|s| s.parse::<f64>().ok())
                 .ok_or_else(|| BullShiftError::Api("Failed to parse quote".to_string()))
         } else {
-            Err(BullShiftError::Api(format!("Quote lookup failed: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "Quote lookup failed: {}",
+                response.status()
+            )))
         }
     }
 
@@ -148,7 +158,10 @@ impl RobinhoodApi {
 
 #[async_trait]
 impl TradingApi for RobinhoodApi {
-    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
+    async fn submit_order(
+        &self,
+        order: ApiOrderRequest,
+    ) -> Result<ApiOrderResponse, BullShiftError> {
         let instrument_url = self.resolve_instrument_url(&order.symbol).await?;
         let url = format!("{}/orders/", self.base_url);
 
@@ -166,12 +179,15 @@ impl TradingApi for RobinhoodApi {
         if let Some(price) = order.price {
             body["price"] = serde_json::json!(format!("{:.2}", price));
 
-            if order.order_type.to_uppercase() == "STOP" || order.order_type.to_uppercase() == "STOP_LIMIT" {
+            if order.order_type.to_uppercase() == "STOP"
+                || order.order_type.to_uppercase() == "STOP_LIMIT"
+            {
                 body["stop_price"] = serde_json::json!(format!("{:.2}", price));
             }
         }
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .json(&body)
@@ -194,14 +210,18 @@ impl TradingApi for RobinhoodApi {
         } else {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            Err(BullShiftError::Api(format!("Robinhood order failed ({}): {}", status, body)))
+            Err(BullShiftError::Api(format!(
+                "Robinhood order failed ({}): {}",
+                status, body
+            )))
         }
     }
 
     async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError> {
         let url = format!("{}/positions/?nonzero=true", self.base_url);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .send()
@@ -214,15 +234,19 @@ impl TradingApi for RobinhoodApi {
             let mut positions = Vec::new();
             if let Some(results) = results {
                 for p in results {
-                    let quantity: f64 = p["quantity"].as_str()
+                    let quantity: f64 = p["quantity"]
+                        .as_str()
                         .and_then(|s| s.parse().ok())
                         .unwrap_or(0.0);
-                    let avg_buy: f64 = p["average_buy_price"].as_str()
+                    let avg_buy: f64 = p["average_buy_price"]
+                        .as_str()
                         .and_then(|s| s.parse().ok())
                         .unwrap_or(0.0);
 
                     let instrument_url = p["instrument"].as_str().unwrap_or("");
-                    let symbol = self.resolve_symbol(instrument_url).await
+                    let symbol = self
+                        .resolve_symbol(instrument_url)
+                        .await
                         .unwrap_or_else(|_| "???".to_string());
 
                     // Fetch current price
@@ -241,14 +265,18 @@ impl TradingApi for RobinhoodApi {
 
             Ok(positions)
         } else {
-            Err(BullShiftError::Api(format!("Robinhood get positions failed: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "Robinhood get positions failed: {}",
+                response.status()
+            )))
         }
     }
 
     async fn get_account(&self) -> Result<ApiAccount, BullShiftError> {
         let url = format!("{}/accounts/", self.base_url);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .send()
@@ -258,10 +286,12 @@ impl TradingApi for RobinhoodApi {
             let body: serde_json::Value = response.json().await?;
             let account = &body["results"][0];
 
-            let portfolio_cash: f64 = account["portfolio_cash"].as_str()
+            let portfolio_cash: f64 = account["portfolio_cash"]
+                .as_str()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(0.0);
-            let buying_power: f64 = account["buying_power"].as_str()
+            let buying_power: f64 = account["buying_power"]
+                .as_str()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(0.0);
 
@@ -271,14 +301,18 @@ impl TradingApi for RobinhoodApi {
                 margin_used: portfolio_cash - buying_power,
             })
         } else {
-            Err(BullShiftError::Api(format!("Robinhood get account failed: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "Robinhood get account failed: {}",
+                response.status()
+            )))
         }
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
         let url = format!("{}/orders/{}/cancel/", self.base_url, order_id);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .send()

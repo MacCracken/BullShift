@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use reqwest::Client;
 
+use super::{BrokerCapabilities, BrokerStatus};
 use crate::error::BullShiftError;
 use crate::trading::api::{
     ApiAccount, ApiOrderRequest, ApiOrderResponse, ApiPosition, TradingApi, TradingCredentials,
 };
-use super::{BrokerCapabilities, BrokerStatus};
 
 /// Interactive Brokers integration via the Client Portal Gateway API.
 ///
@@ -95,7 +95,10 @@ impl InteractiveBrokersApi {
 
 #[async_trait]
 impl TradingApi for InteractiveBrokersApi {
-    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
+    async fn submit_order(
+        &self,
+        order: ApiOrderRequest,
+    ) -> Result<ApiOrderResponse, BullShiftError> {
         let url = format!(
             "{}/v1/api/iserver/account/{}/orders",
             self.gateway_url, self.account_id
@@ -112,11 +115,7 @@ impl TradingApi for InteractiveBrokersApi {
             }]
         });
 
-        let response = self.client
-            .post(&url)
-            .json(&ib_order)
-            .send()
-            .await?;
+        let response = self.client.post(&url).json(&ib_order).send().await?;
 
         if response.status().is_success() {
             let body: serde_json::Value = response.json().await?;
@@ -140,7 +139,10 @@ impl TradingApi for InteractiveBrokersApi {
         } else {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            Err(BullShiftError::Api(format!("IB order failed ({}): {}", status, body)))
+            Err(BullShiftError::Api(format!(
+                "IB order failed ({}): {}",
+                status, body
+            )))
         }
     }
 
@@ -166,7 +168,10 @@ impl TradingApi for InteractiveBrokersApi {
                 .collect();
             Ok(positions)
         } else {
-            Err(BullShiftError::Api(format!("IB get positions failed: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "IB get positions failed: {}",
+                response.status()
+            )))
         }
     }
 
@@ -186,7 +191,10 @@ impl TradingApi for InteractiveBrokersApi {
                 margin_used: body["maintmarginreq"]["amount"].as_f64().unwrap_or(0.0),
             })
         } else {
-            Err(BullShiftError::Api(format!("IB get account failed: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "IB get account failed: {}",
+                response.status()
+            )))
         }
     }
 
@@ -235,7 +243,10 @@ mod tests {
         assert_eq!(InteractiveBrokersApi::map_order_type("MARKET"), "MKT");
         assert_eq!(InteractiveBrokersApi::map_order_type("LIMIT"), "LMT");
         assert_eq!(InteractiveBrokersApi::map_order_type("STOP"), "STP");
-        assert_eq!(InteractiveBrokersApi::map_order_type("STOP_LIMIT"), "STP LMT");
+        assert_eq!(
+            InteractiveBrokersApi::map_order_type("STOP_LIMIT"),
+            "STP LMT"
+        );
     }
 
     #[test]

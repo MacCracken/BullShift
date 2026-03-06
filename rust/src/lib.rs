@@ -11,7 +11,7 @@ pub mod security;
 pub mod trading;
 
 pub use database::Database;
-pub use trading::trade_history::{TradeHistory, Trade};
+pub use trading::trade_history::{Trade, TradeHistory};
 
 #[repr(C)]
 pub struct TradeOrder {
@@ -19,7 +19,9 @@ pub struct TradeOrder {
     side: *const c_char,
     quantity: f64,
     order_type: *const c_char,
-    price: Option<f64>,
+    /// Price for limit orders. Use `f64::NAN` or a non-positive value to indicate no price (market order).
+    price: f64,
+    has_price: bool,
 }
 
 #[repr(C)]
@@ -95,13 +97,13 @@ fn validate_trade_order(order: &TradeOrder) -> Result<()> {
     }
 
     // Validate price if provided
-    if let Some(price) = order.price {
-        if price <= 0.0 {
+    if order.has_price {
+        if order.price <= 0.0 {
             return Err(BullShiftError::Validation(
                 "Price must be greater than zero".to_string(),
             ));
         }
-        if !price.is_finite() {
+        if !order.price.is_finite() {
             return Err(BullShiftError::Validation(
                 "Price must be a finite number".to_string(),
             ));
@@ -174,8 +176,10 @@ pub extern "C" fn get_positions() -> *mut Position {
     std::ptr::null_mut()
 }
 
+/// # Safety
+/// `symbol` must be a valid, null-terminated C string pointer or null.
 #[no_mangle]
-pub extern "C" fn connect_market_data(symbol: *const c_char) -> bool {
+pub unsafe extern "C" fn connect_market_data(symbol: *const c_char) -> bool {
     // Validate symbol pointer
     let symbol_str = match unsafe { validate_c_string(symbol, MAX_SYMBOL_LENGTH, "symbol") } {
         Ok(s) => s,
@@ -196,8 +200,10 @@ pub extern "C" fn get_account_balance() -> f64 {
     10000.0
 }
 
+/// # Safety
+/// `positions` must be null or a pointer previously returned by `get_positions`.
 #[no_mangle]
-pub extern "C" fn free_positions(positions: *mut Position) {
+pub unsafe extern "C" fn free_positions(positions: *mut Position) {
     // Safety: Only free if pointer is not null
     if !positions.is_null() {
         unsafe {
@@ -208,8 +214,10 @@ pub extern "C" fn free_positions(positions: *mut Position) {
     }
 }
 
+/// # Safety
+/// `s` must be null or a pointer previously returned by a BullShift FFI function.
 #[no_mangle]
-pub extern "C" fn free_string(s: *mut c_char) {
+pub unsafe extern "C" fn free_string(s: *mut c_char) {
     // Safety: Only free if pointer is not null
     if !s.is_null() {
         unsafe {
@@ -257,7 +265,8 @@ mod tests {
             side: CString::new("BUY").unwrap().into_raw(),
             quantity: 100.0,
             order_type: CString::new("MARKET").unwrap().into_raw(),
-            price: Some(150.0),
+            price: 150.0,
+            has_price: true,
         };
 
         assert!(validate_trade_order(&valid_order).is_ok());
@@ -277,7 +286,8 @@ mod tests {
             side: CString::new("BUY").unwrap().into_raw(),
             quantity: -100.0,
             order_type: CString::new("MARKET").unwrap().into_raw(),
-            price: None,
+            price: 0.0,
+            has_price: false,
         };
 
         let result = validate_trade_order(&invalid_order);
@@ -303,7 +313,8 @@ mod tests {
             side: side.as_ptr(),
             quantity: 100.0,
             order_type: order_type.as_ptr(),
-            price: Some(150.0),
+            price: 150.0,
+            has_price: true,
         };
 
         let result = submit_order(order);
@@ -319,7 +330,8 @@ mod tests {
             side: side.as_ptr(),
             quantity: 100.0,
             order_type: order_type.as_ptr(),
-            price: None,
+            price: 0.0,
+            has_price: false,
         };
 
         let result = submit_order(order);
@@ -336,7 +348,8 @@ mod tests {
             side: side.as_ptr(),
             quantity: 100.0,
             order_type: order_type.as_ptr(),
-            price: None,
+            price: 0.0,
+            has_price: false,
         };
 
         let result = submit_order(order);
@@ -346,13 +359,13 @@ mod tests {
     #[test]
     fn test_connect_market_data_valid() {
         let symbol = CString::new("AAPL").unwrap();
-        let result = connect_market_data(symbol.as_ptr());
+        let result = unsafe { connect_market_data(symbol.as_ptr()) };
         assert!(result);
     }
 
     #[test]
     fn test_connect_market_data_null() {
-        let result = connect_market_data(std::ptr::null());
+        let result = unsafe { connect_market_data(std::ptr::null()) };
         assert!(!result);
     }
 }

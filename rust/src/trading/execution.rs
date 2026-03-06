@@ -4,7 +4,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub struct ExecutionEngine {
+    #[allow(dead_code)]
     positions: Arc<Mutex<HashMap<String, Position>>>,
+}
+
+impl Default for ExecutionEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExecutionEngine {

@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::error::BullShiftError;
+use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -51,7 +51,10 @@ pub struct ApiAccount {
 
 #[async_trait]
 pub trait TradingApi {
-    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError>;
+    async fn submit_order(
+        &self,
+        order: ApiOrderRequest,
+    ) -> Result<ApiOrderResponse, BullShiftError>;
     async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError>;
     async fn get_account(&self) -> Result<ApiAccount, BullShiftError>;
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError>;
@@ -83,10 +86,14 @@ impl AlpacaApi {
 
 #[async_trait]
 impl TradingApi for AlpacaApi {
-    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
+    async fn submit_order(
+        &self,
+        order: ApiOrderRequest,
+    ) -> Result<ApiOrderResponse, BullShiftError> {
         let url = format!("{}/v2/orders", self.base_url);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("APCA-API-KEY-ID", &self.api_key)
             .header("APCA-API-SECRET-KEY", &self.api_secret)
@@ -98,14 +105,18 @@ impl TradingApi for AlpacaApi {
         if response.status().is_success() {
             Ok(response.json::<ApiOrderResponse>().await?)
         } else {
-            Err(BullShiftError::Api(format!("Order submission failed: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "Order submission failed: {}",
+                response.status()
+            )))
         }
     }
 
     async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError> {
         let url = format!("{}/v2/positions", self.base_url);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("APCA-API-KEY-ID", &self.api_key)
             .header("APCA-API-SECRET-KEY", &self.api_secret)
@@ -115,14 +126,18 @@ impl TradingApi for AlpacaApi {
         if response.status().is_success() {
             Ok(response.json::<Vec<ApiPosition>>().await?)
         } else {
-            Err(BullShiftError::Api(format!("Failed to get positions: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "Failed to get positions: {}",
+                response.status()
+            )))
         }
     }
 
     async fn get_account(&self) -> Result<ApiAccount, BullShiftError> {
         let url = format!("{}/v2/account", self.base_url);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("APCA-API-KEY-ID", &self.api_key)
             .header("APCA-API-SECRET-KEY", &self.api_secret)
@@ -132,14 +147,18 @@ impl TradingApi for AlpacaApi {
         if response.status().is_success() {
             Ok(response.json::<ApiAccount>().await?)
         } else {
-            Err(BullShiftError::Api(format!("Failed to get account: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "Failed to get account: {}",
+                response.status()
+            )))
         }
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
         let url = format!("{}/v2/orders/{}", self.base_url, order_id);
 
-        let response = self.client
+        let response = self
+            .client
             .delete(&url)
             .header("APCA-API-KEY-ID", &self.api_key)
             .header("APCA-API-SECRET-KEY", &self.api_secret)
@@ -175,6 +194,12 @@ pub struct TradingApiManager {
     apis: HashMap<String, Box<dyn TradingApi + Send + Sync>>,
     capabilities: HashMap<String, BrokerCapabilities>,
     default_api: String,
+}
+
+impl Default for TradingApiManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TradingApiManager {
@@ -239,7 +264,8 @@ impl TradingApiManager {
                 } else {
                     BrokerStatus::Disconnected
                 },
-                capabilities: self.capabilities
+                capabilities: self
+                    .capabilities
                     .get(name)
                     .cloned()
                     .unwrap_or_else(|| Self::default_capabilities(name)),
@@ -248,7 +274,10 @@ impl TradingApiManager {
     }
 
     /// Submit an order to the active broker.
-    pub async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
+    pub async fn submit_order(
+        &self,
+        order: ApiOrderRequest,
+    ) -> Result<ApiOrderResponse, BullShiftError> {
         self.get_active_api()?.submit_order(order).await
     }
 
@@ -268,7 +297,11 @@ impl TradingApiManager {
     }
 
     /// Submit an order to a specific named broker (not necessarily the default).
-    pub async fn submit_order_to(&self, broker: &str, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
+    pub async fn submit_order_to(
+        &self,
+        broker: &str,
+        order: ApiOrderRequest,
+    ) -> Result<ApiOrderResponse, BullShiftError> {
         self.get_api(broker)?.submit_order(order).await
     }
 
@@ -280,10 +313,9 @@ impl TradingApiManager {
     }
 
     fn get_api(&self, name: &str) -> Result<&(dyn TradingApi + Send + Sync), BullShiftError> {
-        self.apis
-            .get(name)
-            .map(|b| b.as_ref())
-            .ok_or_else(|| BullShiftError::Configuration(format!("Broker '{}' not registered", name)))
+        self.apis.get(name).map(|b| b.as_ref()).ok_or_else(|| {
+            BullShiftError::Configuration(format!("Broker '{}' not registered", name))
+        })
     }
 
     fn display_name(name: &str) -> String {
@@ -362,7 +394,11 @@ mod tests {
             api_secret: "s".to_string(),
             sandbox: true,
         };
-        mgr.register_broker("tradier", Box::new(AlpacaApi::new(creds)), AlpacaApi::capabilities());
+        mgr.register_broker(
+            "tradier",
+            Box::new(AlpacaApi::new(creds)),
+            AlpacaApi::capabilities(),
+        );
         assert!(mgr.set_default("tradier".to_string()));
         assert_eq!(mgr.active_broker(), "tradier");
     }
@@ -375,7 +411,11 @@ mod tests {
             api_secret: "s".to_string(),
             sandbox: true,
         };
-        mgr.register_broker("alpaca", Box::new(AlpacaApi::new(creds)), AlpacaApi::capabilities());
+        mgr.register_broker(
+            "alpaca",
+            Box::new(AlpacaApi::new(creds)),
+            AlpacaApi::capabilities(),
+        );
         let caps = mgr.get_capabilities("alpaca").unwrap();
         assert!(caps.supports_crypto);
         assert!(caps.supports_fractional_shares);
@@ -390,7 +430,11 @@ mod tests {
             api_secret: "s".to_string(),
             sandbox: true,
         };
-        mgr.register_broker("alpaca", Box::new(AlpacaApi::new(creds)), AlpacaApi::capabilities());
+        mgr.register_broker(
+            "alpaca",
+            Box::new(AlpacaApi::new(creds)),
+            AlpacaApi::capabilities(),
+        );
         mgr.set_default("alpaca".to_string());
         let info = mgr.get_broker_info();
         assert_eq!(info.len(), 1);
@@ -401,7 +445,10 @@ mod tests {
     #[test]
     fn test_display_names() {
         assert_eq!(TradingApiManager::display_name("alpaca"), "Alpaca Markets");
-        assert_eq!(TradingApiManager::display_name("interactive_brokers"), "Interactive Brokers");
+        assert_eq!(
+            TradingApiManager::display_name("interactive_brokers"),
+            "Interactive Brokers"
+        );
         assert_eq!(TradingApiManager::display_name("tradier"), "Tradier");
         assert_eq!(TradingApiManager::display_name("robinhood"), "Robinhood");
         assert_eq!(TradingApiManager::display_name("custom"), "custom");

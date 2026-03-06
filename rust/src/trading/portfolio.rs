@@ -43,7 +43,9 @@ impl Portfolio {
     }
 
     pub fn load(&mut self) -> Result<(), BullShiftError> {
-        let db = self.db.as_ref()
+        let db = self
+            .db
+            .as_ref()
             .ok_or_else(|| BullShiftError::Database("Database not initialized".to_string()))?;
 
         if let Some((id, cash, total, margin)) = db.get_portfolio()? {
@@ -74,7 +76,9 @@ impl Portfolio {
     }
 
     pub fn save(&mut self) -> Result<(), BullShiftError> {
-        let db = self.db.as_ref()
+        let db = self
+            .db
+            .as_ref()
             .ok_or_else(|| BullShiftError::Database("Database not initialized".to_string()))?;
 
         if let Some(id) = self.id {
@@ -85,7 +89,8 @@ impl Portfolio {
                 self.available_margin,
             )?;
         } else {
-            let id = db.save_portfolio(self.cash_balance, self.total_value, self.available_margin)?;
+            let id =
+                db.save_portfolio(self.cash_balance, self.total_value, self.available_margin)?;
             self.id = Some(id);
         }
 

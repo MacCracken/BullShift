@@ -137,6 +137,7 @@ impl Database {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn save_position(
         &self,
         portfolio_id: i64,

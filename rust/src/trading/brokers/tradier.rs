@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use reqwest::Client;
 
+use super::{BrokerCapabilities, BrokerStatus};
 use crate::error::BullShiftError;
 use crate::trading::api::{
     ApiAccount, ApiOrderRequest, ApiOrderResponse, ApiPosition, TradingApi, TradingCredentials,
 };
-use super::{BrokerCapabilities, BrokerStatus};
 
 /// Tradier brokerage integration via their REST API.
 ///
@@ -58,7 +58,8 @@ impl TradierApi {
 
     pub async fn check_status(&self) -> BrokerStatus {
         let url = format!("{}/v1/user/profile", self.base_url);
-        match self.client
+        match self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .header("Accept", "application/json")
@@ -95,11 +96,11 @@ impl TradierApi {
 
 #[async_trait]
 impl TradingApi for TradierApi {
-    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
-        let url = format!(
-            "{}/v1/accounts/{}/orders",
-            self.base_url, self.account_id
-        );
+    async fn submit_order(
+        &self,
+        order: ApiOrderRequest,
+    ) -> Result<ApiOrderResponse, BullShiftError> {
+        let url = format!("{}/v1/accounts/{}/orders", self.base_url, self.account_id);
 
         let mut params = vec![
             ("class", "equity".to_string()),
@@ -107,14 +108,18 @@ impl TradingApi for TradierApi {
             ("side", order.side.to_lowercase()),
             ("quantity", order.quantity.to_string()),
             ("type", Self::map_order_type(&order.order_type).to_string()),
-            ("duration", Self::map_time_in_force(order.time_in_force.as_deref()).to_string()),
+            (
+                "duration",
+                Self::map_time_in_force(order.time_in_force.as_deref()).to_string(),
+            ),
         ];
 
         if let Some(price) = order.price {
             params.push(("price", price.to_string()));
         }
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .header("Accept", "application/json")
@@ -127,19 +132,28 @@ impl TradingApi for TradierApi {
             let order_resp = &body["order"];
 
             Ok(ApiOrderResponse {
-                order_id: order_resp["id"].as_u64().map(|id| id.to_string()).unwrap_or_default(),
+                order_id: order_resp["id"]
+                    .as_u64()
+                    .map(|id| id.to_string())
+                    .unwrap_or_default(),
                 symbol: order.symbol,
                 side: order.side,
                 quantity: order.quantity,
                 order_type: order.order_type,
                 price: order.price,
-                status: order_resp["status"].as_str().unwrap_or("pending").to_string(),
+                status: order_resp["status"]
+                    .as_str()
+                    .unwrap_or("pending")
+                    .to_string(),
                 created_at: order_resp["create_date"].as_str().unwrap_or("").to_string(),
             })
         } else {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            Err(BullShiftError::Api(format!("Tradier order failed ({}): {}", status, body)))
+            Err(BullShiftError::Api(format!(
+                "Tradier order failed ({}): {}",
+                status, body
+            )))
         }
     }
 
@@ -149,7 +163,8 @@ impl TradingApi for TradierApi {
             self.base_url, self.account_id
         );
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .header("Accept", "application/json")
@@ -161,27 +176,25 @@ impl TradingApi for TradierApi {
             let positions_val = &body["positions"]["position"];
 
             let positions = match positions_val {
-                serde_json::Value::Array(arr) => arr
-                    .iter()
-                    .map(|p| Self::parse_position(p))
-                    .collect(),
+                serde_json::Value::Array(arr) => arr.iter().map(Self::parse_position).collect(),
                 serde_json::Value::Object(_) => vec![Self::parse_position(positions_val)],
                 _ => Vec::new(), // "null" means no positions
             };
 
             Ok(positions)
         } else {
-            Err(BullShiftError::Api(format!("Tradier get positions failed: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "Tradier get positions failed: {}",
+                response.status()
+            )))
         }
     }
 
     async fn get_account(&self) -> Result<ApiAccount, BullShiftError> {
-        let url = format!(
-            "{}/v1/accounts/{}/balances",
-            self.base_url, self.account_id
-        );
+        let url = format!("{}/v1/accounts/{}/balances", self.base_url, self.account_id);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .header("Accept", "application/json")
@@ -198,10 +211,15 @@ impl TradingApi for TradierApi {
                     .as_f64()
                     .or_else(|| balances["cash"]["cash_available"].as_f64())
                     .unwrap_or(0.0),
-                margin_used: balances["margin"]["margin_requirement"].as_f64().unwrap_or(0.0),
+                margin_used: balances["margin"]["margin_requirement"]
+                    .as_f64()
+                    .unwrap_or(0.0),
             })
         } else {
-            Err(BullShiftError::Api(format!("Tradier get account failed: {}", response.status())))
+            Err(BullShiftError::Api(format!(
+                "Tradier get account failed: {}",
+                response.status()
+            )))
         }
     }
 
@@ -211,7 +229,8 @@ impl TradingApi for TradierApi {
             self.base_url, self.account_id, order_id
         );
 
-        let response = self.client
+        let response = self
+            .client
             .delete(&url)
             .header("Authorization", format!("Bearer {}", self.access_token))
             .header("Accept", "application/json")
@@ -226,7 +245,11 @@ impl TradierApi {
     fn parse_position(p: &serde_json::Value) -> ApiPosition {
         let quantity = p["quantity"].as_f64().unwrap_or(0.0);
         let cost_basis = p["cost_basis"].as_f64().unwrap_or(0.0);
-        let entry_price = if quantity != 0.0 { cost_basis / quantity } else { 0.0 };
+        let entry_price = if quantity != 0.0 {
+            cost_basis / quantity
+        } else {
+            0.0
+        };
 
         ApiPosition {
             symbol: p["symbol"].as_str().unwrap_or("").to_string(),

@@ -41,24 +41,27 @@ impl SecurityManager {
         {
             use std::process::Command;
             let output = Command::new("security")
-                .args(&["find-generic-password", "-wa", "BullShift_Encryption_Key"])
+                .args(["find-generic-password", "-wa", "BullShift_Encryption_Key"])
                 .output()
-                .map_err(|e| BullShiftError::Keychain(format!("Failed to access keychain: {}", e)))?;
+                .map_err(|e| {
+                    BullShiftError::Keychain(format!("Failed to access keychain: {}", e))
+                })?;
 
             if output.status.success() {
                 let key_data = String::from_utf8(output.stdout)
                     .map_err(|e| BullShiftError::Security(format!("Invalid key data: {}", e)))?;
-                return Ok(key_data.as_bytes()[0..32].to_vec());
+                Ok(key_data.as_bytes()[0..32].to_vec())
             } else {
                 // Generate and store new key
                 let rng = SystemRandom::new();
                 let mut key_bytes = [0u8; 32];
-                rng.fill(&mut key_bytes)
-                    .map_err(|e| BullShiftError::Encryption(format!("Failed to generate key: {}", e)))?;
+                rng.fill(&mut key_bytes).map_err(|e| {
+                    BullShiftError::Encryption(format!("Failed to generate key: {}", e))
+                })?;
 
-                let key_hex = hex::encode(&key_bytes);
+                let key_hex = hex::encode(key_bytes);
                 Command::new("security")
-                    .args(&[
+                    .args([
                         "add-generic-password",
                         "-a",
                         "BullShift",
@@ -70,7 +73,7 @@ impl SecurityManager {
                     .output()
                     .map_err(|e| BullShiftError::Keychain(format!("Failed to store key: {}", e)))?;
 
-                return Ok(key_bytes.to_vec());
+                Ok(key_bytes.to_vec())
             }
         }
 
@@ -78,24 +81,27 @@ impl SecurityManager {
         {
             use std::process::Command;
             let output = Command::new("secret-tool")
-                .args(&["lookup", "name", "BullShift_Encryption_Key"])
+                .args(["lookup", "name", "BullShift_Encryption_Key"])
                 .output()
-                .map_err(|e| BullShiftError::Keychain(format!("Failed to access libsecret: {}", e)))?;
+                .map_err(|e| {
+                    BullShiftError::Keychain(format!("Failed to access libsecret: {}", e))
+                })?;
 
             if output.status.success() {
                 let key_data = String::from_utf8(output.stdout)
                     .map_err(|e| BullShiftError::Security(format!("Invalid key data: {}", e)))?;
-                return Ok(key_data.as_bytes()[0..32].to_vec());
+                Ok(key_data.as_bytes()[0..32].to_vec())
             } else {
                 // Generate and store new key
                 let rng = SystemRandom::new();
                 let mut key_bytes = [0u8; 32];
-                rng.fill(&mut key_bytes)
-                    .map_err(|e| BullShiftError::Encryption(format!("Failed to generate key: {}", e)))?;
+                rng.fill(&mut key_bytes).map_err(|e| {
+                    BullShiftError::Encryption(format!("Failed to generate key: {}", e))
+                })?;
 
-                let key_hex = hex::encode(&key_bytes);
+                let key_hex = hex::encode(key_bytes);
                 Command::new("secret-tool")
-                    .args(&[
+                    .args([
                         "store",
                         "--label=BullShift Encryption Key",
                         "name",
@@ -106,7 +112,7 @@ impl SecurityManager {
                     .output()
                     .map_err(|e| BullShiftError::Keychain(format!("Failed to store key: {}", e)))?;
 
-                return Ok(key_bytes.to_vec());
+                Ok(key_bytes.to_vec())
             }
         }
 
@@ -115,12 +121,15 @@ impl SecurityManager {
             use std::fs;
             use std::path::PathBuf;
 
-            let home_dir = dirs::home_dir().ok_or_else(|| BullShiftError::Security("Cannot find home directory".to_string()))?;
+            let home_dir = dirs::home_dir().ok_or_else(|| {
+                BullShiftError::Security("Cannot find home directory".to_string())
+            })?;
             let key_file = home_dir.join(".bullshift").join(".encryption_key");
 
             if key_file.exists() {
-                let key_data =
-                    fs::read(&key_file).map_err(|e| BullShiftError::Security(format!("Failed to read key file: {}", e)))?;
+                let key_data = fs::read(&key_file).map_err(|e| {
+                    BullShiftError::Security(format!("Failed to read key file: {}", e))
+                })?;
 
                 if key_data.len() >= 32 {
                     return Ok(key_data[0..32].to_vec());
@@ -130,28 +139,34 @@ impl SecurityManager {
             // Generate and store new key
             let rng = SystemRandom::new();
             let mut key_bytes = [0u8; 32];
-            rng.fill(&mut key_bytes)
-                .map_err(|e| BullShiftError::Encryption(format!("Failed to generate key: {}", e)))?;
+            rng.fill(&mut key_bytes).map_err(|e| {
+                BullShiftError::Encryption(format!("Failed to generate key: {}", e))
+            })?;
 
             let key_dir = key_file.parent().unwrap();
             if !key_dir.exists() {
-                fs::create_dir_all(key_dir)
-                    .map_err(|e| BullShiftError::Security(format!("Failed to create key directory: {}", e)))?;
+                fs::create_dir_all(key_dir).map_err(|e| {
+                    BullShiftError::Security(format!("Failed to create key directory: {}", e))
+                })?;
             }
 
-            fs::write(&key_file, &key_bytes)
-                .map_err(|e| BullShiftError::Security(format!("Failed to write key file: {}", e)))?;
+            fs::write(&key_file, &key_bytes).map_err(|e| {
+                BullShiftError::Security(format!("Failed to write key file: {}", e))
+            })?;
 
             // Set restrictive permissions
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
                 let mut perms = fs::metadata(&key_file)
-                    .map_err(|e| BullShiftError::Security(format!("Failed to get file metadata: {}", e)))?
+                    .map_err(|e| {
+                        BullShiftError::Security(format!("Failed to get file metadata: {}", e))
+                    })?
                     .permissions();
                 perms.set_mode(0o600); // Read/write for owner only
-                fs::set_permissions(&key_file, perms)
-                    .map_err(|e| BullShiftError::Security(format!("Failed to set file permissions: {}", e)))?;
+                fs::set_permissions(&key_file, perms).map_err(|e| {
+                    BullShiftError::Security(format!("Failed to set file permissions: {}", e))
+                })?;
             }
 
             return Ok(key_bytes.to_vec());
@@ -178,7 +193,6 @@ impl SecurityManager {
         let sealing_key = LessSafeKey::new(unbound_key);
 
         let mut encrypted_data = credential_bytes.to_vec();
-        encrypted_data.resize(encrypted_data.len() + AES_256_GCM.tag_len(), 0);
 
         sealing_key
             .seal_in_place_append_tag(nonce, Aad::empty(), &mut encrypted_data)
@@ -207,7 +221,9 @@ impl SecurityManager {
         let credentials = self
             .credential_store
             .get(broker)
-            .ok_or_else(|| BullShiftError::Security(format!("No credentials found for broker: {}", broker)))?
+            .ok_or_else(|| {
+                BullShiftError::Security(format!("No credentials found for broker: {}", broker))
+            })?
             .clone();
 
         // Decrypt credentials
@@ -232,8 +248,14 @@ impl SecurityManager {
             .map_err(|e| BullShiftError::Security(format!("Failed to parse credentials: {}", e)))?;
 
         let mut parts = credential_string.splitn(2, ':');
-        let api_key = parts.next().ok_or_else(|| BullShiftError::Security("Invalid credential format".to_string()))?.to_string();
-        let api_secret = parts.next().ok_or_else(|| BullShiftError::Security("Invalid credential format".to_string()))?.to_string();
+        let api_key = parts
+            .next()
+            .ok_or_else(|| BullShiftError::Security("Invalid credential format".to_string()))?
+            .to_string();
+        let api_secret = parts
+            .next()
+            .ok_or_else(|| BullShiftError::Security("Invalid credential format".to_string()))?
+            .to_string();
 
         Ok((api_key, api_secret))
     }
@@ -247,7 +269,10 @@ impl SecurityManager {
             log::info!("Removed credentials for broker: {}", broker);
             Ok(())
         } else {
-            Err(BullShiftError::Security(format!("No credentials found for broker: {}", broker)))
+            Err(BullShiftError::Security(format!(
+                "No credentials found for broker: {}",
+                broker
+            )))
         }
     }
 
@@ -263,7 +288,11 @@ impl SecurityManager {
     }
 
     /// Store an encrypted API key for an AI provider, keyed by provider name.
-    pub fn store_api_key(&mut self, provider_name: &str, api_key: &str) -> Result<(), BullShiftError> {
+    pub fn store_api_key(
+        &mut self,
+        provider_name: &str,
+        api_key: &str,
+    ) -> Result<(), BullShiftError> {
         let encrypted = self.encrypt_sensitive_data(api_key)?;
         let key = format!("ai_provider:{}", provider_name);
         // Store as a credential with the encrypted key in the api_key field
@@ -278,7 +307,10 @@ impl SecurityManager {
         self.logger.log(
             LogLevel::Info,
             "security",
-            &format!("Stored encrypted API key for AI provider: {}", provider_name),
+            &format!(
+                "Stored encrypted API key for AI provider: {}",
+                provider_name
+            ),
         );
         Ok(())
     }
@@ -286,8 +318,9 @@ impl SecurityManager {
     /// Retrieve and decrypt an AI provider API key by provider name.
     pub fn get_api_key(&self, provider_name: &str) -> Result<String, BullShiftError> {
         let key = format!("ai_provider:{}", provider_name);
-        let cred = self.credential_store.get(&key)
-            .ok_or_else(|| BullShiftError::Security(format!("No API key found for provider: {}", provider_name)))?;
+        let cred = self.credential_store.get(&key).ok_or_else(|| {
+            BullShiftError::Security(format!("No API key found for provider: {}", provider_name))
+        })?;
         let encrypted_hex = String::from_utf8(cred.encrypted_data.clone())
             .map_err(|e| BullShiftError::Security(format!("Invalid stored key data: {}", e)))?;
         self.decrypt_sensitive_data(&encrypted_hex)
@@ -306,7 +339,10 @@ impl SecurityManager {
             log::info!("Removed API key for AI provider: {}", provider_name);
             Ok(())
         } else {
-            Err(BullShiftError::Security(format!("No API key found for provider: {}", provider_name)))
+            Err(BullShiftError::Security(format!(
+                "No API key found for provider: {}",
+                provider_name
+            )))
         }
     }
 
@@ -314,7 +350,9 @@ impl SecurityManager {
         let data_bytes = data.as_bytes();
 
         // Generate nonce using counter (8 bytes) + random (4 bytes) for uniqueness
-        let counter = self.nonce_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let counter = self
+            .nonce_counter
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let mut nonce_bytes = [0u8; 12];
         nonce_bytes[..8].copy_from_slice(&counter.to_le_bytes());
         self.rng
@@ -342,11 +380,14 @@ impl SecurityManager {
     }
 
     pub fn decrypt_sensitive_data(&self, encrypted_data: &str) -> Result<String, BullShiftError> {
-        let combined = hex::decode(encrypted_data)
-            .map_err(|e| BullShiftError::Encryption(format!("Failed to decode encrypted data: {}", e)))?;
+        let combined = hex::decode(encrypted_data).map_err(|e| {
+            BullShiftError::Encryption(format!("Failed to decode encrypted data: {}", e))
+        })?;
 
         if combined.len() < 12 {
-            return Err(BullShiftError::Encryption("Invalid encrypted data format".to_string()));
+            return Err(BullShiftError::Encryption(
+                "Invalid encrypted data format".to_string(),
+            ));
         }
 
         // Extract nonce and encrypted data
@@ -369,8 +410,9 @@ impl SecurityManager {
             .open_in_place(nonce, Aad::empty(), &mut decrypted_data)
             .map_err(|e| BullShiftError::Encryption(format!("Decryption failed: {}", e)))?;
 
-        String::from_utf8(decrypted_bytes.to_vec())
-            .map_err(|e| BullShiftError::Encryption(format!("Failed to parse decrypted data: {}", e)))
+        String::from_utf8(decrypted_bytes.to_vec()).map_err(|e| {
+            BullShiftError::Encryption(format!("Failed to parse decrypted data: {}", e))
+        })
     }
 }
 
@@ -379,7 +421,11 @@ impl SecurityManager {
 pub mod macos_keychain {
     use super::*;
 
-    pub fn store_in_keychain(service: &str, account: &str, password: &str) -> Result<(), BullShiftError> {
+    pub fn store_in_keychain(
+        service: &str,
+        account: &str,
+        password: &str,
+    ) -> Result<(), BullShiftError> {
         // Integration with macOS Keychain
         // Would use security framework
         log::info!("Storing in macOS Keychain: {}@{}", account, service);
@@ -389,7 +435,9 @@ pub mod macos_keychain {
     pub fn get_from_keychain(service: &str, account: &str) -> Result<String, BullShiftError> {
         // Integration with macOS Keychain
         log::info!("Retrieving from macOS Keychain: {}@{}", account, service);
-        Err(BullShiftError::Keychain("Keychain integration not implemented".to_string()))
+        Err(BullShiftError::Keychain(
+            "Keychain integration not implemented".to_string(),
+        ))
     }
 }
 
@@ -397,7 +445,11 @@ pub mod macos_keychain {
 pub mod linux_libsecret {
     use super::*;
 
-    pub fn store_in_libsecret(service: &str, account: &str, _password: &str) -> Result<(), BullShiftError> {
+    pub fn store_in_libsecret(
+        service: &str,
+        account: &str,
+        _password: &str,
+    ) -> Result<(), BullShiftError> {
         // Integration with libsecret
         log::info!("Storing in libsecret: {}@{}", account, service);
         Ok(())
@@ -406,7 +458,9 @@ pub mod linux_libsecret {
     pub fn get_from_libsecret(service: &str, account: &str) -> Result<String, BullShiftError> {
         // Integration with libsecret
         log::info!("Retrieving from libsecret: {}@{}", account, service);
-        Err(BullShiftError::Keychain("Libsecret integration not implemented".to_string()))
+        Err(BullShiftError::Keychain(
+            "Libsecret integration not implemented".to_string(),
+        ))
     }
 }
 
@@ -417,12 +471,14 @@ pub mod fallback_storage {
     use std::path::PathBuf;
 
     fn get_config_path() -> Result<PathBuf, BullShiftError> {
-        let home_dir = dirs::home_dir().ok_or_else(|| BullShiftError::Security("Cannot find home directory".to_string()))?;
+        let home_dir = dirs::home_dir()
+            .ok_or_else(|| BullShiftError::Security("Cannot find home directory".to_string()))?;
         let config_dir = home_dir.join(".bullshift");
 
         if !config_dir.exists() {
-            fs::create_dir_all(&config_dir)
-                .map_err(|e| BullShiftError::Security(format!("Failed to create config directory: {}", e)))?;
+            fs::create_dir_all(&config_dir).map_err(|e| {
+                BullShiftError::Security(format!("Failed to create config directory: {}", e))
+            })?;
         }
 
         Ok(config_dir.join("secure_credentials.json"))
@@ -431,18 +487,21 @@ pub mod fallback_storage {
     pub fn store_encrypted(broker: &str, encrypted_data: &[u8]) -> Result<(), BullShiftError> {
         let config_path = get_config_path()?;
         let mut stored_data: HashMap<String, Vec<u8>> = if config_path.exists() {
-            let content = fs::read_to_string(&config_path)
-                .map_err(|e| BullShiftError::Security(format!("Failed to read config file: {}", e)))?;
-            serde_json::from_str(&content)
-                .map_err(|e| BullShiftError::Security(format!("Failed to parse config file: {}", e)))?
+            let content = fs::read_to_string(&config_path).map_err(|e| {
+                BullShiftError::Security(format!("Failed to read config file: {}", e))
+            })?;
+            serde_json::from_str(&content).map_err(|e| {
+                BullShiftError::Security(format!("Failed to parse config file: {}", e))
+            })?
         } else {
             HashMap::new()
         };
 
         stored_data.insert(broker.to_string(), encrypted_data.to_vec());
 
-        let json_content = serde_json::to_string_pretty(&stored_data)
-            .map_err(|e| BullShiftError::Security(format!("Failed to serialize credentials: {}", e)))?;
+        let json_content = serde_json::to_string_pretty(&stored_data).map_err(|e| {
+            BullShiftError::Security(format!("Failed to serialize credentials: {}", e))
+        })?;
 
         fs::write(&config_path, json_content)
             .map_err(|e| BullShiftError::Security(format!("Failed to write config file: {}", e)))?;
@@ -452,11 +511,14 @@ pub mod fallback_storage {
         {
             use std::os::unix::fs::PermissionsExt;
             let mut perms = fs::metadata(&config_path)
-                .map_err(|e| BullShiftError::Security(format!("Failed to get file metadata: {}", e)))?
+                .map_err(|e| {
+                    BullShiftError::Security(format!("Failed to get file metadata: {}", e))
+                })?
                 .permissions();
             perms.set_mode(0o600); // Read/write for owner only
-            fs::set_permissions(&config_path, perms)
-                .map_err(|e| BullShiftError::Security(format!("Failed to set file permissions: {}", e)))?;
+            fs::set_permissions(&config_path, perms).map_err(|e| {
+                BullShiftError::Security(format!("Failed to set file permissions: {}", e))
+            })?;
         }
 
         Ok(())

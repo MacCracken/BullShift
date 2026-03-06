@@ -1,7 +1,7 @@
 pub mod api;
 pub mod brokers;
-pub mod portfolio;
 pub mod execution;
+pub mod portfolio;
 pub mod trade_history;
 
 use serde::{Deserialize, Serialize};
@@ -62,7 +62,7 @@ impl Order {
             updated_at: now,
         }
     }
-    
+
     pub fn new_limit_sell(symbol: String, quantity: f64, price: f64) -> Self {
         let now = chrono::Utc::now();
         Self {

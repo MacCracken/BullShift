@@ -112,7 +112,8 @@ pub trait Logger {
 
 /// High-performance structured logger implementation
 pub struct StructuredLogger {
-    /// Application name
+    /// Application name (used in debug flush output)
+    #[allow(dead_code)]
     app_name: String,
 
     /// Minimum log level to output
@@ -144,13 +145,13 @@ impl Default for StructuredLogger {
 
 impl Logger for StructuredLogger {
     fn log(&self, level: LogLevel, target: &str, message: &str) {
-        if !self.is_enabled(level.clone()) {
+        if !self.is_enabled(level) {
             return;
         }
 
         let entry = LogEntry {
             timestamp: Utc::now(),
-            level: level.clone(),
+            level,
             target: target.to_string(),
             message: message.to_string(),
             context: None,
@@ -184,13 +185,13 @@ impl Logger for StructuredLogger {
         message: &str,
         context: HashMap<String, serde_json::Value>,
     ) {
-        if !self.is_enabled(level.clone()) {
+        if !self.is_enabled(level) {
             return;
         }
 
         let entry = LogEntry {
             timestamp: Utc::now(),
-            level: level.clone(),
+            level,
             target: target.to_string(),
             message: message.to_string(),
             context: Some(context),
@@ -222,7 +223,7 @@ impl Logger for StructuredLogger {
 
         let entry = LogEntry {
             timestamp: Utc::now(),
-            level: level.clone(),
+            level,
             target: target.to_string(),
             message: error.to_string(),
             context: None,

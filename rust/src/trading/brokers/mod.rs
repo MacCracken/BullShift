@@ -1,6 +1,6 @@
 pub mod interactive_brokers;
-pub mod tradier;
 pub mod robinhood;
+pub mod tradier;
 
 use serde::{Deserialize, Serialize};
 
