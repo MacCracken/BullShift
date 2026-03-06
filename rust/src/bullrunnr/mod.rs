@@ -183,7 +183,7 @@ impl BullRunnr {
             }
         }
 
-        search_results.sort_by(|a, b| b.relevance_score.partial_cmp(&a.relevance_score).unwrap());
+        search_results.sort_by(|a, b| b.relevance_score.partial_cmp(&a.relevance_score).unwrap_or(std::cmp::Ordering::Equal));
         Ok(search_results)
     }
 
@@ -362,7 +362,7 @@ impl BullRunnr {
 
     pub fn get_top_sentiment_movers(&self, limit: usize) -> Vec<&SymbolSentiment> {
         let mut symbols: Vec<_> = self.symbol_sentiment.values().collect();
-        symbols.sort_by(|a, b| b.buzz_score.partial_cmp(&a.buzz_score).unwrap());
+        symbols.sort_by(|a, b| b.buzz_score.partial_cmp(&a.buzz_score).unwrap_or(std::cmp::Ordering::Equal));
         symbols.into_iter().take(limit).collect()
     }
 }

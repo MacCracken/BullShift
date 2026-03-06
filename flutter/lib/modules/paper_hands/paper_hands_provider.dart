@@ -178,14 +178,15 @@ class PaperHandsProvider extends BaseProvider {
         final portfolio = _selectedPortfolio!;
         
         // Find open position
-        final position = portfolio['positions'].firstWhere(
+        final positions = portfolio['positions'] as List;
+        final positionIndex = positions.indexWhere(
           (p) => p['symbol'] == symbol && p['status'] == 'Open',
-          orElse: () => null,
         );
 
-        if (position == null) {
+        if (positionIndex == -1) {
           throw Exception('No open position found for $symbol');
         }
+        final position = positions[positionIndex];
 
         // Create closing trade
         final closingTrade = {

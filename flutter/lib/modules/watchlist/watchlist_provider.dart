@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../../services/base_provider.dart';
 import '../../services/rust_trading_engine.dart';
 

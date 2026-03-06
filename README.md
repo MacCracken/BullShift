@@ -172,7 +172,7 @@ Risk-free simulation environment for strategy testing:
 
 ## 🚀 Quick Start
 
-1. **Setup Environment** - See [Development Setup](docs/development_setup.md)
+1. **Setup Environment** - See [Development Setup](docs/guides/development_setup.md)
 2. **Build Platform** - `./build.sh` or manual build
 3. **Configure APIs** - Store trading/AI credentials securely
 4. **Start Trading** - Real-time order execution & analytics
@@ -306,22 +306,23 @@ cd flutter && flutter analyze
 ![Documentation](https://img.shields.io/badge/Docs-Complete-blue)
 
 ### User Documentation
-- **[User Manual](docs/user_manual.md)** - Complete platform usage guide
-- **[Configuration Guide](docs/configuration_guide.md)** - Setup trading APIs & AI providers
-- **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues & solutions
+- **[User Manual](docs/guides/user_manual.md)** - Complete platform usage guide
+- **[Configuration Guide](docs/reference/configuration_guide.md)** - Setup trading APIs & AI providers
+- **[Troubleshooting Guide](docs/guides/troubleshooting.md)** - Common issues & solutions
 
 ### Developer Documentation
-- **[Development Setup](docs/development_setup.md)** - Environment setup & build guide
-- **[API Reference](docs/api_reference.md)** - Rust & Flutter API documentation
+- **[Development Setup](docs/guides/development_setup.md)** - Environment setup & build guide
+- **[API Reference](docs/reference/api_reference.md)** - Rust & Flutter API documentation
 - **[Architecture](docs/architecture.md)** - Project structure & modules
-- **[Contributing Guide](docs/contributing.md)** - Contribution guidelines & standards
+- **[Contributing Guide](docs/guides/contributing.md)** - Contribution guidelines & standards
+- **[Code Audit](docs/development/code-audit-2026-03.md)** - Code audit findings & remediation
 
 ### Project Documentation
-- **[Security Policy](docs/security.md)** - Vulnerability reporting & security practices
+- **[Security Policy](docs/reference/security.md)** - Vulnerability reporting & security practices
 - **[Changelog](CHANGELOG.md)** - Version history & release notes
 - **[Roadmap](docs/roadmap.md)** - Feature planning & release schedule
-- **[Security Audit](docs/security-audit.md)** - Security assessment & fixes
-- **[Refactoring Summary](docs/refactoring-summary.md)** - Recent improvements & changes
+- **[Security Audit](docs/reference/security-audit.md)** - Security assessment & fixes
+- **[Refactoring Summary](docs/guides/refactoring-summary.md)** - Recent improvements & changes
 - **[ADRs](docs/adr/)** - Architecture decision records
 
 ---
@@ -334,7 +335,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](docs/contributing.md) for detailed guidelines.
+We welcome contributions! Please see our [Contributing Guide](docs/guides/contributing.md) for detailed guidelines.
 
 **Quick Start:**
 1. Fork the repository
@@ -343,7 +344,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/contributing.
 4. Add tests
 5. Submit pull request
 
-**Security:** All contributions require security review. See [Security Policy](docs/security.md) for details.
+**Security:** All contributions require security review. See [Security Policy](docs/reference/security.md) for details.
 
 ---
 

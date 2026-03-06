@@ -395,7 +395,7 @@ impl BearlyManaged {
         let response = self.client
             .post(&url)
             .header("Content-Type", "application/json")
-            .header("Authorization", "Bearer YOUR_API_KEY") // Would use encrypted key
+            .header("Authorization", format!("Bearer {}", &provider.api_key))
             .json(&request_body)
             .send()
             .await
@@ -479,7 +479,7 @@ impl BearlyManaged {
         let response = self.client
             .post(&url)
             .header("Content-Type", "application/json")
-            .header("x-api-key", "YOUR_API_KEY") // Would use encrypted key
+            .header("x-api-key", &provider.api_key)
             .header("anthropic-version", "2023-06-01")
             .json(&request_body)
             .send()

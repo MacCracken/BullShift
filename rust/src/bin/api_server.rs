@@ -89,7 +89,10 @@ async fn submit_order_handler(
     Json(order): Json<ApiOrderRequest>,
 ) -> impl IntoResponse {
     match state.api.submit_order(order).await {
-        Ok(resp) => (StatusCode::OK, Json(serde_json::to_value(resp).unwrap())).into_response(),
+        Ok(resp) => match serde_json::to_value(resp) {
+            Ok(val) => (StatusCode::OK, Json(val)).into_response(),
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": format!("Serialization error: {}", e) }))).into_response(),
+        },
         Err(e) => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": e })),
@@ -100,11 +103,10 @@ async fn submit_order_handler(
 
 async fn get_positions_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     match state.api.get_positions().await {
-        Ok(positions) => (
-            StatusCode::OK,
-            Json(serde_json::to_value(positions).unwrap()),
-        )
-            .into_response(),
+        Ok(positions) => match serde_json::to_value(positions) {
+            Ok(val) => (StatusCode::OK, Json(val)).into_response(),
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": format!("Serialization error: {}", e) }))).into_response(),
+        },
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e })),
@@ -115,11 +117,10 @@ async fn get_positions_handler(State(state): State<Arc<AppState>>) -> impl IntoR
 
 async fn get_account_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     match state.api.get_account().await {
-        Ok(account) => (
-            StatusCode::OK,
-            Json(serde_json::to_value(account).unwrap()),
-        )
-            .into_response(),
+        Ok(account) => match serde_json::to_value(account) {
+            Ok(val) => (StatusCode::OK, Json(val)).into_response(),
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": format!("Serialization error: {}", e) }))).into_response(),
+        },
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e })),

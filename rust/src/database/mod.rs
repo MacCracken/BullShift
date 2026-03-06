@@ -20,7 +20,7 @@ impl Database {
     }
 
     fn init_schema(&self) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS portfolios (
@@ -89,7 +89,7 @@ impl Database {
         total_value: f64,
         available_margin: f64,
     ) -> Result<i64> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -108,7 +108,7 @@ impl Database {
         total_value: f64,
         available_margin: f64,
     ) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -120,7 +120,7 @@ impl Database {
     }
 
     pub fn get_portfolio(&self) -> Result<Option<(i64, f64, f64, f64)>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
 
         let mut stmt = conn.prepare(
             "SELECT id, cash_balance, total_value, available_margin FROM portfolios ORDER BY id DESC LIMIT 1"
@@ -147,7 +147,7 @@ impl Database {
         unrealized_pnl: f64,
         realized_pnl: f64,
     ) -> Result<i64> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -168,7 +168,7 @@ impl Database {
         unrealized_pnl: f64,
         realized_pnl: f64,
     ) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -180,7 +180,7 @@ impl Database {
     }
 
     pub fn get_positions(&self, portfolio_id: i64) -> Result<Vec<Position>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
 
         let mut stmt = conn.prepare(
             "SELECT id, symbol, quantity, entry_price, current_price, unrealized_pnl, realized_pnl FROM positions WHERE portfolio_id = ?1"
@@ -202,7 +202,7 @@ impl Database {
     }
 
     pub fn delete_position(&self, id: i64) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute("DELETE FROM positions WHERE id = ?1", [id])?;
         Ok(())
     }
@@ -216,7 +216,7 @@ impl Database {
         price: f64,
         commission: f64,
     ) -> Result<i64> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -229,7 +229,7 @@ impl Database {
     }
 
     pub fn get_trades(&self, symbol: Option<&str>, limit: Option<i64>) -> Result<Vec<Trade>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
 
         let (query, params_vec): (&str, Vec<Box<dyn rusqlite::ToSql>>) = match symbol {
             Some(s) => (
@@ -264,7 +264,7 @@ impl Database {
     }
 
     pub fn get_trades_by_date_range(&self, start_date: &str, end_date: &str) -> Result<Vec<Trade>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
 
         let mut stmt = conn.prepare(
             "SELECT id, order_id, symbol, side, quantity, price, commission, executed_at 

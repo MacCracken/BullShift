@@ -308,7 +308,7 @@ impl TrendSetter {
     // Public interface methods
     pub fn get_top_momentum_stocks(&self, limit: usize) -> Vec<&MomentumScore> {
         let mut scores: Vec<&MomentumScore> = self.momentum_scores.values().collect();
-        scores.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        scores.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
         scores.into_iter().take(limit).collect()
     }
 

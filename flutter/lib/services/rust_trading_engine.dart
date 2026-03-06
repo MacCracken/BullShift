@@ -70,10 +70,10 @@ class RustTradingEngine {
     final orderTypePtr = orderType.toNativeUtf8();
     Pointer<Double>? pricePtr;
     
-    order.ref.symbol = symbolPtr.cast<Char>();
-    order.ref.side = sidePtr.cast<Char>();
+    order.ref.symbol = symbolPtr;
+    order.ref.side = sidePtr;
     order.ref.quantity = quantity;
-    order.ref.orderType = orderTypePtr.cast<Char>();
+    order.ref.orderType = orderTypePtr;
     
     if (price != null) {
       pricePtr = calloc<Double>();

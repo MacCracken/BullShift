@@ -885,7 +885,7 @@ impl PaperHands {
         let mut final_values: Vec<f64> = simulations.iter()
             .map(|s| s.final_value)
             .collect();
-        final_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        final_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         
         // Calculate percentiles
         let mut percentiles = HashMap::new();
