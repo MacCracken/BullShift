@@ -1,3 +1,4 @@
+use crate::error::BullShiftError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use chrono::{DateTime, Utc, Duration};
@@ -122,7 +123,7 @@ impl BullRunnr {
         }
     }
 
-    pub async fn fetch_latest_news(&mut self) -> Result<NewsStream, String> {
+    pub async fn fetch_latest_news(&mut self) -> Result<NewsStream, BullShiftError> {
         let mut all_articles = Vec::new();
         
         // Fetch from all sources
@@ -165,7 +166,7 @@ impl BullRunnr {
         })
     }
 
-    pub async fn search_news(&mut self, query: &str, symbols: &[String]) -> Result<Vec<NewsArticle>, String> {
+    pub async fn search_news(&mut self, query: &str, symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError> {
         let mut search_results = Vec::new();
         
         for source in &self.news_sources {
@@ -370,8 +371,8 @@ impl BullRunnr {
 // Traits for news sources and sentiment analysis
 #[async_trait::async_trait]
 pub trait NewsSource {
-    async fn fetch_articles(&self, client: &Client) -> Result<Vec<NewsArticle>, String>;
-    async fn search_articles(&self, client: &Client, query: &str, symbols: &[String]) -> Result<Vec<NewsArticle>, String>;
+    async fn fetch_articles(&self, client: &Client) -> Result<Vec<NewsArticle>, BullShiftError>;
+    async fn search_articles(&self, client: &Client, query: &str, symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError>;
 }
 
 #[async_trait::async_trait]
@@ -390,12 +391,12 @@ impl AlphaVantageNews {
 
 #[async_trait::async_trait]
 impl NewsSource for AlphaVantageNews {
-    async fn fetch_articles(&self, _client: &Client) -> Result<Vec<NewsArticle>, String> {
+    async fn fetch_articles(&self, _client: &Client) -> Result<Vec<NewsArticle>, BullShiftError> {
         // Mock implementation
         Ok(vec![])
     }
 
-    async fn search_articles(&self, _client: &Client, _query: &str, _symbols: &[String]) -> Result<Vec<NewsArticle>, String> {
+    async fn search_articles(&self, _client: &Client, _query: &str, _symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError> {
         Ok(vec![])
     }
 }
@@ -410,11 +411,11 @@ impl NewsAPI {
 
 #[async_trait::async_trait]
 impl NewsSource for NewsAPI {
-    async fn fetch_articles(&self, _client: &Client) -> Result<Vec<NewsArticle>, String> {
+    async fn fetch_articles(&self, _client: &Client) -> Result<Vec<NewsArticle>, BullShiftError> {
         Ok(vec![])
     }
 
-    async fn search_articles(&self, _client: &Client, _query: &str, _symbols: &[String]) -> Result<Vec<NewsArticle>, String> {
+    async fn search_articles(&self, _client: &Client, _query: &str, _symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError> {
         Ok(vec![])
     }
 }
@@ -429,11 +430,11 @@ impl TwitterNews {
 
 #[async_trait::async_trait]
 impl NewsSource for TwitterNews {
-    async fn fetch_articles(&self, _client: &Client) -> Result<Vec<NewsArticle>, String> {
+    async fn fetch_articles(&self, _client: &Client) -> Result<Vec<NewsArticle>, BullShiftError> {
         Ok(vec![])
     }
 
-    async fn search_articles(&self, _client: &Client, _query: &str, _symbols: &[String]) -> Result<Vec<NewsArticle>, String> {
+    async fn search_articles(&self, _client: &Client, _query: &str, _symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError> {
         Ok(vec![])
     }
 }

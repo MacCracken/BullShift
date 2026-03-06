@@ -1,9 +1,8 @@
+use async_trait::async_trait;
 use crate::error::BullShiftError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tokio::sync::mpsc;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TradingCredentials {
@@ -50,6 +49,7 @@ pub struct ApiAccount {
     pub margin_used: f64,
 }
 
+#[async_trait]
 pub trait TradingApi {
     async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError>;
     async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError>;
@@ -81,6 +81,7 @@ impl AlpacaApi {
     }
 }
 
+#[async_trait]
 impl TradingApi for AlpacaApi {
     async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
         let url = format!("{}/v2/orders", self.base_url);

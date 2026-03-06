@@ -1,3 +1,4 @@
+use crate::error::BullShiftError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use chrono::{DateTime, Utc, Duration};
@@ -234,7 +235,7 @@ impl PaperHands {
     }
 
     // Portfolio Management
-    pub fn create_portfolio(&mut self, name: String, initial_balance: f64) -> Result<Uuid, String> {
+    pub fn create_portfolio(&mut self, name: String, initial_balance: f64) -> Result<Uuid, BullShiftError> {
         let portfolio_id = Uuid::new_v4();
         
         let portfolio = PaperPortfolio {
@@ -257,9 +258,9 @@ impl PaperHands {
         Ok(portfolio_id)
     }
 
-    pub fn execute_trade(&mut self, portfolio_id: Uuid, trade: PaperTrade) -> Result<(), String> {
+    pub fn execute_trade(&mut self, portfolio_id: Uuid, trade: PaperTrade) -> Result<(), BullShiftError> {
         let portfolio = self.portfolios.get_mut(&portfolio_id)
-            .ok_or("Portfolio not found")?;
+            .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
         
         // Validate trade
         self.validate_trade(portfolio, &trade)?;
@@ -273,12 +274,12 @@ impl PaperHands {
         Ok(())
     }
 
-    pub fn close_position(&mut self, portfolio_id: Uuid, symbol: &str, exit_price: f64) -> Result<(), String> {
+    pub fn close_position(&mut self, portfolio_id: Uuid, symbol: &str, exit_price: f64) -> Result<(), BullShiftError> {
         let portfolio = self.portfolios.get_mut(&portfolio_id)
-            .ok_or("Portfolio not found")?;
+            .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
         
         let position = portfolio.positions.get(symbol)
-            .ok_or("Position not found")?;
+            .ok_or_else(|| BullShiftError::Portfolio("Position not found".to_string()))?;
         
         // Create closing trade
         let closing_trade = PaperTrade {
@@ -314,7 +315,7 @@ impl PaperHands {
     }
 
     // Backtesting
-    pub fn run_backtest(&mut self, strategy_name: String, settings: SimulationSettings) -> Result<Uuid, String> {
+    pub fn run_backtest(&mut self, strategy_name: String, settings: SimulationSettings) -> Result<Uuid, BullShiftError> {
         let backtest_id = Uuid::new_v4();
         
         // Create portfolio for backtest
@@ -333,9 +334,9 @@ impl PaperHands {
         Ok(backtest_id)
     }
 
-    pub fn run_monte_carlo(&self, portfolio_id: Uuid, num_simulations: u32) -> Result<MonteCarloAnalysis, String> {
+    pub fn run_monte_carlo(&self, portfolio_id: Uuid, num_simulations: u32) -> Result<MonteCarloAnalysis, BullShiftError> {
         let portfolio = self.portfolios.get(&portfolio_id)
-            .ok_or("Portfolio not found")?;
+            .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
         
         let mut simulations = Vec::new();
         
@@ -351,9 +352,9 @@ impl PaperHands {
     }
 
     // Advanced Analytics
-    pub fn calculate_correlation_matrix(&self, portfolio_id: Uuid) -> Result<HashMap<String, HashMap<String, f64>>, String> {
+    pub fn calculate_correlation_matrix(&self, portfolio_id: Uuid) -> Result<HashMap<String, HashMap<String, f64>>, BullShiftError> {
         let portfolio = self.portfolios.get(&portfolio_id)
-            .ok_or("Portfolio not found")?;
+            .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
         
         let mut correlation_matrix = HashMap::new();
         let symbols: Vec<String> = portfolio.positions.keys().cloned().collect();
@@ -381,9 +382,9 @@ impl PaperHands {
         Ok(correlation_matrix)
     }
 
-    pub fn calculate_optimal_position_sizes(&self, portfolio_id: Uuid) -> Result<HashMap<String, f64>, String> {
+    pub fn calculate_optimal_position_sizes(&self, portfolio_id: Uuid) -> Result<HashMap<String, f64>, BullShiftError> {
         let portfolio = self.portfolios.get(&portfolio_id)
-            .ok_or("Portfolio not found")?;
+            .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
         
         let mut optimal_sizes = HashMap::new();
         
@@ -412,24 +413,24 @@ impl PaperHands {
     }
 
     // Helper methods
-    fn validate_trade(&self, portfolio: &PaperPortfolio, trade: &PaperTrade) -> Result<(), String> {
+    fn validate_trade(&self, portfolio: &PaperPortfolio, trade: &PaperTrade) -> Result<(), BullShiftError> {
         // Check if sufficient balance
         let required_balance = trade.quantity * trade.entry_price + self.calculate_fees(trade.quantity, trade.entry_price);
         
         if required_balance > portfolio.available_balance {
-            return Err("Insufficient balance for trade".to_string());
+            return Err(BullShiftError::Trading("Insufficient balance for trade".to_string()));
         }
         
         // Check position size limits
         let max_position_size = portfolio.current_balance * 0.5; // Max 50% per position
         if required_balance > max_position_size {
-            return Err("Trade exceeds maximum position size".to_string());
+            return Err(BullShiftError::Trading("Trade exceeds maximum position size".to_string()));
         }
         
         Ok(())
     }
 
-    fn process_trade(&mut self, portfolio: &mut PaperPortfolio, trade: PaperTrade) -> Result<(), String> {
+    fn process_trade(&mut self, portfolio: &mut PaperPortfolio, trade: PaperTrade) -> Result<(), BullShiftError> {
         let fees = self.calculate_fees(trade.quantity, trade.entry_price);
         let total_cost = trade.quantity * trade.entry_price + fees;
         let symbol = &trade.symbol;
@@ -607,9 +608,9 @@ impl PaperHands {
         }
     }
 
-    fn simulate_trading(&mut self, strategy_name: String, settings: SimulationSettings, portfolio_id: Uuid) -> Result<BacktestResult, String> {
+    fn simulate_trading(&mut self, strategy_name: String, settings: SimulationSettings, portfolio_id: Uuid) -> Result<BacktestResult, BullShiftError> {
         let portfolio = self.portfolios.get(&portfolio_id)
-            .ok_or("Portfolio not found")?;
+            .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
         
         // Generate equity curve based on simulated trades
         let mut equity_curve = Vec::new();
@@ -794,7 +795,7 @@ impl PaperHands {
         }
     }
 
-    fn run_single_simulation(&self, portfolio: &PaperPortfolio) -> Result<SimulationResult, String> {
+    fn run_single_simulation(&self, portfolio: &PaperPortfolio) -> Result<SimulationResult, BullShiftError> {
         // Monte Carlo simulation using geometric Brownian motion
         let initial_value = portfolio.current_balance;
         let days = 252; // Trading days in a year
@@ -922,7 +923,7 @@ impl PaperHands {
         }
     }
     
-    fn run_monte_carlo_simulation(&self, equity_curve: &[EquityPoint], num_simulations: u32) -> Result<MonteCarloAnalysis, String> {
+    fn run_monte_carlo_simulation(&self, equity_curve: &[EquityPoint], num_simulations: u32) -> Result<MonteCarloAnalysis, BullShiftError> {
         let mut simulations = Vec::new();
         
         // Calculate historical returns and volatility from equity curve

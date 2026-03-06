@@ -1,3 +1,4 @@
+use crate::error::BullShiftError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
@@ -11,6 +12,7 @@ pub struct AIProvider {
     pub name: String,
     pub provider_type: AIProviderType,
     pub api_endpoint: String,
+    pub api_key: String,
     pub model_name: String,
     pub is_configured: bool,
     pub is_active: bool,
@@ -187,7 +189,7 @@ impl BearlyManaged {
     }
 
     // Provider Management
-    pub async fn add_provider(&mut self, provider: AIProvider) -> Result<Uuid, String> {
+    pub async fn add_provider(&mut self, provider: AIProvider) -> Result<Uuid, BullShiftError> {
         let provider_id = provider.id;
         
         // Validate provider configuration
@@ -200,10 +202,10 @@ impl BearlyManaged {
         Ok(provider_id)
     }
 
-    pub async fn configure_provider(&mut self, provider_id: Uuid, config: AIConfiguration) -> Result<(), String> {
+    pub async fn configure_provider(&mut self, provider_id: Uuid, config: AIConfiguration) -> Result<(), BullShiftError> {
         // Validate provider exists
         if !self.providers.contains_key(&provider_id) {
-            return Err("Provider not found".to_string());
+            return Err(BullShiftError::AiBridge("Provider not found".to_string()));
         }
 
         // Encrypt sensitive data
@@ -221,12 +223,12 @@ impl BearlyManaged {
         Ok(())
     }
 
-    pub async fn test_provider_connection(&self, provider_id: Uuid) -> Result<bool, String> {
+    pub async fn test_provider_connection(&self, provider_id: Uuid) -> Result<bool, BullShiftError> {
         let provider = self.providers.get(&provider_id)
-            .ok_or("Provider not found")?;
+            .ok_or_else(|| BullShiftError::AiBridge("Provider not found".to_string()))?;
         
         let config = self.configurations.get(&provider_id)
-            .ok_or("Provider not configured")?;
+            .ok_or_else(|| BullShiftError::AiBridge("Provider not configured".to_string()))?;
 
         match provider.provider_type {
             AIProviderType::OpenAI => {
@@ -248,7 +250,7 @@ impl BearlyManaged {
     }
 
     // Strategy Management
-    pub async fn create_strategy(&mut self, strategy: TradingStrategy) -> Result<Uuid, String> {
+    pub async fn create_strategy(&mut self, strategy: TradingStrategy) -> Result<Uuid, BullShiftError> {
         let strategy_id = strategy.id;
         
         // Validate strategy
@@ -268,16 +270,16 @@ impl BearlyManaged {
         Ok(strategy_id)
     }
 
-    pub async fn generate_ai_strategy(&self, strategy: &TradingStrategy) -> Result<TradingStrategy, String> {
+    pub async fn generate_ai_strategy(&self, strategy: &TradingStrategy) -> Result<TradingStrategy, BullShiftError> {
         let provider = self.providers.get(&strategy.provider_id)
-            .ok_or("Provider not found")?;
+            .ok_or_else(|| BullShiftError::AiBridge("Provider not found".to_string()))?;
         
         let prompt = self.build_strategy_generation_prompt(strategy);
         
         let response = self.send_ai_request(provider, &prompt).await?;
         
         if !response.success {
-            return Err(response.error_message.unwrap_or("AI request failed".to_string()));
+            return Err(BullShiftError::AiBridge(response.error_message.unwrap_or("AI request failed".to_string())));
         }
         
         // Parse AI response and update strategy
@@ -289,7 +291,7 @@ impl BearlyManaged {
     }
 
     // Prompt Management
-    pub async fn add_prompt(&mut self, prompt: AIPrompt) -> Result<Uuid, String> {
+    pub async fn add_prompt(&mut self, prompt: AIPrompt) -> Result<Uuid, BullShiftError> {
         let prompt_id = prompt.id;
         
         // Validate prompt
@@ -302,12 +304,12 @@ impl BearlyManaged {
         Ok(prompt_id)
     }
 
-    pub async fn execute_prompt(&mut self, prompt_id: Uuid, variables: HashMap<String, String>) -> Result<AIResponse, String> {
+    pub async fn execute_prompt(&mut self, prompt_id: Uuid, variables: HashMap<String, String>) -> Result<AIResponse, BullShiftError> {
         let prompt = self.prompts.get(&prompt_id)
-            .ok_or("Prompt not found")?;
+            .ok_or_else(|| BullShiftError::AiBridge("Prompt not found".to_string()))?;
         
         let provider = self.providers.get(&prompt.provider_id)
-            .ok_or("Provider not found")?;
+            .ok_or_else(|| BullShiftError::AiBridge("Provider not found".to_string()))?;
         
         // Build final prompt with variables
         let final_prompt = self.substitute_prompt_variables(&prompt.template, &variables);
@@ -325,7 +327,7 @@ impl BearlyManaged {
     }
 
     // AI Request Execution
-    async fn send_ai_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+    async fn send_ai_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
         let start_time = std::time::Instant::now();
         
         let response = match provider.provider_type {
@@ -363,7 +365,7 @@ impl BearlyManaged {
                     cost: 0.0,
                     response_time_ms: response_time,
                     success: false,
-                    error_message: Some(e),
+                    error_message: Some(e.to_string()),
                     timestamp: Utc::now(),
                 })
             }
@@ -371,10 +373,10 @@ impl BearlyManaged {
     }
 
     // Generic connection test — sends GET to the given health URL
-    async fn test_endpoint_connection(&self, url: &str, provider_name: &str) -> Result<bool, String> {
+    async fn test_endpoint_connection(&self, url: &str, provider_name: &str) -> Result<bool, BullShiftError> {
         match self.client.get(url).send().await {
             Ok(response) => Ok(response.status().is_success() || response.status() == reqwest::StatusCode::UNAUTHORIZED),
-            Err(e) => Err(format!("{} connection test failed: {}", provider_name, e)),
+            Err(e) => Err(BullShiftError::AiBridge(format!("{} connection test failed: {}", provider_name, e))),
         }
     }
 
@@ -385,7 +387,7 @@ impl BearlyManaged {
         url: &str,
         body: &serde_json::Value,
         auth_headers: Vec<(&str, String)>,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<serde_json::Value, BullShiftError> {
         let mut request = self.client
             .post(url)
             .header("Content-Type", "application/json");
@@ -398,13 +400,13 @@ impl BearlyManaged {
             .json(body)
             .send()
             .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .map_err(|e| BullShiftError::AiBridge(format!("Request failed: {}", e)))?;
 
         if response.status().is_success() {
             response.json::<serde_json::Value>().await
-                .map_err(|e| format!("Failed to parse response: {}", e))
+                .map_err(|e| BullShiftError::AiBridge(format!("Failed to parse response: {}", e)))
         } else {
-            Err(format!("API error: {}", response.status()))
+            Err(BullShiftError::Api(format!("AI API error: {}", response.status())))
         }
     }
 
@@ -424,28 +426,28 @@ impl BearlyManaged {
     }
 
     // Provider-specific connection tests
-    async fn test_openai_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
+    async fn test_openai_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, BullShiftError> {
         self.test_endpoint_connection(&format!("{}/models", provider.api_endpoint), "OpenAI").await
     }
 
-    async fn test_anthropic_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
+    async fn test_anthropic_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, BullShiftError> {
         self.test_endpoint_connection(&format!("{}/v1/messages", provider.api_endpoint), "Anthropic").await
     }
 
-    async fn test_ollama_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
+    async fn test_ollama_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, BullShiftError> {
         self.test_endpoint_connection(&format!("{}/api/tags", provider.api_endpoint), "Ollama").await
     }
 
-    async fn test_local_llm_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
+    async fn test_local_llm_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, BullShiftError> {
         self.test_endpoint_connection(&format!("{}/health", provider.api_endpoint), "Local LLM").await
     }
 
-    async fn test_custom_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
+    async fn test_custom_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, BullShiftError> {
         self.test_endpoint_connection(&format!("{}/test", provider.api_endpoint), "Custom").await
     }
 
     // Provider-specific request implementations
-    async fn send_openai_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+    async fn send_openai_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
         let body = serde_json::json!({
             "model": provider.model_name,
             "messages": [{"role": "user", "content": prompt}],
@@ -457,12 +459,12 @@ impl BearlyManaged {
             ("Authorization", format!("Bearer {}", &provider.api_key)),
         ]).await?;
 
-        let content = result["choices"][0]["message"]["content"].as_str().ok_or("Invalid OpenAI response format")?;
-        let tokens_used = result["usage"]["total_tokens"].as_u64().ok_or("Invalid token usage data")? as u32;
+        let content = result["choices"][0]["message"]["content"].as_str().ok_or_else(|| BullShiftError::AiBridge("Invalid OpenAI response format".to_string()))?;
+        let tokens_used = result["usage"]["total_tokens"].as_u64().ok_or_else(|| BullShiftError::AiBridge("Invalid token usage data".to_string()))? as u32;
         Ok(self.build_ai_response(provider, content, tokens_used, 0.002))
     }
 
-    async fn send_anthropic_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+    async fn send_anthropic_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
         let body = serde_json::json!({
             "model": provider.model_name,
             "max_tokens": provider.max_tokens,
@@ -475,13 +477,13 @@ impl BearlyManaged {
             ("anthropic-version", "2023-06-01".to_string()),
         ]).await?;
 
-        let content = result["content"][0]["text"].as_str().ok_or("Invalid Anthropic response format")?;
+        let content = result["content"][0]["text"].as_str().ok_or_else(|| BullShiftError::AiBridge("Invalid Anthropic response format".to_string()))?;
         let tokens_used = result["usage"]["input_tokens"].as_u64().unwrap_or(0) as u32
             + result["usage"]["output_tokens"].as_u64().unwrap_or(0) as u32;
         Ok(self.build_ai_response(provider, content, tokens_used, 0.015))
     }
 
-    async fn send_ollama_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+    async fn send_ollama_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
         let body = serde_json::json!({
             "model": provider.model_name,
             "prompt": prompt,
@@ -491,13 +493,13 @@ impl BearlyManaged {
         let url = format!("{}/api/generate", provider.api_endpoint);
         let result = self.post_ai_request(provider, &url, &body, vec![]).await?;
 
-        let content = result["response"].as_str().ok_or("Invalid Ollama response format")?;
+        let content = result["response"].as_str().ok_or_else(|| BullShiftError::AiBridge("Invalid Ollama response format".to_string()))?;
         let tokens_used = result["prompt_eval_count"].as_u64().unwrap_or(0) as u32
             + result["eval_count"].as_u64().unwrap_or(0) as u32;
         Ok(self.build_ai_response(provider, content, tokens_used, 0.0))
     }
 
-    async fn send_local_llm_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+    async fn send_local_llm_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
         let body = serde_json::json!({
             "inputs": prompt,
             "parameters": {"temperature": provider.temperature, "max_new_tokens": provider.max_tokens}
@@ -507,11 +509,11 @@ impl BearlyManaged {
 
         let content = result["generated_text"].as_str()
             .or_else(|| result["0"]["generated_text"].as_str())
-            .ok_or("Invalid Local LLM response format")?;
+            .ok_or_else(|| BullShiftError::AiBridge("Invalid Local LLM response format".to_string()))?;
         Ok(self.build_ai_response(provider, content, prompt.len() as u32, 0.0))
     }
 
-    async fn send_custom_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+    async fn send_custom_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
         let body = serde_json::json!({
             "prompt": prompt,
             "model": provider.model_name,
@@ -524,53 +526,53 @@ impl BearlyManaged {
         let content = result["text"].as_str()
             .or_else(|| result["response"].as_str())
             .or_else(|| result["completion"].as_str())
-            .ok_or("Invalid Custom provider response format")?;
+            .ok_or_else(|| BullShiftError::AiBridge("Invalid Custom provider response format".to_string()))?;
         let tokens_used = result["usage"].as_u64().unwrap_or(prompt.len() as u64) as u32;
         Ok(self.build_ai_response(provider, content, tokens_used, 0.001))
     }
 
     // Helper methods
-    fn validate_provider(&self, provider: &AIProvider) -> Result<(), String> {
+    fn validate_provider(&self, provider: &AIProvider) -> Result<(), BullShiftError> {
         if provider.name.is_empty() {
-            return Err("Provider name cannot be empty".to_string());
+            return Err(BullShiftError::Validation("Provider name cannot be empty".to_string()));
         }
         
         if provider.api_endpoint.is_empty() {
-            return Err("API endpoint cannot be empty".to_string());
+            return Err(BullShiftError::Validation("API endpoint cannot be empty".to_string()));
         }
         
         if provider.model_name.is_empty() {
-            return Err("Model name cannot be empty".to_string());
+            return Err(BullShiftError::Validation("Model name cannot be empty".to_string()));
         }
         
         Ok(())
     }
 
-    fn validate_strategy(&self, strategy: &TradingStrategy) -> Result<(), String> {
+    fn validate_strategy(&self, strategy: &TradingStrategy) -> Result<(), BullShiftError> {
         if strategy.name.is_empty() {
-            return Err("Strategy name cannot be empty".to_string());
+            return Err(BullShiftError::Validation("Strategy name cannot be empty".to_string()));
         }
         
         if strategy.parameters.symbols.is_empty() {
-            return Err("Strategy must have at least one symbol".to_string());
+            return Err(BullShiftError::Validation("Strategy must have at least one symbol".to_string()));
         }
         
         Ok(())
     }
 
-    fn validate_prompt(&self, prompt: &AIPrompt) -> Result<(), String> {
+    fn validate_prompt(&self, prompt: &AIPrompt) -> Result<(), BullShiftError> {
         if prompt.name.is_empty() {
-            return Err("Prompt name cannot be empty".to_string());
+            return Err(BullShiftError::Validation("Prompt name cannot be empty".to_string()));
         }
         
         if prompt.template.is_empty() {
-            return Err("Prompt template cannot be empty".to_string());
+            return Err(BullShiftError::Validation("Prompt template cannot be empty".to_string()));
         }
         
         Ok(())
     }
 
-    fn encrypt_configuration(&self, config: &AIConfiguration) -> Result<AIConfiguration, String> {
+    fn encrypt_configuration(&self, config: &AIConfiguration) -> Result<AIConfiguration, BullShiftError> {
         // Encrypt API key
         let encrypted_api_key = self.security_manager.encrypt_sensitive_data(&config.api_key)?;
         
@@ -663,7 +665,7 @@ impl BearlyManaged {
         self.configurations.contains_key(provider_id)
     }
 
-    pub async fn get_provider_usage_stats(&self, provider_id: &Uuid) -> Result<UsageStats, String> {
+    pub async fn get_provider_usage_stats(&self, provider_id: &Uuid) -> Result<UsageStats, BullShiftError> {
         let provider_responses: Vec<_> = self.responses
             .iter()
             .filter(|r| r.provider_id == *provider_id)

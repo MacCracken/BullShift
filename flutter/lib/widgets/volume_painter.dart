@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' show max;
 import 'chart_enums.dart';
 
 class VolumeChartPainter extends CustomPainter {

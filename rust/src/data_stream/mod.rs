@@ -101,40 +101,26 @@ impl AlpacaStream {
     
     /// Load credentials from secure storage using the security manager
     /// This retrieves encrypted credentials for the "alpaca" broker
-    pub fn load_credentials(&mut self) -> Result<(), String> {
+    pub fn load_credentials(&mut self) -> Result<(), BullShiftError> {
         // Initialize security manager
-        let security_manager = SecurityManager::new()
-            .map_err(|e| format!("Failed to initialize security manager: {}", e))?;
-        
+        let security_manager = SecurityManager::new()?;
+
         // Attempt to load credentials for Alpaca broker
-        match security_manager.get_credentials("alpaca") {
-            Ok((api_key, api_secret)) => {
-                let credentials = ApiCredentials::from_secure_storage(api_key, api_secret);
-                
-                // Validate credentials before storing
-                credentials.validate()
-                    .map_err(|e| format!("Invalid credentials from secure storage: {}", e))?;
-                
-                self.credentials = Some(credentials);
-                log::info!("Successfully loaded Alpaca credentials from secure storage");
-                Ok(())
-            }
-            Err(e) => {
-                log::warn!("Failed to load credentials from secure storage: {}", e);
-                Err(format!("Failed to load credentials from secure storage: {}. \
-                    Please ensure credentials are stored using the security manager or set them manually with set_credentials()", e))
-            }
-        }
+        let (api_key, api_secret) = security_manager.get_credentials("alpaca")?;
+        let credentials = ApiCredentials::from_secure_storage(api_key, api_secret);
+
+        // Validate credentials before storing
+        credentials.validate()?;
+
+        self.credentials = Some(credentials);
+        log::info!("Successfully loaded Alpaca credentials from secure storage");
+        Ok(())
     }
     
     /// Store credentials securely using the security manager
-    pub fn store_credentials_securely(&self, api_key: String, api_secret: String) -> Result<(), String> {
-        let mut security_manager = SecurityManager::new()
-            .map_err(|e| format!("Failed to initialize security manager: {}", e))?;
-        
-        security_manager.store_credentials("alpaca".to_string(), api_key, api_secret)
-            .map_err(|e| format!("Failed to store credentials: {}", e))?;
-        
+    pub fn store_credentials_securely(&self, api_key: String, api_secret: String) -> Result<(), BullShiftError> {
+        let mut security_manager = SecurityManager::new()?;
+        security_manager.store_credentials("alpaca".to_string(), api_key, api_secret)?;
         log::info!("Successfully stored Alpaca credentials in secure storage");
         Ok(())
     }
@@ -219,16 +205,16 @@ impl Drop for AlpacaStream {
 }
 
 impl MarketDataStream for AlpacaStream {
-    fn connect(&mut self, symbols: Vec<String>) -> Result<(), String> {
+    fn connect(&mut self, symbols: Vec<String>) -> Result<(), BullShiftError> {
         // Validate credentials are set
         let credentials = self.credentials.as_ref()
-            .ok_or("No credentials configured. Call set_credentials() first.")?;
-        
+            .ok_or_else(|| BullShiftError::Configuration("No credentials configured. Call set_credentials() first.".to_string()))?;
+
         // Validate credentials
         credentials.validate()?;
-        
+
         let url = "wss://stream.data.alpaca.markets/v2/iex";
-        
+
         match connect(url) {
             Ok((mut ws_stream, _)) => {
                 self.connected = true;
@@ -244,7 +230,7 @@ impl MarketDataStream for AlpacaStream {
                 });
                 
                 if let Err(e) = ws_stream.write_message(Message::Text(auth_msg.to_string())) {
-                    return Err(format!("Failed to send auth: {}", e));
+                    return Err(BullShiftError::DataStream(format!("Failed to send auth: {}", e)));
                 }
                 
                 log::info!("WebSocket authentication sent (credentials transmitted over TLS)");
@@ -259,7 +245,7 @@ impl MarketDataStream for AlpacaStream {
                     });
                     
                     if let Err(e) = ws_stream.write_message(Message::Text(sub_msg.to_string())) {
-                        return Err(format!("Failed to subscribe to {}: {}", symbol, e));
+                        return Err(BullShiftError::DataStream(format!("Failed to subscribe to {}: {}", symbol, e)));
                     }
                     
                     self.subscriptions.insert(symbol, "active".to_string());
@@ -302,18 +288,18 @@ impl MarketDataStream for AlpacaStream {
                 
                 Ok(())
             }
-            Err(e) => Err(format!("Failed to connect: {}", e))
+            Err(e) => Err(BullShiftError::DataStream(format!("Failed to connect: {}", e)))
         }
     }
 
-    fn subscribe_ticks(&mut self, symbols: Vec<String>) -> Result<(), String> {
+    fn subscribe_ticks(&mut self, symbols: Vec<String>) -> Result<(), BullShiftError> {
         for symbol in symbols {
             self.subscriptions.insert(symbol, "ticks".to_string());
         }
         Ok(())
     }
 
-    fn subscribe_bars(&mut self, symbols: Vec<String>, timeframe: String) -> Result<(), String> {
+    fn subscribe_bars(&mut self, symbols: Vec<String>, timeframe: String) -> Result<(), BullShiftError> {
         for symbol in symbols {
             self.subscriptions.insert(symbol, timeframe.clone());
         }
@@ -358,7 +344,7 @@ impl MarketDataManager {
         self.bar_cache.get(symbol)
     }
 
-    pub fn start_data_collection(&mut self) -> Result<(), String> {
+    pub fn start_data_collection(&mut self) -> Result<(), BullShiftError> {
         // Start collecting data from all streams
         for (name, stream) in &self.streams {
             log::info!("Starting data collection for stream: {}", name);
