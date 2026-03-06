@@ -2,6 +2,36 @@
 
 All notable changes to BullShift Trading Platform will be documented in this file.
 
+## [2026.3.6] - 2026-03-05
+
+### Added
+- **Webhook notifications** — `WebhookManager` in `src/webhooks/` with Slack,
+  Discord, JSON, and FormEncoded dispatch formats. 12 trigger types (trade
+  executed, order filled, price alert, stop loss triggered, etc.), retry logic
+  with exponential backoff, HMAC-SHA256 payload signatures, delivery tracking
+  with success/failure history.
+- **Excel/Google Sheets integration** — `SheetsManager` in `src/sheets/` with
+  CSV/TSV/JSON export for trades, positions, and account data. Google Sheets
+  API v4 append/read support. Scheduled export management with configurable
+  intervals. RFC 4180 CSV escaping for safe spreadsheet import.
+- **Algorithmic trading engine** — `AlgoEngine` in `src/algo/` with 8 strategy
+  types: Moving Average Crossover, Mean Reversion, Breakout, VWAP, TWAP, Grid
+  Trading, Trailing Stop, and Pairs Trading. Signal generation with strength
+  scoring, performance tracking (win rate, P&L), and price history management.
+- **Options trading** — `OptionsManager` in `src/options/` with Black-Scholes
+  pricing model, full Greeks calculation (delta, gamma, theta, vega, rho),
+  options chain management, position tracking, and portfolio-level Greeks
+  aggregation. 9 strategy types: Long/Short Option, Straddle, Strangle,
+  Bull Call Spread, Bear Put Spread, Iron Condor, Covered Call, Protective Put.
+
+### Technical
+- 125 tests total (124 lib + 1 bin), 0 failures, 0 clippy warnings
+- 41 new tests across webhooks (9), sheets (8), algo (12), options (12)
+- Black-Scholes with Abramowitz & Stegun normal CDF approximation
+- No new dependencies added
+
+---
+
 ## [2026.6.0] - 2026-03-05
 
 ### Added

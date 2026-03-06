@@ -1,7 +1,7 @@
 # BullShift Roadmap
 
-**Version:** 2026.3.5
-**Last Updated:** March 6, 2026
+**Version:** 2026.3.6
+**Last Updated:** March 5, 2026
 
 ---
 
@@ -45,6 +45,29 @@
 
 ---
 
+## 2026.3.6 - Trading Extensions (Complete)
+
+### Focus: Webhook notifications, spreadsheet integration, algorithmic trading, options trading
+
+**Status:** Complete
+
+- [x] **Webhook notifications** — `WebhookManager` in `src/webhooks/` with Slack,
+      Discord, JSON, and FormEncoded formats. 12 trigger types (trade executed,
+      order filled, price alert, etc.), retry logic with exponential backoff,
+      HMAC-SHA256 payload signatures, delivery tracking.
+- [x] **Excel/Google Sheets integration** — `SheetsManager` in `src/sheets/` with
+      CSV/TSV/JSON export, Google Sheets API v4 append/read, scheduled exports,
+      RFC 4180 CSV escaping. Export trades, positions, and account data.
+- [x] **Algorithmic trading** — `AlgoEngine` in `src/algo/` with 8 strategy types
+      (MA Crossover, Mean Reversion, Breakout, VWAP, TWAP, Grid, Trailing Stop,
+      Pairs Trading). Signal generation, performance tracking, price history.
+- [x] **Options trading** — `OptionsManager` in `src/options/` with Black-Scholes
+      pricing, full Greeks (delta, gamma, theta, vega, rho), options chains,
+      position management, portfolio Greeks. 9 strategy types including spreads,
+      straddles, iron condors, covered calls, and protective puts.
+
+---
+
 ## 2027.1.x - Production Ready
 
 ### Focus: Production deployment features
@@ -61,8 +84,6 @@
 
 ### Nice to Have
 
-- Options trading support
-- Algorithmic trading execution
 - Mobile app improvements
 - Plugin system for extensions
 
@@ -70,8 +91,6 @@
 
 - Additional broker integrations (based on user feedback)
 - Custom indicator development framework
-- Webhook notifications
-- Excel/Google Sheets integration
 
 ---
 
@@ -79,6 +98,7 @@
 
 | Version | Date | Status |
 |---------|------|--------|
+| 2026.3.6 | 2026-03-05 | Released |
 | 2026.3.5 | 2026-03-05 | Released |
 | 2026.2.22 | 2026-02-22 | Released |
 | 2026.2.16 | 2026-02-16 | Released |
