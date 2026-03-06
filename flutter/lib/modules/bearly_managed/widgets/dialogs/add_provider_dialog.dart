@@ -23,6 +23,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
     'OpenAI',
     'Anthropic',
     'Ollama',
+    'SecureYeoman',
     'Local LLM',
     'Custom',
   ];
@@ -108,11 +109,15 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
         break;
       case 'Anthropic':
         _apiEndpointController.text = 'https://api.anthropic.com/v1';
-        _modelNameController.text = 'claude-3-opus-20240229';
+        _modelNameController.text = 'claude-sonnet-4-6';
         break;
       case 'Ollama':
         _apiEndpointController.text = 'http://localhost:11434';
         _modelNameController.text = 'llama2';
+        break;
+      case 'SecureYeoman':
+        _apiEndpointController.text = 'http://localhost:18789';
+        _modelNameController.text = 'auto';
         break;
       case 'Local LLM':
         _apiEndpointController.text = 'http://localhost:8080';

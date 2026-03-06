@@ -31,7 +31,8 @@ class AIProviderCard extends StatelessWidget {
         case 'openai': return Colors.green;
         case 'anthropic': return Colors.purple;
         case 'ollama': return Colors.orange;
-        case 'local': return Colors.blue;
+        case 'secureyeoman': return Colors.teal;
+        case 'local': case 'local llm': return Colors.blue;
         default: return Colors.grey;
       }
     }

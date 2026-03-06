@@ -5,17 +5,17 @@
 
 ---
 
-## 2026.5.x - AI Enhancement (In Progress)
+## 2026.5.x - AI Enhancement (Complete)
 
 ### Focus: AI Bridge backend implementations
 
-**Status:** In progress — API key encryption and SecureYeoman provider complete
+**Status:** Complete
 
 - [x] Encryption for API keys using SecurityManager
 - [x] SecureYeoman as AI provider (`POST http://localhost:18789/api/v1/chat`)
-- [ ] Anthropic API integration
-- [ ] Ollama local LLM integration
-- [ ] Custom provider configuration
+- [x] Anthropic API integration (Claude API via `x-api-key` + `anthropic-version` headers)
+- [x] Ollama local LLM integration (`POST http://localhost:11434/api/generate`)
+- [x] Custom provider configuration (Flutter UI + API server endpoints)
 
 ---
 

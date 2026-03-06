@@ -14,6 +14,15 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 - **SecureYeoman AI provider** — `SecureYeoman` variant added to `AIProviderType`.
   `send_secureyeoman_request()` sends chat completions to
   `POST http://localhost:18789/api/v1/chat`. Optional bearer token auth supported.
+- **AI provider API endpoints** — `api_server` gains AI provider management:
+  `GET/POST /v1/ai/providers`, `POST /v1/ai/providers/:id/configure`,
+  `POST /v1/ai/providers/:id/test`, `POST /v1/ai/chat`. Supports OpenAI,
+  Anthropic, Ollama, SecureYeoman, and custom providers.
+- **Flutter AI bridge service** — `AiBridgeService` HTTP client replaces
+  simulated provider operations. `BearlyManagedProvider` now calls the
+  api_server for configure, test, and chat with graceful fallback.
+- **SecureYeoman in Add Provider dialog** — dropdown now includes SecureYeoman
+  with default endpoint `http://localhost:18789` and model `auto`.
 - **Interactive Brokers integration** — Client Portal Gateway API support for
   equities, options, crypto, and extended-hours trading. Requires IB Gateway
   running locally. (`rust/src/trading/brokers/interactive_brokers.rs`)
@@ -49,6 +58,9 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 - ADR-006: Broker abstraction architecture decision record
 - Added `pub mod ai_bridge` to `lib.rs` (was missing, preventing test discovery)
 - 10 new tests for API key encryption and SecureYeoman provider
+- `api_server` expanded from 5 to 10 endpoints (trading + AI)
+- `AiBridgeService` Flutter HTTP client (`flutter/lib/services/ai_bridge_service.dart`)
+- Anthropic default model updated to `claude-sonnet-4-6`
 
 ---
 
@@ -139,4 +151,4 @@ Features from earlier alpha/beta releases included:
 
 For older releases, please refer to the git history.
 
-*Last Updated: March 6, 2026*
+*Last Updated: March 7, 2026*

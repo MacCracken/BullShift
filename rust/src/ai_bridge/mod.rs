@@ -340,7 +340,7 @@ impl BearlyManaged {
     /// Resolve the decrypted API key for a provider.
     /// If the provider has a key stored in SecurityManager, decrypt and return it.
     /// Otherwise fall back to the (possibly empty) in-memory key.
-    fn resolve_api_key(&self, provider: &AIProvider) -> Result<String, BullShiftError> {
+    pub fn resolve_api_key(&self, provider: &AIProvider) -> Result<String, BullShiftError> {
         if self.security_manager.has_api_key(&provider.name) {
             self.security_manager.get_api_key(&provider.name)
         } else {
