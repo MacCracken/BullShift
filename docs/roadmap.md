@@ -122,11 +122,24 @@
 
 ---
 
+## 2027.3.x - Real-time Streaming (Complete)
+
+### Focus: WebSocket streaming API for real-time data
+
+**Status:** Complete
+
+- [x] **WebSocket streaming server** — `StreamingServer` in `src/websocket/` with
+      broadcast-based pub/sub architecture. 5 channel types (Prices per-symbol,
+      Trades, Orders, Positions, Alerts). Client session management with
+      subscription tracking. Convenience publishers for price updates, trades,
+      order updates, and alerts. Server stats reporting. 15 tests.
+
+---
+
 ## Future Considerations
 
 ### Nice to Have
 
-- Real-time WebSocket streaming API
 - Multi-currency portfolio support
 - Tax lot tracking and reporting
 
@@ -136,6 +149,7 @@
 
 | Version | Date | Status |
 |---------|------|--------|
+| 2027.3.0 | 2026-03-05 | Released |
 | 2026.3.6 | 2026-03-05 | Released |
 | 2026.3.5 | 2026-03-05 | Released |
 | 2026.2.22 | 2026-02-22 | Released |

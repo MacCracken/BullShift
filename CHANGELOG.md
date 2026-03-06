@@ -2,6 +2,24 @@
 
 All notable changes to BullShift Trading Platform will be documented in this file.
 
+## [2027.3.0] - 2026-03-05
+
+### Added
+- **Real-time WebSocket streaming API** — `StreamingServer` in `src/websocket/`
+  with broadcast-based pub/sub architecture using `tokio::sync::broadcast`.
+  5 subscribable channel types: `Prices` (per-symbol), `Trades`, `Orders`,
+  `Positions`, `Alerts`. Client session management with subscription tracking,
+  `ClientCommand` protocol (subscribe/unsubscribe/ping), message filtering via
+  `should_receive()`, convenience publishers for price updates, trades, order
+  status changes, and alerts. Server statistics reporting. 15 tests.
+
+### Technical
+- 326 tests total (325 lib + 1 bin), 0 failures, 0 clippy warnings
+- 15 new tests for WebSocket streaming module
+- No new Rust dependencies added (uses existing tokio broadcast channels)
+
+---
+
 ## [2027.2.0] - 2026-03-05
 
 ### Added

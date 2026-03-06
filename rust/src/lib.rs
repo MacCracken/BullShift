@@ -15,13 +15,14 @@ pub mod logging;
 pub mod mobile;
 pub mod monitoring;
 pub mod options;
+pub mod plugins;
 pub mod rbac;
 pub mod security;
 pub mod sentiment;
-pub mod plugins;
 pub mod sheets;
 pub mod trading;
 pub mod webhooks;
+pub mod websocket;
 
 pub use database::Database;
 pub use trading::trade_history::{Trade, TradeHistory};
