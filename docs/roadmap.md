@@ -136,6 +136,35 @@
 
 ---
 
+## SecureYeoman & AGNOS Integration
+
+### MCP Tool Registration
+**Status:** Ready — BullShift REST API server exists, SecureYeoman integration module complete.
+
+The BullShift `api_server` binary (added 2026-02-22) exposes REST endpoints that SecureYeoman can proxy as MCP tools. Candidates for `packages/mcp/src/tools/manifest.ts` registration:
+
+- [ ] **`bullshift_portfolio`** — Portfolio summary (positions, P&L, Greeks) via GET `/api/portfolio`
+- [ ] **`bullshift_trade`** — Execute trades via POST `/api/orders` with agent order validation from `SecureYeomanBridge`
+- [ ] **`bullshift_market_data`** — Price quotes and candles via GET `/api/market/:symbol`
+- [ ] **`bullshift_algo_status`** — Active algo strategies and performance via GET `/api/algo/strategies`
+- [ ] **`bullshift_sentiment`** — Aggregated sentiment signals via GET `/api/sentiment` (feeds from `SentimentRouter`)
+- [ ] **`bullshift_alerts`** — Price/trade alerts via GET/POST `/api/alerts`
+
+These should use SecureYeoman's `registerApiProxyTool()` factory in `tool-utils.ts` for zero-code registration.
+
+### AGNOS Docker Base Migration
+**Priority:** Medium — depends on AGNOS Alpha (Q2 2026).
+
+- [ ] **Swap runtime stage to `agnos:latest`** — Current Dockerfile uses `debian:bookworm-slim` for the runtime stage. BullShift is already Rust, so the migration is straightforward. Gains: sandboxed trade execution via `agent-runtime`, cryptographic audit chain integration (complements BullShift's existing HMAC-SHA256 audit trail), resource quotas per trading strategy.
+- [ ] **Audit chain unification** — BullShift's `src/audit/` HMAC chain and AGNOS's cryptographic audit chain can be unified. Forward BullShift audit events to AGNOS audit subsystem for tamper-evident logging at the OS level.
+
+### WebSocket Streaming + SecureYeoman
+**Priority:** Low — enhancement opportunity.
+
+- [ ] **Real-time price/trade events in SecureYeoman dashboard** — BullShift's WebSocket streaming server (5 channel types) could feed SecureYeoman's Agent World or a custom dashboard widget. Requires SecureYeoman WebSocket transport (tracked in SecureYeoman roadmap under "WebSocket Mode for AI Providers").
+
+---
+
 ## Future Considerations
 
 ### Nice to Have
