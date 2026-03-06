@@ -2,6 +2,48 @@
 
 All notable changes to BullShift Trading Platform will be documented in this file.
 
+## [2026.6.0] - 2026-03-05
+
+### Added
+- **SecureYeoman integration bridge** — `SecureYeomanBridge` in `src/integration/`
+  provides bidirectional communication: emits trade events to SecureYeoman agents,
+  validates autonomous order requests, and subscribes to SecureYeoman's event bus.
+  Includes broadcast channels for local event subscribers.
+- **Cryptographic audit trail** — `AuditTrail` in `src/audit/` with HMAC-SHA256
+  signed entries forming a tamper-evident chain. Each entry references the previous
+  hash. Supports chain integrity verification, event filtering by type/resource,
+  and optional emission to SecureYeoman's audit chain for compliance.
+- **Multi-source sentiment routing** — `SentimentRouter` in `src/sentiment/`
+  aggregates signals from SecureYeoman's event bus AND independent sources.
+  Three new `NewsSource` implementations for BullRunnr: `SecureYeomanEventSource`
+  (event bus feed), `RssFeedSource` (direct RSS/Atom parsing), and `WebhookSource`
+  (push-based article ingestion). Weighted aggregate sentiment per symbol.
+- **RBAC system** — `RbacManager` in `src/rbac/` with roles (Admin, Trader,
+  Analyst, ReadOnly, Agent, Custom) and 14 fine-grained permissions. Supports
+  API key auth, user management, custom role definitions, and SecureYeoman
+  RBAC sync for federated user/role management.
+- **BullRunnr module** — `src/bullrunnr/` now compiled as part of the library
+  (was previously orphaned). Fixed compilation errors and all clippy warnings.
+
+### Fixed
+- All clippy warnings resolved across the codebase (0 warnings)
+- FFI-unsafe `Option<f64>` in `TradeOrder` replaced with `price: f64` + `has_price: bool`
+- Unused imports, dead code, `clone_on_copy`, `needless_return`,
+  `needless_borrows_for_generic_args`, missing `Default` impls
+- `store_credentials()` AES-GCM buffer pre-resize bug (same fix as
+  `encrypt_sensitive_data()` from prior release)
+- BullRunnr: `MarketSentiment` missing `Default` derive, temporary value
+  lifetime in `VaderSentimentAnalyzer`, unused `clamp` return value
+
+### Technical
+- 85 tests total (84 lib + 1 bin), 0 failures
+- 38 new tests across integration (8), audit (6), sentiment (7), rbac (14),
+  bullrunnr fixes (3)
+- `tokio::sync::broadcast` used for trade event pub/sub
+- `ring::hmac` used for audit trail signing (no new dependencies)
+
+---
+
 ## [2026.3.5] - 2026-03-05
 
 ### Added

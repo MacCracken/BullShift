@@ -1,9 +1,8 @@
 use crate::error::BullShiftError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Utc};
 use reqwest::Client;
-use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewsArticle {
@@ -81,7 +80,7 @@ pub enum SentimentTrend {
     Volatile,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MarketSentiment {
     pub overall_score: f64,
     pub bullish_count: i32,
@@ -98,6 +97,12 @@ pub struct BullRunnr {
     article_cache: HashMap<String, NewsArticle>,
     symbol_sentiment: HashMap<String, SymbolSentiment>,
     market_sentiment: MarketSentiment,
+}
+
+impl Default for BullRunnr {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BullRunnr {
@@ -249,8 +254,8 @@ impl BullRunnr {
             
             // Remove oldest articles
             let to_remove = self.article_cache.len() - 1000;
-            for i in 0..to_remove {
-                self.article_cache.remove(&ids_with_dates[i].1);
+            for item in ids_with_dates.iter().take(to_remove) {
+                self.article_cache.remove(&item.1);
             }
         }
     }
@@ -383,6 +388,12 @@ pub trait SentimentAnalyzer {
 // Mock implementations
 pub struct AlphaVantageNews;
 
+impl Default for AlphaVantageNews {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlphaVantageNews {
     pub fn new() -> Self {
         Self
@@ -403,6 +414,12 @@ impl NewsSource for AlphaVantageNews {
 
 pub struct NewsAPI;
 
+impl Default for NewsAPI {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NewsAPI {
     pub fn new() -> Self {
         Self
@@ -421,6 +438,12 @@ impl NewsSource for NewsAPI {
 }
 
 pub struct TwitterNews;
+
+impl Default for TwitterNews {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TwitterNews {
     pub fn new() -> Self {
@@ -441,6 +464,12 @@ impl NewsSource for TwitterNews {
 
 pub struct VaderSentimentAnalyzer;
 
+impl Default for VaderSentimentAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VaderSentimentAnalyzer {
     pub fn new() -> Self {
         Self
@@ -453,14 +482,15 @@ impl SentimentAnalyzer for VaderSentimentAnalyzer {
         let positive_words = ["good", "great", "excellent", "bullish", "growth", "profit", "rally"];
         let negative_words = ["bad", "terrible", "awful", "bearish", "decline", "loss", "crash"];
         
-        let words: Vec<&str> = text.to_lowercase().split_whitespace().collect();
+        let text_lower = text.to_lowercase();
+        let words: Vec<&str> = text_lower.split_whitespace().collect();
         
         let positive_count = words.iter().filter(|&&w| positive_words.contains(&w)).count() as f64;
         let negative_count = words.iter().filter(|&&w| negative_words.contains(&w)).count() as f64;
         
         let score = (positive_count - negative_count) / (words.len() as f64 + 1.0);
-        score.clamp(-1.0, 1.0);
-        
+        let score = score.clamp(-1.0, 1.0);
+
         let overall = if score > 0.3 {
             SentimentLabel::Bullish
         } else if score < -0.3 {

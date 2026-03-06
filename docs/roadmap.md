@@ -19,25 +19,29 @@
 
 ---
 
-## 2026.6.x - SecureYeoman Deep Integration (Planned)
+## 2026.6.x - SecureYeoman Deep Integration (Complete)
 
 ### Focus: Remaining integration paths with SecureYeoman autonomous agent system
 
-**Status:** Planned — MCP tool layer (see below) is the prerequisite
+**Status:** Complete
 
 > **Done (2026.2.22):** BullShift REST API server (`api_server` binary) added so
 > SecureYeoman's MCP tools can reach BullShift without FFI.
 
-- [ ] **BullShift integration module in SecureYeoman** — full `Integration` adapter
-      (`packages/core/src/integrations/bullshift/`) so SecureYeoman agents can
-      subscribe to trade events and trigger orders autonomously, not just via MCP tools
-- [ ] **Cryptographic audit trail** — emit trade events to SecureYeoman's audit chain
-      so every order submission and fill is cryptographically signed for compliance
-- [ ] **News & sentiment feed** — subscribe BullRunnr to SecureYeoman's event bus
-      (Twitter/X, Reddit, webhook integrations) instead of independent scraping,
-      eliminating duplicate fetch work and consolidating sentiment signals
-- [ ] **RBAC for multi-user setups** — use SecureYeoman's role-based access control
-      to gate which users/agents may submit live orders vs. read-only queries
+- [x] **BullShift integration module** — `SecureYeomanBridge` adapter with trade event
+      emission, broadcast subscriptions, agent order validation, and bidirectional
+      event forwarding (`src/integration/`)
+- [x] **Cryptographic audit trail** — HMAC-SHA256 signed audit chain with tamper
+      detection, chain verification, and optional SecureYeoman audit emission
+      (`src/audit/`)
+- [x] **News & sentiment feed** — `SentimentRouter` aggregates signals from
+      SecureYeoman event bus AND independent sources (RSS, webhooks, Reddit,
+      Twitter, custom APIs). `SecureYeomanEventSource`, `RssFeedSource`, and
+      `WebhookSource` implement the `NewsSource` trait for BullRunnr integration
+      (`src/sentiment/`)
+- [x] **RBAC for multi-user setups** — role-based access control with Admin, Trader,
+      Analyst, ReadOnly, Agent, and Custom roles. Fine-grained permissions,
+      API key auth, user management, and SecureYeoman RBAC sync (`src/rbac/`)
 
 ---
 

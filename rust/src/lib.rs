@@ -4,10 +4,15 @@ use std::os::raw::c_char;
 use crate::error::{BullShiftError, Result};
 
 pub mod ai_bridge;
+pub mod audit;
+pub mod bullrunnr;
 pub mod database;
 pub mod error;
+pub mod integration;
 pub mod logging;
+pub mod rbac;
 pub mod security;
+pub mod sentiment;
 pub mod trading;
 
 pub use database::Database;
