@@ -3,6 +3,7 @@ use std::os::raw::c_char;
 
 use crate::error::{BullShiftError, Result};
 
+pub mod ai_bridge;
 pub mod database;
 pub mod error;
 pub mod logging;

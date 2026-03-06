@@ -58,8 +58,8 @@
 - [ ] Ollama local LLM integration
 - [ ] Local LLM support (LLM running locally)
 - [ ] Custom provider configuration
-- [ ] Encryption for API keys using SecurityManager
-- [ ] **SecureYeoman as AI provider** — wire BearlyManaged's `SecureYeoman` provider type
+- [x] Encryption for API keys using SecurityManager
+- [x] **SecureYeoman as AI provider** — wire BearlyManaged's `SecureYeoman` provider type
       to `POST http://localhost:18789/api/v1/chat` (provider entry already in UI; backend
       HTTP bridge and credential flow to be implemented here)
 

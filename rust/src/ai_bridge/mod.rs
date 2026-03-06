@@ -28,6 +28,7 @@ pub enum AIProviderType {
     Anthropic,
     Ollama,
     LocalLLM,
+    SecureYeoman,
     Custom,
 }
 
@@ -189,15 +190,22 @@ impl BearlyManaged {
     }
 
     // Provider Management
-    pub async fn add_provider(&mut self, provider: AIProvider) -> Result<Uuid, BullShiftError> {
+    pub async fn add_provider(&mut self, mut provider: AIProvider) -> Result<Uuid, BullShiftError> {
         let provider_id = provider.id;
-        
+
         // Validate provider configuration
         self.validate_provider(&provider)?;
-        
+
+        // Encrypt and store the API key via SecurityManager
+        if !provider.api_key.is_empty() {
+            self.security_manager.store_api_key(&provider.name, &provider.api_key)?;
+            // Clear plaintext key from the in-memory provider struct
+            provider.api_key = String::new();
+        }
+
         // Store provider
         self.providers.insert(provider_id, provider);
-        
+
         log::info!("Added AI provider: {:?}", provider_id);
         Ok(provider_id)
     }
@@ -242,6 +250,9 @@ impl BearlyManaged {
             }
             AIProviderType::LocalLLM => {
                 self.test_local_llm_connection(provider, config).await
+            }
+            AIProviderType::SecureYeoman => {
+                self.test_secureyeoman_connection(provider, config).await
             }
             AIProviderType::Custom => {
                 self.test_custom_connection(provider, config).await
@@ -326,10 +337,27 @@ impl BearlyManaged {
         Ok(response)
     }
 
+    /// Resolve the decrypted API key for a provider.
+    /// If the provider has a key stored in SecurityManager, decrypt and return it.
+    /// Otherwise fall back to the (possibly empty) in-memory key.
+    fn resolve_api_key(&self, provider: &AIProvider) -> Result<String, BullShiftError> {
+        if self.security_manager.has_api_key(&provider.name) {
+            self.security_manager.get_api_key(&provider.name)
+        } else {
+            Ok(provider.api_key.clone())
+        }
+    }
+
     // AI Request Execution
     async fn send_ai_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
         let start_time = std::time::Instant::now();
-        
+
+        // Decrypt API key for this request
+        let decrypted_key = self.resolve_api_key(provider)?;
+        let mut provider_with_key = provider.clone();
+        provider_with_key.api_key = decrypted_key;
+        let provider = &provider_with_key;
+
         let response = match provider.provider_type {
             AIProviderType::OpenAI => {
                 self.send_openai_request(provider, prompt).await
@@ -342,6 +370,9 @@ impl BearlyManaged {
             }
             AIProviderType::LocalLLM => {
                 self.send_local_llm_request(provider, prompt).await
+            }
+            AIProviderType::SecureYeoman => {
+                self.send_secureyeoman_request(provider, prompt).await
             }
             AIProviderType::Custom => {
                 self.send_custom_request(provider, prompt).await
@@ -446,6 +477,10 @@ impl BearlyManaged {
         self.test_endpoint_connection(&format!("{}/test", provider.api_endpoint), "Custom").await
     }
 
+    async fn test_secureyeoman_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, BullShiftError> {
+        self.test_endpoint_connection(&format!("{}/api/v1/health", provider.api_endpoint), "SecureYeoman").await
+    }
+
     // Provider-specific request implementations
     async fn send_openai_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
         let body = serde_json::json!({
@@ -511,6 +546,29 @@ impl BearlyManaged {
             .or_else(|| result["0"]["generated_text"].as_str())
             .ok_or_else(|| BullShiftError::AiBridge("Invalid Local LLM response format".to_string()))?;
         Ok(self.build_ai_response(provider, content, prompt.len() as u32, 0.0))
+    }
+
+    async fn send_secureyeoman_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
+        let body = serde_json::json!({
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": provider.max_tokens,
+            "temperature": provider.temperature
+        });
+        let url = format!("{}/api/v1/chat", provider.api_endpoint);
+
+        let mut auth_headers = Vec::new();
+        if !provider.api_key.is_empty() {
+            auth_headers.push(("Authorization", format!("Bearer {}", &provider.api_key)));
+        }
+
+        let result = self.post_ai_request(provider, &url, &body, auth_headers).await?;
+
+        let content = result["choices"][0]["message"]["content"].as_str()
+            .or_else(|| result["response"].as_str())
+            .or_else(|| result["content"].as_str())
+            .ok_or_else(|| BullShiftError::AiBridge("Invalid SecureYeoman response format".to_string()))?;
+        let tokens_used = result["usage"]["total_tokens"].as_u64().unwrap_or(0) as u32;
+        Ok(self.build_ai_response(provider, content, tokens_used, 0.0))
     }
 
     async fn send_custom_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, BullShiftError> {
@@ -661,6 +719,22 @@ impl BearlyManaged {
         self.strategies.get(strategy_id)
     }
 
+    /// Update the encrypted API key for an existing provider.
+    pub fn update_provider_api_key(&mut self, provider_id: &Uuid, new_api_key: &str) -> Result<(), BullShiftError> {
+        let provider = self.providers.get(provider_id)
+            .ok_or_else(|| BullShiftError::AiBridge("Provider not found".to_string()))?;
+        self.security_manager.store_api_key(&provider.name, new_api_key)?;
+        log::info!("Updated encrypted API key for provider: {:?}", provider_id);
+        Ok(())
+    }
+
+    /// Check if a provider has an encrypted API key stored.
+    pub fn has_encrypted_api_key(&self, provider_id: &Uuid) -> bool {
+        self.providers.get(provider_id)
+            .map(|p| self.security_manager.has_api_key(&p.name))
+            .unwrap_or(false)
+    }
+
     pub fn is_provider_configured(&self, provider_id: &Uuid) -> bool {
         self.configurations.contains_key(provider_id)
     }
@@ -701,4 +775,144 @@ pub struct UsageStats {
     pub total_cost: f64,
     pub success_rate: f64,
     pub avg_response_time_ms: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_security_manager() -> crate::security::SecurityManager {
+        crate::security::SecurityManager::new().expect("SecurityManager should initialize")
+    }
+
+    fn test_provider(provider_type: AIProviderType, name: &str, api_key: &str) -> AIProvider {
+        AIProvider {
+            id: Uuid::new_v4(),
+            name: name.to_string(),
+            provider_type,
+            api_endpoint: "http://localhost:18789".to_string(),
+            api_key: api_key.to_string(),
+            model_name: "test-model".to_string(),
+            is_configured: false,
+            is_active: false,
+            max_tokens: 4096,
+            temperature: 0.7,
+            created_at: Utc::now(),
+            last_used: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_api_key_encrypted_on_add() {
+        let sm = test_security_manager();
+        let mut bearly = BearlyManaged::new(sm);
+        let provider = test_provider(AIProviderType::OpenAI, "test_openai", "sk-secret-key-12345");
+        let provider_id = provider.id;
+
+        bearly.add_provider(provider).await.unwrap();
+
+        // In-memory provider should have its key cleared
+        let stored = bearly.get_provider(&provider_id).unwrap();
+        assert!(stored.api_key.is_empty(), "plaintext key should be cleared from provider struct");
+
+        // Key should be retrievable via SecurityManager
+        assert!(bearly.has_encrypted_api_key(&provider_id));
+    }
+
+    #[tokio::test]
+    async fn test_api_key_update() {
+        let sm = test_security_manager();
+        let mut bearly = BearlyManaged::new(sm);
+        let provider = test_provider(AIProviderType::Anthropic, "test_anthropic", "sk-old-key");
+        let provider_id = provider.id;
+
+        bearly.add_provider(provider).await.unwrap();
+
+        // Update the key
+        bearly.update_provider_api_key(&provider_id, "sk-new-key-67890").unwrap();
+
+        // Resolve should return the new key
+        let stored_provider = bearly.get_provider(&provider_id).unwrap();
+        let resolved = bearly.resolve_api_key(stored_provider).unwrap();
+        assert_eq!(resolved, "sk-new-key-67890");
+    }
+
+    #[tokio::test]
+    async fn test_api_key_resolve_decrypts() {
+        let sm = test_security_manager();
+        let mut bearly = BearlyManaged::new(sm);
+        let provider = test_provider(AIProviderType::Ollama, "test_ollama", "my-secret-token");
+        let provider_id = provider.id;
+
+        bearly.add_provider(provider).await.unwrap();
+
+        let stored = bearly.get_provider(&provider_id).unwrap();
+        let decrypted = bearly.resolve_api_key(stored).unwrap();
+        assert_eq!(decrypted, "my-secret-token");
+    }
+
+    #[test]
+    fn test_secureyeoman_provider_type_exists() {
+        let provider = test_provider(AIProviderType::SecureYeoman, "SecureYeoman Agent", "");
+        assert!(matches!(provider.provider_type, AIProviderType::SecureYeoman));
+    }
+
+    #[test]
+    fn test_secureyeoman_provider_defaults() {
+        let provider = test_provider(AIProviderType::SecureYeoman, "SecureYeoman Agent", "");
+        assert_eq!(provider.api_endpoint, "http://localhost:18789");
+        assert_eq!(provider.model_name, "test-model");
+        assert_eq!(provider.max_tokens, 4096);
+    }
+
+    #[tokio::test]
+    async fn test_provider_without_key_still_works() {
+        let sm = test_security_manager();
+        let mut bearly = BearlyManaged::new(sm);
+        // SecureYeoman might not need a key (local service)
+        let provider = test_provider(AIProviderType::SecureYeoman, "sy_local", "");
+        let provider_id = provider.id;
+
+        bearly.add_provider(provider).await.unwrap();
+
+        let stored = bearly.get_provider(&provider_id).unwrap();
+        let resolved = bearly.resolve_api_key(stored).unwrap();
+        assert!(resolved.is_empty());
+        assert!(!bearly.has_encrypted_api_key(&provider_id));
+    }
+
+    #[test]
+    fn test_security_manager_api_key_roundtrip() {
+        let mut sm = test_security_manager();
+        sm.store_api_key("test_provider", "super-secret-key-123").unwrap();
+        assert!(sm.has_api_key("test_provider"));
+
+        let decrypted = sm.get_api_key("test_provider").unwrap();
+        assert_eq!(decrypted, "super-secret-key-123");
+    }
+
+    #[test]
+    fn test_security_manager_api_key_remove() {
+        let mut sm = test_security_manager();
+        sm.store_api_key("removable", "key-to-remove").unwrap();
+        assert!(sm.has_api_key("removable"));
+
+        sm.remove_api_key("removable").unwrap();
+        assert!(!sm.has_api_key("removable"));
+    }
+
+    #[test]
+    fn test_security_manager_api_key_not_found() {
+        let sm = test_security_manager();
+        let result = sm.get_api_key("nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_provider_empty_name() {
+        let sm = test_security_manager();
+        let bearly = BearlyManaged::new(sm);
+        let provider = test_provider(AIProviderType::OpenAI, "", "key");
+        assert!(bearly.validate_provider(&provider).is_err());
+    }
 }

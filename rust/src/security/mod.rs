@@ -262,6 +262,54 @@ impl SecurityManager {
         }
     }
 
+    /// Store an encrypted API key for an AI provider, keyed by provider name.
+    pub fn store_api_key(&mut self, provider_name: &str, api_key: &str) -> Result<(), BullShiftError> {
+        let encrypted = self.encrypt_sensitive_data(api_key)?;
+        let key = format!("ai_provider:{}", provider_name);
+        // Store as a credential with the encrypted key in the api_key field
+        let cred = SecureCredentials {
+            api_key: "*".repeat(api_key.len().min(32)),
+            api_secret: String::new(),
+            broker: key.clone(),
+            encrypted_data: encrypted.into_bytes(),
+            nonce: Vec::new(), // nonce is embedded in the encrypted hex string
+        };
+        self.credential_store.insert(key, cred);
+        self.logger.log(
+            LogLevel::Info,
+            "security",
+            &format!("Stored encrypted API key for AI provider: {}", provider_name),
+        );
+        Ok(())
+    }
+
+    /// Retrieve and decrypt an AI provider API key by provider name.
+    pub fn get_api_key(&self, provider_name: &str) -> Result<String, BullShiftError> {
+        let key = format!("ai_provider:{}", provider_name);
+        let cred = self.credential_store.get(&key)
+            .ok_or_else(|| BullShiftError::Security(format!("No API key found for provider: {}", provider_name)))?;
+        let encrypted_hex = String::from_utf8(cred.encrypted_data.clone())
+            .map_err(|e| BullShiftError::Security(format!("Invalid stored key data: {}", e)))?;
+        self.decrypt_sensitive_data(&encrypted_hex)
+    }
+
+    /// Check if an API key is stored for a given AI provider.
+    pub fn has_api_key(&self, provider_name: &str) -> bool {
+        let key = format!("ai_provider:{}", provider_name);
+        self.credential_store.contains_key(&key)
+    }
+
+    /// Remove a stored AI provider API key.
+    pub fn remove_api_key(&mut self, provider_name: &str) -> Result<(), BullShiftError> {
+        let key = format!("ai_provider:{}", provider_name);
+        if self.credential_store.remove(&key).is_some() {
+            log::info!("Removed API key for AI provider: {}", provider_name);
+            Ok(())
+        } else {
+            Err(BullShiftError::Security(format!("No API key found for provider: {}", provider_name)))
+        }
+    }
+
     pub fn encrypt_sensitive_data(&self, data: &str) -> Result<String, BullShiftError> {
         let data_bytes = data.as_bytes();
 
@@ -279,16 +327,15 @@ impl SecurityManager {
             .map_err(|e| BullShiftError::Encryption(format!("Failed to create key: {}", e)))?;
         let sealing_key = LessSafeKey::new(unbound_key);
 
-        let mut encrypted_data = data_bytes.to_vec();
-        encrypted_data.resize(encrypted_data.len() + AES_256_GCM.tag_len(), 0);
+        let mut in_out = data_bytes.to_vec();
 
         sealing_key
-            .seal_in_place_append_tag(nonce, Aad::empty(), &mut encrypted_data)
+            .seal_in_place_append_tag(nonce, Aad::empty(), &mut in_out)
             .map_err(|e| BullShiftError::Encryption(format!("Encryption failed: {}", e)))?;
 
-        // Combine nonce and encrypted data for storage
+        // Combine nonce and encrypted data (ciphertext + tag) for storage
         let mut combined = nonce_bytes.to_vec();
-        combined.extend_from_slice(&encrypted_data);
+        combined.extend_from_slice(&in_out);
 
         // Encode as hex for safe storage
         Ok(hex::encode(combined))

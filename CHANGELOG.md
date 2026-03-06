@@ -5,6 +5,15 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 ## [2026.3.5] - 2026-03-05
 
 ### Added
+- **API key encryption for AI providers** — `BearlyManaged` now encrypts API keys
+  via `SecurityManager` on `add_provider()`. Keys are stored encrypted at rest and
+  decrypted only at request time. New methods: `update_provider_api_key()`,
+  `has_encrypted_api_key()`, `resolve_api_key()`.
+- **SecurityManager API key storage** — `store_api_key()`, `get_api_key()`,
+  `has_api_key()`, `remove_api_key()` methods for AI provider credential management.
+- **SecureYeoman AI provider** — `SecureYeoman` variant added to `AIProviderType`.
+  `send_secureyeoman_request()` sends chat completions to
+  `POST http://localhost:18789/api/v1/chat`. Optional bearer token auth supported.
 - **Interactive Brokers integration** — Client Portal Gateway API support for
   equities, options, crypto, and extended-hours trading. Requires IB Gateway
   running locally. (`rust/src/trading/brokers/interactive_brokers.rs`)
@@ -26,12 +35,20 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 - `TradingApiManager` gains `cancel_order()` forwarding (was missing)
 - `TradingApiManager.register_broker()` replaces `add_api()` (legacy kept)
 
+### Fixed
+- **AES-256-GCM encryption buffer bug** — `encrypt_sensitive_data()` was pre-resizing
+  the buffer with zeroes before `seal_in_place_append_tag()`, causing 16 null bytes
+  to be appended to decrypted plaintext. Fixed by letting the seal function handle
+  buffer growth.
+
 ### Technical
 - New `trading/brokers/` submodule with `mod.rs`, `interactive_brokers.rs`,
   `tradier.rs`, `robinhood.rs`
 - Added `#[async_trait]` to `TradingApi` trait for dyn-compatibility
 - Added `tower` dev-dependency for api_server test compilation
 - ADR-006: Broker abstraction architecture decision record
+- Added `pub mod ai_bridge` to `lib.rs` (was missing, preventing test discovery)
+- 10 new tests for API key encryption and SecureYeoman provider
 
 ---
 
