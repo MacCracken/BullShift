@@ -53,6 +53,7 @@ tonic-build = "0.10"
 
 [dev-dependencies]
 criterion = "0.5"
+tower = { version = "0.5", features = ["util"] }
 
 [[bench]]
 name = "benchmarks"
