@@ -150,8 +150,30 @@ impl TradingApi for AlpacaApi {
     }
 }
 
+use super::brokers::{BrokerCapabilities, BrokerInfo, BrokerStatus};
+
+/// Manages multiple broker connections and routes requests to the active broker.
+///
+/// Provides a unified interface for submitting orders, querying positions,
+/// and checking account details regardless of which broker is active.
+///
+/// # Example
+/// ```ignore
+/// let mut manager = TradingApiManager::new();
+///
+/// // Register brokers
+/// manager.register_broker("alpaca", Box::new(alpaca_api), AlpacaApi::capabilities());
+/// manager.register_broker("tradier", Box::new(tradier_api), TradierApi::capabilities());
+///
+/// // Use the default broker
+/// let positions = manager.get_positions().await?;
+///
+/// // Switch brokers at runtime
+/// manager.set_default("tradier".to_string());
+/// ```
 pub struct TradingApiManager {
     apis: HashMap<String, Box<dyn TradingApi + Send + Sync>>,
+    capabilities: HashMap<String, BrokerCapabilities>,
     default_api: String,
 }
 
@@ -159,41 +181,229 @@ impl TradingApiManager {
     pub fn new() -> Self {
         Self {
             apis: HashMap::new(),
+            capabilities: HashMap::new(),
             default_api: "alpaca".to_string(),
         }
     }
 
+    /// Register a broker with its API implementation and capabilities.
+    pub fn register_broker(
+        &mut self,
+        name: &str,
+        api: Box<dyn TradingApi + Send + Sync>,
+        capabilities: BrokerCapabilities,
+    ) {
+        self.apis.insert(name.to_string(), api);
+        self.capabilities.insert(name.to_string(), capabilities);
+    }
+
+    /// Legacy method — registers without capabilities metadata.
     pub fn add_api(&mut self, name: String, api: Box<dyn TradingApi + Send + Sync>) {
         self.apis.insert(name, api);
     }
 
-    pub fn set_default(&mut self, name: String) {
+    /// Set the active broker. Returns false if the broker isn't registered.
+    pub fn set_default(&mut self, name: String) -> bool {
         if self.apis.contains_key(&name) {
             self.default_api = name;
+            true
+        } else {
+            false
         }
     }
 
+    /// Get the name of the currently active broker.
+    pub fn active_broker(&self) -> &str {
+        &self.default_api
+    }
+
+    /// List all registered broker names.
+    pub fn list_brokers(&self) -> Vec<String> {
+        self.apis.keys().cloned().collect()
+    }
+
+    /// Get capabilities for a specific broker.
+    pub fn get_capabilities(&self, name: &str) -> Option<&BrokerCapabilities> {
+        self.capabilities.get(name)
+    }
+
+    /// Get info for all registered brokers.
+    pub fn get_broker_info(&self) -> Vec<BrokerInfo> {
+        self.apis
+            .keys()
+            .map(|name| BrokerInfo {
+                name: name.clone(),
+                display_name: Self::display_name(name),
+                status: if name == &self.default_api {
+                    BrokerStatus::Connected
+                } else {
+                    BrokerStatus::Disconnected
+                },
+                capabilities: self.capabilities
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_else(|| Self::default_capabilities(name)),
+            })
+            .collect()
+    }
+
+    /// Submit an order to the active broker.
     pub async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
-        if let Some(api) = self.apis.get(&self.default_api) {
-            api.submit_order(order).await
-        } else {
-            Err(BullShiftError::Configuration("No trading API configured".to_string()))
-        }
+        self.get_active_api()?.submit_order(order).await
     }
 
+    /// Get positions from the active broker.
     pub async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError> {
-        if let Some(api) = self.apis.get(&self.default_api) {
-            api.get_positions().await
-        } else {
-            Err(BullShiftError::Configuration("No trading API configured".to_string()))
+        self.get_active_api()?.get_positions().await
+    }
+
+    /// Get account details from the active broker.
+    pub async fn get_account(&self) -> Result<ApiAccount, BullShiftError> {
+        self.get_active_api()?.get_account().await
+    }
+
+    /// Cancel an order on the active broker.
+    pub async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
+        self.get_active_api()?.cancel_order(order_id).await
+    }
+
+    /// Submit an order to a specific named broker (not necessarily the default).
+    pub async fn submit_order_to(&self, broker: &str, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
+        self.get_api(broker)?.submit_order(order).await
+    }
+
+    fn get_active_api(&self) -> Result<&(dyn TradingApi + Send + Sync), BullShiftError> {
+        self.apis
+            .get(&self.default_api)
+            .map(|b| b.as_ref())
+            .ok_or_else(|| BullShiftError::Configuration("No trading API configured".to_string()))
+    }
+
+    fn get_api(&self, name: &str) -> Result<&(dyn TradingApi + Send + Sync), BullShiftError> {
+        self.apis
+            .get(name)
+            .map(|b| b.as_ref())
+            .ok_or_else(|| BullShiftError::Configuration(format!("Broker '{}' not registered", name)))
+    }
+
+    fn display_name(name: &str) -> String {
+        match name {
+            "alpaca" => "Alpaca Markets".to_string(),
+            "interactive_brokers" => "Interactive Brokers".to_string(),
+            "tradier" => "Tradier".to_string(),
+            "robinhood" => "Robinhood".to_string(),
+            other => other.to_string(),
         }
     }
 
-    pub async fn get_account(&self) -> Result<ApiAccount, BullShiftError> {
-        if let Some(api) = self.apis.get(&self.default_api) {
-            api.get_account().await
-        } else {
-            Err(BullShiftError::Configuration("No trading API configured".to_string()))
+    fn default_capabilities(name: &str) -> BrokerCapabilities {
+        BrokerCapabilities {
+            name: name.to_string(),
+            supports_market_orders: true,
+            supports_limit_orders: true,
+            supports_stop_orders: false,
+            supports_stop_limit_orders: false,
+            supports_fractional_shares: false,
+            supports_short_selling: false,
+            supports_options: false,
+            supports_crypto: false,
+            supports_extended_hours: false,
+            sandbox_available: false,
         }
+    }
+}
+
+impl AlpacaApi {
+    pub fn capabilities() -> BrokerCapabilities {
+        BrokerCapabilities {
+            name: "alpaca".to_string(),
+            supports_market_orders: true,
+            supports_limit_orders: true,
+            supports_stop_orders: true,
+            supports_stop_limit_orders: true,
+            supports_fractional_shares: true,
+            supports_short_selling: true,
+            supports_options: false,
+            supports_crypto: true,
+            supports_extended_hours: true,
+            sandbox_available: true,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_manager_register_and_list() {
+        let mut mgr = TradingApiManager::new();
+        let creds = TradingCredentials {
+            api_key: "key".to_string(),
+            api_secret: "secret".to_string(),
+            sandbox: true,
+        };
+        mgr.register_broker(
+            "alpaca",
+            Box::new(AlpacaApi::new(creds)),
+            AlpacaApi::capabilities(),
+        );
+        let brokers = mgr.list_brokers();
+        assert!(brokers.contains(&"alpaca".to_string()));
+    }
+
+    #[test]
+    fn test_manager_set_default() {
+        let mut mgr = TradingApiManager::new();
+        assert!(!mgr.set_default("nonexistent".to_string()));
+
+        let creds = TradingCredentials {
+            api_key: "k".to_string(),
+            api_secret: "s".to_string(),
+            sandbox: true,
+        };
+        mgr.register_broker("tradier", Box::new(AlpacaApi::new(creds)), AlpacaApi::capabilities());
+        assert!(mgr.set_default("tradier".to_string()));
+        assert_eq!(mgr.active_broker(), "tradier");
+    }
+
+    #[test]
+    fn test_manager_capabilities() {
+        let mut mgr = TradingApiManager::new();
+        let creds = TradingCredentials {
+            api_key: "k".to_string(),
+            api_secret: "s".to_string(),
+            sandbox: true,
+        };
+        mgr.register_broker("alpaca", Box::new(AlpacaApi::new(creds)), AlpacaApi::capabilities());
+        let caps = mgr.get_capabilities("alpaca").unwrap();
+        assert!(caps.supports_crypto);
+        assert!(caps.supports_fractional_shares);
+        assert!(!caps.supports_options);
+    }
+
+    #[test]
+    fn test_manager_broker_info() {
+        let mut mgr = TradingApiManager::new();
+        let creds = TradingCredentials {
+            api_key: "k".to_string(),
+            api_secret: "s".to_string(),
+            sandbox: true,
+        };
+        mgr.register_broker("alpaca", Box::new(AlpacaApi::new(creds)), AlpacaApi::capabilities());
+        mgr.set_default("alpaca".to_string());
+        let info = mgr.get_broker_info();
+        assert_eq!(info.len(), 1);
+        assert_eq!(info[0].display_name, "Alpaca Markets");
+        assert_eq!(info[0].status, BrokerStatus::Connected);
+    }
+
+    #[test]
+    fn test_display_names() {
+        assert_eq!(TradingApiManager::display_name("alpaca"), "Alpaca Markets");
+        assert_eq!(TradingApiManager::display_name("interactive_brokers"), "Interactive Brokers");
+        assert_eq!(TradingApiManager::display_name("tradier"), "Tradier");
+        assert_eq!(TradingApiManager::display_name("robinhood"), "Robinhood");
+        assert_eq!(TradingApiManager::display_name("custom"), "custom");
     }
 }

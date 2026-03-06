@@ -96,6 +96,64 @@ pub async fn get_buying_power() -> Result<f64, TradingError>
 pub async fn get_day_trade_count() -> Result<u32, TradingError>
 ```
 
+### Broker Abstraction Layer
+
+#### TradingApi Trait
+
+All brokers implement the same interface:
+
+```rust
+use bullshift_core::trading::api::*;
+use bullshift_core::error::BullShiftError;
+
+#[async_trait]
+pub trait TradingApi {
+    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError>;
+    async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError>;
+    async fn get_account(&self) -> Result<ApiAccount, BullShiftError>;
+    async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError>;
+}
+```
+
+#### Supported Brokers
+
+| Broker | Module | Auth | Sandbox |
+|--------|--------|------|---------|
+| Alpaca | `trading::api::AlpacaApi` | API key + secret headers | Yes |
+| Interactive Brokers | `trading::brokers::interactive_brokers::InteractiveBrokersApi` | Client Portal Gateway | Yes |
+| Tradier | `trading::brokers::tradier::TradierApi` | OAuth bearer token | Yes |
+| Robinhood | `trading::brokers::robinhood::RobinhoodApi` | OAuth2 bearer token | No |
+
+#### TradingApiManager
+
+```rust
+use bullshift_core::trading::api::TradingApiManager;
+use bullshift_core::trading::brokers::BrokerCapabilities;
+
+let mut manager = TradingApiManager::new();
+
+// Register brokers with capabilities
+manager.register_broker("alpaca", Box::new(alpaca), AlpacaApi::capabilities());
+manager.register_broker("tradier", Box::new(tradier), TradierApi::capabilities());
+
+// Query capabilities
+let caps = manager.get_capabilities("alpaca");
+
+// List all registered brokers
+let brokers = manager.list_brokers();
+
+// Switch active broker
+manager.set_default("tradier".to_string());
+
+// Submit order to active broker
+let response = manager.submit_order(order).await?;
+
+// Submit to a specific broker (not the default)
+let response = manager.submit_order_to("alpaca", order).await?;
+```
+
+---
+
 ### Market Data Module
 
 #### Real-time Data
@@ -831,10 +889,10 @@ const client = new BullShiftWS('your-api-token');
 - **Minor Version** - New features, backward compatible
 - **Patch Version** - Bug fixes, security patches
 
-### Current Version: 2026.2.16
+### Current Version: 2026.3.5
 
 ### Supported Versions
-- **2026.2.x** - Current stable version
+- **2026.3.x** - Current stable version
 
 ### Version Headers
 ```http
@@ -845,7 +903,7 @@ Authorization: Bearer your-token
 
 ---
 
-**API Reference Version: 2026.2.16**  
-**Last Updated: February 10, 2026**
+**API Reference Version: 2026.3.5**
+**Last Updated: March 5, 2026**
 
 For additional examples and integration guides, see the [Examples](docs/examples/) directory.

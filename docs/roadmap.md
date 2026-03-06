@@ -1,7 +1,7 @@
 # BullShift Roadmap
 
-**Version:** 2026.2.22  
-**Last Updated:** February 22, 2026
+**Version:** 2026.3.5
+**Last Updated:** March 5, 2026
 
 ---
 
@@ -19,14 +19,18 @@
 
 ---
 
-## 2026.3.x - Enhanced Charting
+## 2026.3.x - Enhanced Charting & Code Audit
 
-### Focus: Advanced charting improvements
+### Focus: Advanced charting improvements and codebase health
 
 - [x] Real-time chart data integration
 - [x] Additional chart types (renko, kagi, P&F) interactivity
 - [x] Drawing tools (trendlines, fibonacci, annotations)
 - [x] Multi-symbol comparison charts
+- [x] Comprehensive code audit (28 findings, 27 fixed)
+- [x] Full `BullShiftError` migration across all Rust modules
+- [x] Chart widget decomposition (2491-line god class → 7 focused files)
+- [x] Flutter safe-cast migration (36 unsafe casts eliminated)
 
 ---
 
@@ -34,10 +38,13 @@
 
 ### Focus: Additional broker integrations
 
-- [ ] Interactive Brokers API integration
-- [ ] Tradier broker integration
-- [ ] Robinhood API integration
-- [ ] Unified broker abstraction layer
+- [x] Interactive Brokers API integration (Client Portal Gateway)
+- [x] Tradier broker integration (REST API with OAuth)
+- [x] Robinhood API integration (OAuth2 bearer token)
+- [x] Unified broker abstraction layer (`TradingApiManager` with capabilities, runtime switching)
+- [x] Broker capabilities metadata (`BrokerCapabilities` struct)
+- [x] ADR-006: Broker abstraction architecture
+- [x] Broker integration guide
 
 ---
 
@@ -116,6 +123,8 @@
 
 | Version | Date | Status |
 |---------|------|--------|
+| 2026.3.5 | 2026-03-05 | Released |
+| 2026.3.5 | 2026-03-05 | Released |
 | 2026.2.22 | 2026-02-22 | Released |
 | 2026.2.16 | 2026-02-16 | Released |
 
