@@ -58,8 +58,9 @@ pub trait TradingApi {
 
 pub struct AlpacaApi {
     client: Client,
-    credentials: TradingCredentials,
     base_url: String,
+    api_key: String,
+    api_secret: String,
 }
 
 impl AlpacaApi {
@@ -72,29 +73,21 @@ impl AlpacaApi {
 
         Self {
             client: Client::new(),
-            credentials,
+            api_key: credentials.api_key,
+            api_secret: credentials.api_secret,
             base_url,
         }
-    }
-
-    fn get_headers(&self) -> HashMap<String, String> {
-        let mut headers = HashMap::new();
-        headers.insert("APCA-API-KEY-ID".to_string(), self.credentials.api_key.clone());
-        headers.insert("APCA-API-SECRET-KEY".to_string(), self.credentials.api_secret.clone());
-        headers.insert("Content-Type".to_string(), "application/json".to_string());
-        headers
     }
 }
 
 impl TradingApi for AlpacaApi {
     async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, String> {
         let url = format!("{}/v2/orders", self.base_url);
-        let headers = self.get_headers();
 
         let response = self.client
             .post(&url)
-            .header("APCA-API-KEY-ID", &headers["APCA-API-KEY-ID"])
-            .header("APCA-API-SECRET-KEY", &headers["APCA-API-SECRET-KEY"])
+            .header("APCA-API-KEY-ID", &self.api_key)
+            .header("APCA-API-SECRET-KEY", &self.api_secret)
             .header("Content-Type", "application/json")
             .json(&order)
             .send()
@@ -113,12 +106,11 @@ impl TradingApi for AlpacaApi {
 
     async fn get_positions(&self) -> Result<Vec<ApiPosition>, String> {
         let url = format!("{}/v2/positions", self.base_url);
-        let headers = self.get_headers();
 
         let response = self.client
             .get(&url)
-            .header("APCA-API-KEY-ID", &headers["APCA-API-KEY-ID"])
-            .header("APCA-API-SECRET-KEY", &headers["APCA-API-SECRET-KEY"])
+            .header("APCA-API-KEY-ID", &self.api_key)
+            .header("APCA-API-SECRET-KEY", &self.api_secret)
             .send()
             .await
             .map_err(|e| format!("Request failed: {}", e))?;
@@ -135,12 +127,11 @@ impl TradingApi for AlpacaApi {
 
     async fn get_account(&self) -> Result<ApiAccount, String> {
         let url = format!("{}/v2/account", self.base_url);
-        let headers = self.get_headers();
 
         let response = self.client
             .get(&url)
-            .header("APCA-API-KEY-ID", &headers["APCA-API-KEY-ID"])
-            .header("APCA-API-SECRET-KEY", &headers["APCA-API-SECRET-KEY"])
+            .header("APCA-API-KEY-ID", &self.api_key)
+            .header("APCA-API-SECRET-KEY", &self.api_secret)
             .send()
             .await
             .map_err(|e| format!("Request failed: {}", e))?;
@@ -157,12 +148,11 @@ impl TradingApi for AlpacaApi {
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, String> {
         let url = format!("{}/v2/orders/{}", self.base_url, order_id);
-        let headers = self.get_headers();
 
         let response = self.client
             .delete(&url)
-            .header("APCA-API-KEY-ID", &headers["APCA-API-KEY-ID"])
-            .header("APCA-API-SECRET-KEY", &headers["APCA-API-SECRET-KEY"])
+            .header("APCA-API-KEY-ID", &self.api_key)
+            .header("APCA-API-SECRET-KEY", &self.api_secret)
             .send()
             .await
             .map_err(|e| format!("Request failed: {}", e))?;

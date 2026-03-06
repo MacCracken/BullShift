@@ -75,6 +75,7 @@ pub struct AlpacaStream {
     connected: bool,
     subscriptions: HashMap<String, String>,
     credentials: Option<ApiCredentials>,
+    shutdown_tx: Option<std::sync::mpsc::Sender<()>>,
 }
 
 impl AlpacaStream {
@@ -88,6 +89,7 @@ impl AlpacaStream {
             connected: false,
             subscriptions: HashMap::new(),
             credentials: None,
+            shutdown_tx: None,
         }
     }
     
@@ -207,6 +209,14 @@ impl AlpacaStream {
     }
 }
 
+impl Drop for AlpacaStream {
+    fn drop(&mut self) {
+        if let Some(tx) = self.shutdown_tx.take() {
+            let _ = tx.send(());
+        }
+    }
+}
+
 impl MarketDataStream for AlpacaStream {
     fn connect(&mut self, symbols: Vec<String>) -> Result<(), String> {
         // Validate credentials are set
@@ -254,16 +264,32 @@ impl MarketDataStream for AlpacaStream {
                     self.subscriptions.insert(symbol, "active".to_string());
                 }
                 
-                // Start message processing loop
+                // Start message processing loop with shutdown signal
                 let tick_sender = self.tick_sender.clone();
                 let bar_sender = self.bar_sender.clone();
-                
+                let (shutdown_tx, shutdown_rx) = std::sync::mpsc::channel::<()>();
+                self.shutdown_tx = Some(shutdown_tx);
+
                 thread::spawn(move || {
+                    // Set read timeout so we can check shutdown signal
+                    ws_stream.get_mut().set_read_timeout(Some(Duration::from_millis(500))).ok();
                     loop {
+                        // Check for shutdown signal
+                        if shutdown_rx.try_recv().is_ok() {
+                            log::info!("WebSocket thread shutting down");
+                            let _ = ws_stream.close(None);
+                            break;
+                        }
                         match ws_stream.read_message() {
                             Ok(msg) => {
-                                // Process message (simplified for example)
                                 log::debug!("Received message: {:?}", msg);
+                            }
+                            Err(tungstenite::Error::Io(ref e))
+                                if e.kind() == std::io::ErrorKind::WouldBlock
+                                    || e.kind() == std::io::ErrorKind::TimedOut =>
+                            {
+                                // Timeout — loop back to check shutdown
+                                continue;
                             }
                             Err(e) => {
                                 log::error!("WebSocket error: {}", e);

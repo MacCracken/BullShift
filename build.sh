@@ -61,13 +61,8 @@ build_rust() {
     
     # Build in release mode for performance
     cargo build --release
-    
-    if [ $? -eq 0 ]; then
-        print_status "Rust backend built successfully!"
-    else
-        print_error "Rust build failed!"
-        exit 1
-    fi
+
+    print_status "Rust backend built successfully!"
     
     cd ..
 }
@@ -84,7 +79,7 @@ setup_flutter() {
     # Generate code if needed
     if [ -f "pubspec.yaml" ] && grep -q "objectbox" pubspec.yaml; then
         print_status "Running ObjectBox code generation..."
-        flutter packages pub run build_runner build --delete-conflicting-outputs
+        dart run build_runner build --delete-conflicting-outputs
     fi
     
     cd ..
@@ -108,12 +103,7 @@ build_flutter() {
         exit 1
     fi
     
-    if [ $? -eq 0 ]; then
-        print_status "Flutter application built successfully!"
-    else
-        print_error "Flutter build failed!"
-        exit 1
-    fi
+    print_status "Flutter application built successfully!"
     
     cd ..
 }

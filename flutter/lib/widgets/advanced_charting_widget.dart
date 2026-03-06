@@ -51,6 +51,12 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
   }
 
   @override
+  void dispose() {
+    _drawingManager.dispose();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(AdvancedChartingWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.timeframe != widget.timeframe) {

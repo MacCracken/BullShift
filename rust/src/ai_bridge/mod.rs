@@ -169,7 +169,7 @@ pub struct BearlyManaged {
     configurations: HashMap<Uuid, AIConfiguration>,
     strategies: HashMap<Uuid, TradingStrategy>,
     prompts: HashMap<Uuid, AIPrompt>,
-    responses: Vec<AIResponse>,
+    responses: std::collections::VecDeque<AIResponse>,
     security_manager: crate::security::SecurityManager,
 }
 
@@ -181,7 +181,7 @@ impl BearlyManaged {
             configurations: HashMap::new(),
             strategies: HashMap::new(),
             prompts: HashMap::new(),
-            responses: Vec::new(),
+            responses: std::collections::VecDeque::with_capacity(1000),
             security_manager,
         }
     }
@@ -315,8 +315,11 @@ impl BearlyManaged {
         // Send AI request
         let response = self.send_ai_request(provider, &final_prompt).await?;
         
-        // Store response
-        self.responses.push(response.clone());
+        // Store response (bounded to last 1000)
+        if self.responses.len() >= 1000 {
+            self.responses.pop_front();
+        }
+        self.responses.push_back(response.clone());
         
         Ok(response)
     }
@@ -367,327 +370,163 @@ impl BearlyManaged {
         }
     }
 
-    // Provider-specific implementations
+    // Generic connection test — sends GET to the given health URL
+    async fn test_endpoint_connection(&self, url: &str, provider_name: &str) -> Result<bool, String> {
+        match self.client.get(url).send().await {
+            Ok(response) => Ok(response.status().is_success() || response.status() == reqwest::StatusCode::UNAUTHORIZED),
+            Err(e) => Err(format!("{} connection test failed: {}", provider_name, e)),
+        }
+    }
+
+    // Generic AI request — handles the common post→parse→build response pattern
+    async fn post_ai_request(
+        &self,
+        provider: &AIProvider,
+        url: &str,
+        body: &serde_json::Value,
+        auth_headers: Vec<(&str, String)>,
+    ) -> Result<serde_json::Value, String> {
+        let mut request = self.client
+            .post(url)
+            .header("Content-Type", "application/json");
+
+        for (key, value) in auth_headers {
+            request = request.header(key, value);
+        }
+
+        let response = request
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| format!("Request failed: {}", e))?;
+
+        if response.status().is_success() {
+            response.json::<serde_json::Value>().await
+                .map_err(|e| format!("Failed to parse response: {}", e))
+        } else {
+            Err(format!("API error: {}", response.status()))
+        }
+    }
+
+    fn build_ai_response(&self, provider: &AIProvider, content: &str, tokens_used: u32, cost_per_token: f64) -> AIResponse {
+        AIResponse {
+            id: Uuid::new_v4(),
+            provider_id: provider.id,
+            prompt_id: Uuid::new_v4(),
+            response: content.to_string(),
+            tokens_used,
+            cost: tokens_used as f64 * cost_per_token,
+            response_time_ms: 0,
+            success: true,
+            error_message: None,
+            timestamp: Utc::now(),
+        }
+    }
+
+    // Provider-specific connection tests
     async fn test_openai_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
-        let test_url = format!("{}/models", provider.api_endpoint);
-        
-        match self.client.get(&test_url).send().await {
-            Ok(response) => Ok(response.status().is_success()),
-            Err(e) => Err(format!("OpenAI connection test failed: {}", e)),
-        }
+        self.test_endpoint_connection(&format!("{}/models", provider.api_endpoint), "OpenAI").await
     }
 
-    async fn send_openai_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
-        let request_body = serde_json::json!({
-            "model": provider.model_name,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "max_tokens": provider.max_tokens,
-            "temperature": provider.temperature
-        });
-
-        let url = format!("{}/chat/completions", provider.api_endpoint);
-        
-        let response = self.client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .header("Authorization", format!("Bearer {}", &provider.api_key))
-            .json(&request_body)
-            .send()
-            .await
-            .map_err(|e| format!("OpenAI request failed: {}", e))?;
-
-        if response.status().is_success() {
-            let result: serde_json::Value = response.json().await
-                .map_err(|e| format!("Failed to parse OpenAI response: {}", e))?;
-            
-            let content = result["choices"][0]["message"]["content"]
-                .as_str()
-                .ok_or("Invalid OpenAI response format")?;
-            
-            let tokens_used = result["usage"]["total_tokens"]
-                .as_u64()
-                .ok_or("Invalid token usage data")? as u32;
-            
-            Ok(AIResponse {
-                id: Uuid::new_v4(),
-                provider_id: provider.id,
-                prompt_id: Uuid::new_v4(),
-                response: content.to_string(),
-                tokens_used,
-                cost: tokens_used as f64 * 0.002, // OpenAI pricing
-                response_time_ms: 0,
-                success: true,
-                error_message: None,
-                timestamp: Utc::now(),
-            })
-        } else {
-            Err(format!("OpenAI API error: {}", response.status()))
-        }
-    }
-
-    // Placeholder implementations for other providers
     async fn test_anthropic_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
-        let test_url = format!("{}/v1/messages", provider.api_endpoint);
-        
-        // Create a minimal test request
-        let test_body = serde_json::json!({
-            "model": provider.model_name,
-            "max_tokens": 10,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "test"
-                }
-            ]
-        });
-
-        let response = self.client
-            .post(&test_url)
-            .header("Content-Type", "application/json")
-            .header("x-api-key", "test_key") // Would use encrypted key
-            .header("anthropic-version", "2023-06-01")
-            .json(&test_body)
-            .send()
-            .await;
-
-        match response {
-            Ok(resp) => Ok(resp.status().is_success() || resp.status() == 401), // 401 means endpoint exists but auth fails
-            Err(e) => Err(format!("Anthropic connection test failed: {}", e)),
-        }
-    }
-
-    async fn send_anthropic_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
-        let request_body = serde_json::json!({
-            "model": provider.model_name,
-            "max_tokens": provider.max_tokens,
-            "temperature": provider.temperature,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        });
-
-        let url = format!("{}/v1/messages", provider.api_endpoint);
-        
-        let response = self.client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .header("x-api-key", &provider.api_key)
-            .header("anthropic-version", "2023-06-01")
-            .json(&request_body)
-            .send()
-            .await
-            .map_err(|e| format!("Anthropic request failed: {}", e))?;
-
-        if response.status().is_success() {
-            let result: serde_json::Value = response.json().await
-                .map_err(|e| format!("Failed to parse Anthropic response: {}", e))?;
-            
-            let content = result["content"][0]["text"]
-                .as_str()
-                .ok_or("Invalid Anthropic response format")?;
-            
-            let tokens_used = result["usage"]["input_tokens"]
-                .as_u64()
-                .unwrap_or(0) as u32 + result["usage"]["output_tokens"]
-                .as_u64()
-                .unwrap_or(0) as u32;
-            
-            Ok(AIResponse {
-                id: Uuid::new_v4(),
-                provider_id: provider.id,
-                prompt_id: Uuid::new_v4(),
-                response: content.to_string(),
-                tokens_used,
-                cost: tokens_used as f64 * 0.015, // Anthropic pricing
-                response_time_ms: 0,
-                success: true,
-                error_message: None,
-                timestamp: Utc::now(),
-            })
-        } else {
-            Err(format!("Anthropic API error: {}", response.status()))
-        }
+        self.test_endpoint_connection(&format!("{}/v1/messages", provider.api_endpoint), "Anthropic").await
     }
 
     async fn test_ollama_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
-        let test_url = format!("{}/api/tags", provider.api_endpoint);
-        
-        match self.client.get(&test_url).send().await {
-            Ok(response) => Ok(response.status().is_success()),
-            Err(e) => Err(format!("Ollama connection test failed: {}", e)),
-        }
-    }
-
-    async fn send_ollama_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
-        let request_body = serde_json::json!({
-            "model": provider.model_name,
-            "prompt": prompt,
-            "stream": false,
-            "options": {
-                "temperature": provider.temperature,
-                "num_predict": provider.max_tokens
-            }
-        });
-
-        let url = format!("{}/api/generate", provider.api_endpoint);
-        
-        let response = self.client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .json(&request_body)
-            .send()
-            .await
-            .map_err(|e| format!("Ollama request failed: {}", e))?;
-
-        if response.status().is_success() {
-            let result: serde_json::Value = response.json().await
-                .map_err(|e| format!("Failed to parse Ollama response: {}", e))?;
-            
-            let content = result["response"]
-                .as_str()
-                .ok_or("Invalid Ollama response format")?;
-            
-            let tokens_used = result["prompt_eval_count"]
-                .as_u64()
-                .unwrap_or(0) as u32 + result["eval_count"]
-                .as_u64()
-                .unwrap_or(0) as u32;
-            
-            Ok(AIResponse {
-                id: Uuid::new_v4(),
-                provider_id: provider.id,
-                prompt_id: Uuid::new_v4(),
-                response: content.to_string(),
-                tokens_used,
-                cost: 0.0, // Ollama is local, no cost
-                response_time_ms: 0,
-                success: true,
-                error_message: None,
-                timestamp: Utc::now(),
-            })
-        } else {
-            Err(format!("Ollama API error: {}", response.status()))
-        }
+        self.test_endpoint_connection(&format!("{}/api/tags", provider.api_endpoint), "Ollama").await
     }
 
     async fn test_local_llm_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
-        let test_url = format!("{}/health", provider.api_endpoint);
-        
-        match self.client.get(&test_url).send().await {
-            Ok(response) => Ok(response.status().is_success()),
-            Err(e) => Err(format!("Local LLM connection test failed: {}", e)),
-        }
-    }
-
-    async fn send_local_llm_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
-        let request_body = serde_json::json!({
-            "inputs": prompt,
-            "parameters": {
-                "temperature": provider.temperature,
-                "max_new_tokens": provider.max_tokens
-            }
-        });
-
-        let url = format!("{}/generate", provider.api_endpoint);
-        
-        let response = self.client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .json(&request_body)
-            .send()
-            .await
-            .map_err(|e| format!("Local LLM request failed: {}", e))?;
-
-        if response.status().is_success() {
-            let result: serde_json::Value = response.json().await
-                .map_err(|e| format!("Failed to parse Local LLM response: {}", e))?;
-            
-            let content = result["generated_text"]
-                .as_str()
-                .or_else(|| result["0"]["generated_text"].as_str())
-                .ok_or("Invalid Local LLM response format")?;
-            
-            Ok(AIResponse {
-                id: Uuid::new_v4(),
-                provider_id: provider.id,
-                prompt_id: Uuid::new_v4(),
-                response: content.to_string(),
-                tokens_used: prompt.len() as u32, // Rough estimate
-                cost: 0.0, // Local model, no cost
-                response_time_ms: 0,
-                success: true,
-                error_message: None,
-                timestamp: Utc::now(),
-            })
-        } else {
-            Err(format!("Local LLM API error: {}", response.status()))
-        }
+        self.test_endpoint_connection(&format!("{}/health", provider.api_endpoint), "Local LLM").await
     }
 
     async fn test_custom_connection(&self, provider: &AIProvider, _config: &AIConfiguration) -> Result<bool, String> {
-        let test_url = format!("{}/test", provider.api_endpoint);
-        
-        match self.client.get(&test_url).send().await {
-            Ok(response) => Ok(response.status().is_success()),
-            Err(e) => Err(format!("Custom provider connection test failed: {}", e)),
-        }
+        self.test_endpoint_connection(&format!("{}/test", provider.api_endpoint), "Custom").await
+    }
+
+    // Provider-specific request implementations
+    async fn send_openai_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+        let body = serde_json::json!({
+            "model": provider.model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": provider.max_tokens,
+            "temperature": provider.temperature
+        });
+        let url = format!("{}/chat/completions", provider.api_endpoint);
+        let result = self.post_ai_request(provider, &url, &body, vec![
+            ("Authorization", format!("Bearer {}", &provider.api_key)),
+        ]).await?;
+
+        let content = result["choices"][0]["message"]["content"].as_str().ok_or("Invalid OpenAI response format")?;
+        let tokens_used = result["usage"]["total_tokens"].as_u64().ok_or("Invalid token usage data")? as u32;
+        Ok(self.build_ai_response(provider, content, tokens_used, 0.002))
+    }
+
+    async fn send_anthropic_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+        let body = serde_json::json!({
+            "model": provider.model_name,
+            "max_tokens": provider.max_tokens,
+            "temperature": provider.temperature,
+            "messages": [{"role": "user", "content": prompt}]
+        });
+        let url = format!("{}/v1/messages", provider.api_endpoint);
+        let result = self.post_ai_request(provider, &url, &body, vec![
+            ("x-api-key", provider.api_key.clone()),
+            ("anthropic-version", "2023-06-01".to_string()),
+        ]).await?;
+
+        let content = result["content"][0]["text"].as_str().ok_or("Invalid Anthropic response format")?;
+        let tokens_used = result["usage"]["input_tokens"].as_u64().unwrap_or(0) as u32
+            + result["usage"]["output_tokens"].as_u64().unwrap_or(0) as u32;
+        Ok(self.build_ai_response(provider, content, tokens_used, 0.015))
+    }
+
+    async fn send_ollama_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+        let body = serde_json::json!({
+            "model": provider.model_name,
+            "prompt": prompt,
+            "stream": false,
+            "options": {"temperature": provider.temperature, "num_predict": provider.max_tokens}
+        });
+        let url = format!("{}/api/generate", provider.api_endpoint);
+        let result = self.post_ai_request(provider, &url, &body, vec![]).await?;
+
+        let content = result["response"].as_str().ok_or("Invalid Ollama response format")?;
+        let tokens_used = result["prompt_eval_count"].as_u64().unwrap_or(0) as u32
+            + result["eval_count"].as_u64().unwrap_or(0) as u32;
+        Ok(self.build_ai_response(provider, content, tokens_used, 0.0))
+    }
+
+    async fn send_local_llm_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
+        let body = serde_json::json!({
+            "inputs": prompt,
+            "parameters": {"temperature": provider.temperature, "max_new_tokens": provider.max_tokens}
+        });
+        let url = format!("{}/generate", provider.api_endpoint);
+        let result = self.post_ai_request(provider, &url, &body, vec![]).await?;
+
+        let content = result["generated_text"].as_str()
+            .or_else(|| result["0"]["generated_text"].as_str())
+            .ok_or("Invalid Local LLM response format")?;
+        Ok(self.build_ai_response(provider, content, prompt.len() as u32, 0.0))
     }
 
     async fn send_custom_request(&self, provider: &AIProvider, prompt: &str) -> Result<AIResponse, String> {
-        let request_body = serde_json::json!({
+        let body = serde_json::json!({
             "prompt": prompt,
             "model": provider.model_name,
             "max_tokens": provider.max_tokens,
             "temperature": provider.temperature
         });
-
         let url = format!("{}/completions", provider.api_endpoint);
-        
-        let response = self.client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .json(&request_body)
-            .send()
-            .await
-            .map_err(|e| format!("Custom provider request failed: {}", e))?;
+        let result = self.post_ai_request(provider, &url, &body, vec![]).await?;
 
-        if response.status().is_success() {
-            let result: serde_json::Value = response.json().await
-                .map_err(|e| format!("Failed to parse Custom provider response: {}", e))?;
-            
-            let content = result["text"]
-                .as_str()
-                .or_else(|| result["response"].as_str())
-                .or_else(|| result["completion"].as_str())
-                .ok_or("Invalid Custom provider response format")?;
-            
-            let tokens_used = result["usage"]
-                .as_u64()
-                .unwrap_or(prompt.len() as u64) as u32;
-            
-            Ok(AIResponse {
-                id: Uuid::new_v4(),
-                provider_id: provider.id,
-                prompt_id: Uuid::new_v4(),
-                response: content.to_string(),
-                tokens_used,
-                cost: tokens_used as f64 * 0.001, // Default pricing
-                response_time_ms: 0,
-                success: true,
-                error_message: None,
-                timestamp: Utc::now(),
-            })
-        } else {
-            Err(format!("Custom provider API error: {}", response.status()))
-        }
+        let content = result["text"].as_str()
+            .or_else(|| result["response"].as_str())
+            .or_else(|| result["completion"].as_str())
+            .ok_or("Invalid Custom provider response format")?;
+        let tokens_used = result["usage"].as_u64().unwrap_or(prompt.len() as u64) as u32;
+        Ok(self.build_ai_response(provider, content, tokens_used, 0.001))
     }
 
     // Helper methods

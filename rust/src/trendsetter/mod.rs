@@ -228,6 +228,17 @@ impl TrendSetter {
     }
 
     fn generate_alerts(&mut self, momentum_score: &MomentumScore) {
+        // Cap alerts to prevent unbounded growth
+        const MAX_ALERTS: usize = 500;
+        if self.active_alerts.len() >= MAX_ALERTS {
+            // Remove oldest expired alerts first, then oldest overall
+            let now = Utc::now();
+            self.active_alerts.retain(|a| a.expires_at > now);
+            if self.active_alerts.len() >= MAX_ALERTS {
+                self.active_alerts.drain(0..self.active_alerts.len() / 2);
+            }
+        }
+
         let symbol = momentum_score.symbol.clone();
         let now = Utc::now();
         

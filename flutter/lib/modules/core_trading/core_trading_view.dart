@@ -7,8 +7,32 @@ import '../market_data/market_data_provider.dart';
 import '../../widgets/advanced_charting_widget.dart';
 import 'widgets/widgets.dart';
 
-class CoreTradingView extends StatelessWidget {
+class CoreTradingView extends StatefulWidget {
   const CoreTradingView({super.key});
+
+  @override
+  State<CoreTradingView> createState() => _CoreTradingViewState();
+}
+
+class _CoreTradingViewState extends State<CoreTradingView> {
+  String _lastLoadedSymbol = '';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tradingProvider = context.read<TradingProvider>();
+    final marketDataProvider = context.read<MarketDataProvider>();
+    final symbol = tradingProvider.currentSymbol.isEmpty
+        ? 'AAPL'
+        : tradingProvider.currentSymbol;
+
+    if (marketDataProvider.currentSymbol != symbol && _lastLoadedSymbol != symbol) {
+      _lastLoadedSymbol = symbol;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        marketDataProvider.loadSymbolData(symbol);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,10 +48,6 @@ class CoreTradingView extends StatelessWidget {
             final symbol = tradingProvider.currentSymbol.isEmpty
                 ? 'AAPL'
                 : tradingProvider.currentSymbol;
-
-            if (marketDataProvider.currentSymbol != symbol) {
-              marketDataProvider.loadSymbolData(symbol);
-            }
 
             return Row(
               children: [

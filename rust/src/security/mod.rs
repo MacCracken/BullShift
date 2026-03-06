@@ -18,6 +18,7 @@ pub struct SecurityManager {
     rng: SystemRandom,
     credential_store: HashMap<String, SecureCredentials>,
     logger: StructuredLogger,
+    nonce_counter: std::sync::atomic::AtomicU64,
 }
 
 impl SecurityManager {
@@ -29,6 +30,7 @@ impl SecurityManager {
             rng: SystemRandom::new(),
             credential_store: HashMap::new(),
             logger: StructuredLogger::new("security_manager".to_string(), LogLevel::Info),
+            nonce_counter: std::sync::atomic::AtomicU64::new(0),
         })
     }
 
@@ -262,10 +264,12 @@ impl SecurityManager {
     pub fn encrypt_sensitive_data(&self, data: &str) -> Result<String, String> {
         let data_bytes = data.as_bytes();
 
-        // Generate random nonce
+        // Generate nonce using counter (8 bytes) + random (4 bytes) for uniqueness
+        let counter = self.nonce_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let mut nonce_bytes = [0u8; 12];
+        nonce_bytes[..8].copy_from_slice(&counter.to_le_bytes());
         self.rng
-            .fill(&mut nonce_bytes)
+            .fill(&mut nonce_bytes[8..])
             .map_err(|e| format!("Failed to generate nonce: {}", e))?;
 
         // Encrypt data

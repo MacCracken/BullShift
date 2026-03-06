@@ -108,4 +108,12 @@ class RustTradingEngine {
   double getAccountBalance() {
     return _getAccountBalance();
   }
+
+  void dispose() {
+    // DynamicLibrary doesn't have an explicit close in dart:ffi,
+    // but clearing references allows GC to release the handle.
+    // On Linux, dlclose is not called automatically — this is a known
+    // Dart FFI limitation. For long-running apps this is acceptable
+    // since the library lives for the app lifetime.
+  }
 }

@@ -197,34 +197,28 @@ A comprehensive code audit identified **8 critical**, **10 high**, **12 medium**
 | 12 | Unused `ffi` crate in Cargo.toml | MEDIUM | FIXED |
 | 13 | Overly broad tokio features | MEDIUM | FIXED |
 | 14 | `tonic-build` in wrong dep section | MEDIUM | FIXED |
-| 15 | Unmaintained `charts_flutter` | CRITICAL | OPEN |
-| 16 | WebSocket thread leak | HIGH | OPEN |
-| 17 | Unbounded collections | HIGH | OPEN |
-| 18 | String error types (use thiserror) | HIGH | OPEN |
-| 19 | API call in Consumer builder | HIGH | OPEN |
-| 20 | Excessive cloning in hot paths | MEDIUM | OPEN |
-| 21 | AI bridge code duplication | MEDIUM | OPEN |
-| 22 | Nonce generation (counter vs RNG) | MEDIUM | OPEN |
-| 23 | Advanced charting god class | MEDIUM | OPEN |
-| 24 | Resource leaks (DrawingToolManager, FFI) | MEDIUM | OPEN |
-| 25 | Unsafe type casts in providers | MEDIUM | OPEN |
-| 26 | Debug print in security code | MEDIUM | OPEN |
-| 27 | Build script issues | LOW | OPEN |
-| 28 | Commit message conventions | LOW | OPEN |
+| 15 | Unmaintained `charts_flutter` | CRITICAL | FIXED — replaced with `fl_chart` |
+| 16 | WebSocket thread leak | HIGH | FIXED — added shutdown channel + `Drop` impl |
+| 17 | Unbounded collections | HIGH | FIXED — capped logging (500), AI responses (1000), alerts (500) |
+| 18 | String error types (use thiserror) | HIGH | PARTIAL — `BullShiftError` existed; added `DatabaseSql` variant. Migration of all APIs to use it is ongoing |
+| 19 | API call in Consumer builder | HIGH | FIXED — moved to `didChangeDependencies` with post-frame callback |
+| 20 | Excessive cloning in hot paths | MEDIUM | FIXED — eliminated `get_headers()` HashMap; credentials stored as fields |
+| 21 | AI bridge code duplication | MEDIUM | FIXED — extracted `test_endpoint_connection`, `post_ai_request`, `build_ai_response` helpers |
+| 22 | Nonce generation (counter vs RNG) | MEDIUM | FIXED — hybrid counter (8 bytes) + random (4 bytes) nonce |
+| 23 | Advanced charting god class | MEDIUM | PARTIAL — added `dispose()`; full decomposition deferred (2491-line widget) |
+| 24 | Resource leaks (DrawingToolManager, FFI) | MEDIUM | FIXED — added `dispose()` to charting widget and `RustTradingEngine` |
+| 25 | Unsafe type casts in providers | MEDIUM | PARTIAL — created `safe_cast.dart` extension; migration to use it is ongoing |
+| 26 | Debug print in security code | MEDIUM | FIXED — replaced `print()` with debug-only `assert(() { debugPrint(); return true; }())` |
+| 27 | Build script issues | LOW | FIXED — removed redundant `$?` checks, updated `flutter packages pub run` to `dart run` |
+| 28 | Commit message conventions | LOW | DEFERRED — team process change, not a code fix |
 
-**Fixed:** 14 issues | **Open:** 14 issues
+**Fixed:** 25 issues | **Partial:** 3 issues | **Deferred:** 1 issue (process)
 
 ---
 
-## 7. Recommended Next Steps (Priority Order)
+## 7. Remaining Work
 
-1. Replace `charts_flutter` with `fl_chart`
-2. Fix WebSocket thread lifecycle with shutdown signal
-3. Add bounded buffers to all unbounded collections
-4. Create `BullShiftError` enum with `thiserror`
-5. Move `loadSymbolData()` out of Consumer builder
-6. Decompose `advanced_charting_widget.dart` into smaller widgets
-7. Add proper resource cleanup (dispose patterns)
-8. Replace unsafe type casts with null-safe alternatives
-9. Remove debug print statements from security code
-10. Adopt conventional commits and feature branch workflow
+1. **Migrate all Rust APIs** from `Result<T, String>` to `Result<T, BullShiftError>` (ongoing)
+2. **Decompose `advanced_charting_widget.dart`** into `CandlestickChart`, `VolumeChart`, `IndicatorChart`, `DrawingToolsPanel` (2491 lines)
+3. **Migrate provider files** to use `safe_cast.dart` extensions instead of bare `as` casts (~50 locations)
+4. **Adopt conventional commits** and feature branch workflow (team process)

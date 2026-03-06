@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
@@ -43,7 +44,7 @@ class SecurityManager {
         value: encryptedApiSecret,
       );
       
-      print('Securely stored credentials for broker: $broker');
+      assert(() { debugPrint('Securely stored credentials for broker: $broker'); return true; }());
     } catch (e) {
       throw Exception('Failed to store credentials: $e');
     }
@@ -97,7 +98,7 @@ class SecurityManager {
     try {
       await _secureStorage.delete(key: '${_keyPrefix}${broker}_api_key');
       await _secureStorage.delete(key: '${_keyPrefix}${broker}_api_secret');
-      print('Removed credentials for broker: $broker');
+      assert(() { debugPrint('Removed credentials for broker: $broker'); return true; }());
     } catch (e) {
       throw Exception('Failed to remove credentials: $e');
     }
@@ -211,7 +212,7 @@ class SecurityManager {
   static Future<void> clearAllData() async {
     try {
       await _secureStorage.deleteAll();
-      print('Cleared all secure storage data');
+      assert(() { debugPrint('Cleared all secure storage data'); return true; }());
     } catch (e) {
       throw Exception('Failed to clear data: $e');
     }

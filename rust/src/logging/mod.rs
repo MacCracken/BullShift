@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 /// Structured log levels
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LogLevel {
     Trace = 0,
     Debug = 1,
@@ -113,7 +113,6 @@ pub trait Logger {
 /// High-performance structured logger implementation
 pub struct StructuredLogger {
     /// Application name
-    #[allow(dead_code)]
     app_name: String,
 
     /// Minimum log level to output
@@ -122,9 +121,8 @@ pub struct StructuredLogger {
     /// Buffer for log entries (using RefCell for interior mutability)
     entries: RefCell<Vec<LogEntry>>,
 
-    /// Flush interval in milliseconds
-    #[allow(dead_code)]
-    flush_interval_ms: u64,
+    /// Maximum buffer size before auto-flush
+    max_buffer_size: usize,
 }
 
 impl StructuredLogger {
@@ -132,8 +130,8 @@ impl StructuredLogger {
         Self {
             app_name,
             min_level,
-            entries: RefCell::new(Vec::new()),
-            flush_interval_ms: 5000,
+            entries: RefCell::new(Vec::with_capacity(500)),
+            max_buffer_size: 500,
         }
     }
 }
@@ -174,7 +172,7 @@ impl Logger for StructuredLogger {
         self.entries.borrow_mut().push(entry);
 
         // Auto-flush if we have too many entries
-        if self.entries.borrow().len() > 1000 {
+        if self.entries.borrow().len() >= self.max_buffer_size {
             self.flush();
         }
     }
@@ -214,7 +212,7 @@ impl Logger for StructuredLogger {
         self.entries.borrow_mut().push(entry);
 
         // Auto-flush if we have too many entries
-        if self.entries.borrow().len() > 1000 {
+        if self.entries.borrow().len() >= self.max_buffer_size {
             self.flush();
         }
     }
@@ -269,14 +267,14 @@ impl Logger for StructuredLogger {
     }
 
     fn is_enabled(&self, level: LogLevel) -> bool {
-        level as u8 >= self.min_level.clone() as u8
+        level as u8 >= self.min_level as u8
     }
 
     fn get_recent_entries(&self, level: LogLevel, limit: usize) -> Vec<LogEntry> {
         self.entries
             .borrow()
             .iter()
-            .filter(|entry| entry.level.clone() as u8 >= level.clone() as u8)
+            .filter(|entry| entry.level as u8 >= level as u8)
             .rev()
             .take(limit)
             .cloned()

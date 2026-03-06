@@ -29,6 +29,9 @@ pub enum BullShiftError {
     #[error("Database error: {0}")]
     Database(String),
 
+    #[error("Database error: {0}")]
+    DatabaseSql(#[from] rusqlite::Error),
+
     #[error("AI Bridge error: {0}")]
     AiBridge(String),
 
