@@ -1,3 +1,4 @@
+use crate::error::BullShiftError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -50,10 +51,10 @@ pub struct ApiAccount {
 }
 
 pub trait TradingApi {
-    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, String>;
-    async fn get_positions(&self) -> Result<Vec<ApiPosition>, String>;
-    async fn get_account(&self) -> Result<ApiAccount, String>;
-    async fn cancel_order(&self, order_id: String) -> Result<bool, String>;
+    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError>;
+    async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError>;
+    async fn get_account(&self) -> Result<ApiAccount, BullShiftError>;
+    async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError>;
 }
 
 pub struct AlpacaApi {
@@ -81,7 +82,7 @@ impl AlpacaApi {
 }
 
 impl TradingApi for AlpacaApi {
-    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, String> {
+    async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
         let url = format!("{}/v2/orders", self.base_url);
 
         let response = self.client
@@ -91,20 +92,16 @@ impl TradingApi for AlpacaApi {
             .header("Content-Type", "application/json")
             .json(&order)
             .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .await?;
 
         if response.status().is_success() {
-            response
-                .json::<ApiOrderResponse>()
-                .await
-                .map_err(|e| format!("Failed to parse response: {}", e))
+            Ok(response.json::<ApiOrderResponse>().await?)
         } else {
-            Err(format!("Order submission failed: {}", response.status()))
+            Err(BullShiftError::Api(format!("Order submission failed: {}", response.status())))
         }
     }
 
-    async fn get_positions(&self) -> Result<Vec<ApiPosition>, String> {
+    async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError> {
         let url = format!("{}/v2/positions", self.base_url);
 
         let response = self.client
@@ -112,20 +109,16 @@ impl TradingApi for AlpacaApi {
             .header("APCA-API-KEY-ID", &self.api_key)
             .header("APCA-API-SECRET-KEY", &self.api_secret)
             .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .await?;
 
         if response.status().is_success() {
-            response
-                .json::<Vec<ApiPosition>>()
-                .await
-                .map_err(|e| format!("Failed to parse response: {}", e))
+            Ok(response.json::<Vec<ApiPosition>>().await?)
         } else {
-            Err(format!("Failed to get positions: {}", response.status()))
+            Err(BullShiftError::Api(format!("Failed to get positions: {}", response.status())))
         }
     }
 
-    async fn get_account(&self) -> Result<ApiAccount, String> {
+    async fn get_account(&self) -> Result<ApiAccount, BullShiftError> {
         let url = format!("{}/v2/account", self.base_url);
 
         let response = self.client
@@ -133,20 +126,16 @@ impl TradingApi for AlpacaApi {
             .header("APCA-API-KEY-ID", &self.api_key)
             .header("APCA-API-SECRET-KEY", &self.api_secret)
             .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .await?;
 
         if response.status().is_success() {
-            response
-                .json::<ApiAccount>()
-                .await
-                .map_err(|e| format!("Failed to parse response: {}", e))
+            Ok(response.json::<ApiAccount>().await?)
         } else {
-            Err(format!("Failed to get account: {}", response.status()))
+            Err(BullShiftError::Api(format!("Failed to get account: {}", response.status())))
         }
     }
 
-    async fn cancel_order(&self, order_id: String) -> Result<bool, String> {
+    async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
         let url = format!("{}/v2/orders/{}", self.base_url, order_id);
 
         let response = self.client
@@ -154,8 +143,7 @@ impl TradingApi for AlpacaApi {
             .header("APCA-API-KEY-ID", &self.api_key)
             .header("APCA-API-SECRET-KEY", &self.api_secret)
             .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+            .await?;
 
         Ok(response.status().is_success())
     }
@@ -184,27 +172,27 @@ impl TradingApiManager {
         }
     }
 
-    pub async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, String> {
+    pub async fn submit_order(&self, order: ApiOrderRequest) -> Result<ApiOrderResponse, BullShiftError> {
         if let Some(api) = self.apis.get(&self.default_api) {
             api.submit_order(order).await
         } else {
-            Err("No trading API configured".to_string())
+            Err(BullShiftError::Configuration("No trading API configured".to_string()))
         }
     }
 
-    pub async fn get_positions(&self) -> Result<Vec<ApiPosition>, String> {
+    pub async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError> {
         if let Some(api) = self.apis.get(&self.default_api) {
             api.get_positions().await
         } else {
-            Err("No trading API configured".to_string())
+            Err(BullShiftError::Configuration("No trading API configured".to_string()))
         }
     }
 
-    pub async fn get_account(&self) -> Result<ApiAccount, String> {
+    pub async fn get_account(&self) -> Result<ApiAccount, BullShiftError> {
         if let Some(api) = self.apis.get(&self.default_api) {
             api.get_account().await
         } else {
-            Err("No trading API configured".to_string())
+            Err(BullShiftError::Configuration("No trading API configured".to_string()))
         }
     }
 }

@@ -1,4 +1,5 @@
 use crate::database::{Database, Trade as DbTrade};
+use crate::error::BullShiftError;
 use crate::trading::{Order, OrderSide, OrderStatus};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -42,28 +43,23 @@ impl TradeHistory {
         Self { db }
     }
 
-    pub fn record_trade(&self, trade: &Trade) -> Result<i64, String> {
-        self.db
-            .save_trade(
-                &trade.order_id,
-                &trade.symbol,
-                &trade.side,
-                trade.quantity,
-                trade.price,
-                trade.commission,
-            )
-            .map_err(|e| format!("Failed to record trade: {}", e))
+    pub fn record_trade(&self, trade: &Trade) -> Result<i64, BullShiftError> {
+        Ok(self.db.save_trade(
+            &trade.order_id,
+            &trade.symbol,
+            &trade.side,
+            trade.quantity,
+            trade.price,
+            trade.commission,
+        )?)
     }
 
     pub fn get_trades(
         &self,
         symbol: Option<&str>,
         limit: Option<i64>,
-    ) -> Result<Vec<Trade>, String> {
-        let db_trades = self
-            .db
-            .get_trades(symbol, limit)
-            .map_err(|e| format!("Failed to get trades: {}", e))?;
+    ) -> Result<Vec<Trade>, BullShiftError> {
+        let db_trades = self.db.get_trades(symbol, limit)?;
 
         Ok(db_trades
             .into_iter()
@@ -83,11 +79,8 @@ impl TradeHistory {
         &self,
         start_date: &str,
         end_date: &str,
-    ) -> Result<Vec<Trade>, String> {
-        let db_trades = self
-            .db
-            .get_trades_by_date_range(start_date, end_date)
-            .map_err(|e| format!("Failed to get trades by date range: {}", e))?;
+    ) -> Result<Vec<Trade>, BullShiftError> {
+        let db_trades = self.db.get_trades_by_date_range(start_date, end_date)?;
 
         Ok(db_trades
             .into_iter()
@@ -103,7 +96,7 @@ impl TradeHistory {
             .collect())
     }
 
-    pub fn record_order_fill(&self, order: &Order, executed_price: f64) -> Result<i64, String> {
+    pub fn record_order_fill(&self, order: &Order, executed_price: f64) -> Result<i64, BullShiftError> {
         let trade = Trade::from_order(order, executed_price, 0.0);
         self.record_trade(&trade)
     }

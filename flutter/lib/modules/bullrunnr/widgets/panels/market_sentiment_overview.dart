@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 import '../../bullrunnr_provider.dart';
 
 class MarketSentimentOverview extends StatelessWidget {
@@ -12,8 +13,8 @@ class MarketSentimentOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final marketSentiment = provider.marketSentiment;
-    final overallScore = (marketSentiment['overallScore'] as double).clamp(-1.0, 1.0);
-    final fearGreedIndex = marketSentiment['fearGreedIndex'] as double;
+    final overallScore = marketSentiment.safeDouble('overallScore').clamp(-1.0, 1.0);
+    final fearGreedIndex = marketSentiment.safeDouble('fearGreedIndex');
     
     Color getSentimentColor() {
       if (overallScore > 0.3) return Colors.green;
@@ -101,9 +102,9 @@ class MarketSentimentOverview extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildSentimentCount('Bullish', marketSentiment['bullishCount'] as int, Colors.green),
-                _buildSentimentCount('Neutral', marketSentiment['neutralCount'] as int, Colors.grey),
-                _buildSentimentCount('Bearish', marketSentiment['bearishCount'] as int, Colors.red),
+                _buildSentimentCount('Bullish', marketSentiment.safeInt('bullishCount'), Colors.green),
+                _buildSentimentCount('Neutral', marketSentiment.safeInt('neutralCount'), Colors.grey),
+                _buildSentimentCount('Bearish', marketSentiment.safeInt('bearishCount'), Colors.red),
               ],
             ),
           ],

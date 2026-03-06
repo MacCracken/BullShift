@@ -1,5 +1,6 @@
 import 'dart:math';
 import '../../services/base_provider.dart';
+import '../../services/safe_cast.dart';
 
 class TrendSetterProvider extends BaseProvider {
   List<Map<String, dynamic>> _momentumStocks = [];
@@ -87,7 +88,7 @@ class TrendSetterProvider extends BaseProvider {
     }).toList();
 
     // Sort by score (highest first)
-    _momentumStocks.sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
+    _momentumStocks.sort((a, b) => b.safeDouble('score').compareTo(a.safeDouble('score')));
 
     // Generate heat map data (subset of stocks)
     _heatMapData = _momentumStocks.take(15).map((stock) {
@@ -116,10 +117,10 @@ class TrendSetterProvider extends BaseProvider {
     _activeAlerts = [];
 
     for (final stock in _momentumStocks.take(20)) {
-      final symbol = stock['symbol'] as String;
-      final score = stock['score'] as double;
-      final volumeSpike = stock['volumeSpike'] as double;
-      final socialSentiment = stock['socialSentiment'] as double;
+      final symbol = stock.safeString('symbol');
+      final score = stock.safeDouble('score');
+      final volumeSpike = stock.safeDouble('volumeSpike');
+      final socialSentiment = stock.safeDouble('socialSentiment');
 
       // Volume spike alerts
       if (volumeSpike > 3.0 && random.nextBool()) {
@@ -155,7 +156,7 @@ class TrendSetterProvider extends BaseProvider {
       }
 
       // Price breakout alerts
-      if (stock['priceMomentum'] as double > 0.5 && random.nextBool()) {
+      if (stock.safeDouble('priceMomentum') > 0.5 && random.nextBool()) {
         _activeAlerts.add({
           'symbol': symbol,
           'type': 'PriceBreakout',
@@ -178,7 +179,7 @@ class TrendSetterProvider extends BaseProvider {
 
     // Filter by minimum score
     filtered = filtered.where((stock) {
-      return (stock['score'] as double) >= _minScoreFilter;
+      return stock.safeDouble('score') >= _minScoreFilter;
     }).toList();
 
     // Filter by trend strength
@@ -214,7 +215,7 @@ class TrendSetterProvider extends BaseProvider {
     if (query.isEmpty) return _momentumStocks;
     
     return _momentumStocks.where((stock) {
-      final symbol = stock['symbol'] as String;
+      final symbol = stock.safeString('symbol');
       return symbol.toLowerCase().contains(query.toLowerCase());
     }).toList();
   }
@@ -232,10 +233,10 @@ class TrendSetterProvider extends BaseProvider {
 
     final totalStocks = _momentumStocks.length;
     final avgScore = _momentumStocks
-        .map((stock) => stock['score'] as double)
+        .map((stock) => stock.safeDouble('score'))
         .reduce((a, b) => a + b) / totalStocks;
     final topStocks = _momentumStocks
-        .where((stock) => (stock['score'] as double) > 0.7)
+        .where((stock) => stock.safeDouble('score') > 0.7)
         .length;
 
     return {

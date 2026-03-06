@@ -1,4 +1,5 @@
 use crate::database::Database;
+use crate::error::BullShiftError;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -41,21 +42,17 @@ impl Portfolio {
         self
     }
 
-    pub fn load(&mut self) -> Result<(), String> {
-        let db = self.db.as_ref().ok_or("Database not initialized")?;
+    pub fn load(&mut self) -> Result<(), BullShiftError> {
+        let db = self.db.as_ref()
+            .ok_or_else(|| BullShiftError::Database("Database not initialized".to_string()))?;
 
-        if let Some((id, cash, total, margin)) = db
-            .get_portfolio()
-            .map_err(|e| format!("Failed to load portfolio: {}", e))?
-        {
+        if let Some((id, cash, total, margin)) = db.get_portfolio()? {
             self.id = Some(id);
             self.cash_balance = cash;
             self.total_value = total;
             self.available_margin = margin;
 
-            let positions = db
-                .get_positions(id)
-                .map_err(|e| format!("Failed to load positions: {}", e))?;
+            let positions = db.get_positions(id)?;
 
             for pos in positions {
                 self.positions.insert(
@@ -76,8 +73,9 @@ impl Portfolio {
         Ok(())
     }
 
-    pub fn save(&mut self) -> Result<(), String> {
-        let db = self.db.as_ref().ok_or("Database not initialized")?;
+    pub fn save(&mut self) -> Result<(), BullShiftError> {
+        let db = self.db.as_ref()
+            .ok_or_else(|| BullShiftError::Database("Database not initialized".to_string()))?;
 
         if let Some(id) = self.id {
             db.update_portfolio(
@@ -85,19 +83,15 @@ impl Portfolio {
                 self.cash_balance,
                 self.total_value,
                 self.available_margin,
-            )
-            .map_err(|e| format!("Failed to update portfolio: {}", e))?;
+            )?;
         } else {
-            let id = db
-                .save_portfolio(self.cash_balance, self.total_value, self.available_margin)
-                .map_err(|e| format!("Failed to save portfolio: {}", e))?;
+            let id = db.save_portfolio(self.cash_balance, self.total_value, self.available_margin)?;
             self.id = Some(id);
         }
 
         for (symbol, position) in &self.positions {
             if let Some(db_position) = db
-                .get_positions(self.id.unwrap())
-                .map_err(|e| format!("Failed to check position: {}", e))?
+                .get_positions(self.id.unwrap())?
                 .into_iter()
                 .find(|p| &p.symbol == symbol)
             {
@@ -108,8 +102,7 @@ impl Portfolio {
                     position.current_price,
                     position.unrealized_pnl,
                     position.realized_pnl,
-                )
-                .map_err(|e| format!("Failed to update position: {}", e))?;
+                )?;
             } else {
                 db.save_position(
                     self.id.unwrap(),
@@ -119,8 +112,7 @@ impl Portfolio {
                     position.current_price,
                     position.unrealized_pnl,
                     position.realized_pnl,
-                )
-                .map_err(|e| format!("Failed to save position: {}", e))?;
+                )?;
             }
         }
 

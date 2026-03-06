@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 import '../../bullrunnr_provider.dart';
 
 class FearGreedGauge extends StatelessWidget {
@@ -11,7 +12,7 @@ class FearGreedGauge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fearGreedIndex = provider.marketSentiment['fearGreedIndex'] as double;
+    final fearGreedIndex = provider.marketSentiment.safeDouble('fearGreedIndex');
     
     String getFearGreedLabel() {
       if (fearGreedIndex >= 75) return 'Extreme Greed';

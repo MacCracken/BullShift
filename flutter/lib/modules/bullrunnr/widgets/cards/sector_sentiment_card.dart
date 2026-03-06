@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class SectorSentimentCard extends StatelessWidget {
   final Map<String, dynamic> sector;
@@ -10,8 +11,8 @@ class SectorSentimentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = sector['name'] as String;
-    final sentiment = (sector['sentiment'] as double).clamp(-1.0, 1.0);
+    final name = sector.safeString('name');
+    final sentiment = sector.safeDouble('sentiment').clamp(-1.0, 1.0);
     
     Color getSentimentColor() {
       if (sentiment > 0.3) return Colors.green;

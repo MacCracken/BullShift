@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 import '../dialogs/news_analysis_dialog.dart';
 
 class NewsArticleCard extends StatelessWidget {
@@ -11,13 +12,13 @@ class NewsArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = article['title'] as String;
-    final source = article['source'] as String;
+    final title = article.safeString('title');
+    final source = article.safeString('source');
     final timestamp = article['timestamp'] as DateTime;
-    final sentiment = article['sentiment'] as String;
-    final score = (article['sentimentScore'] as double).clamp(-1.0, 1.0);
+    final sentiment = article.safeString('sentiment');
+    final score = article.safeDouble('sentimentScore').clamp(-1.0, 1.0);
     final symbols = (article['symbols'] as List<String>?) ?? [];
-    final category = article['category'] as String;
+    final category = article.safeString('category');
     
     Color getSentimentColor() {
       switch (sentiment.toLowerCase()) {

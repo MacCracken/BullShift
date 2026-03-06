@@ -1,5 +1,6 @@
 import 'dart:math';
 import '../../services/base_provider.dart';
+import '../../services/safe_cast.dart';
 
 class BullRunnrProvider extends BaseProvider {
   List<Map<String, dynamic>> _newsArticles = [];
@@ -253,7 +254,7 @@ class BullRunnrProvider extends BaseProvider {
     }).toList();
     
     // Sort by buzz score
-    _topSentimentMovers.sort((a, b) => (b['buzzScore'] as double).compareTo(a['buzzScore'] as double));
+    _topSentimentMovers.sort((a, b) => b.safeDouble('buzzScore').compareTo(a.safeDouble('buzzScore')));
   }
 
   String _getSentimentTrend(double score) {
@@ -281,7 +282,7 @@ class BullRunnrProvider extends BaseProvider {
     }).toList();
     
     // Sort by sentiment
-    _sectorSentiment.sort((a, b) => (b['sentiment'] as double).compareTo(a['sentiment'] as double));
+    _sectorSentiment.sort((a, b) => b.safeDouble('sentiment').compareTo(a.safeDouble('sentiment')));
   }
 
   String _getRandomSymbol() {
@@ -316,7 +317,7 @@ class BullRunnrProvider extends BaseProvider {
     });
 
     // Sort by relevance
-    _newsArticles.sort((a, b) => (b['confidence'] as double).compareTo(a['confidence'] as double));
+    _newsArticles.sort((a, b) => b.safeDouble('confidence').compareTo(a.safeDouble('confidence')));
     
     safeNotifyListeners();
   }
@@ -341,7 +342,7 @@ class BullRunnrProvider extends BaseProvider {
     if (symbolArticles.isEmpty) return 0.0;
     
     final totalScore = symbolArticles
-        .map((article) => article['sentimentScore'] as double)
+        .map((article) => article.safeDouble('sentimentScore'))
         .reduce((a, b) => a + b);
     
     return totalScore / symbolArticles.length;

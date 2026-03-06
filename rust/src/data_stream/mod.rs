@@ -5,6 +5,7 @@ use tokio::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
+use crate::error::BullShiftError;
 use crate::security::SecurityManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,24 +48,24 @@ impl ApiCredentials {
     }
     
     /// Validate that credentials are properly configured
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), BullShiftError> {
         if self.api_key.is_empty() {
-            return Err("API key is empty".to_string());
+            return Err(BullShiftError::Validation("API key is empty".to_string()));
         }
         if self.api_secret.is_empty() {
-            return Err("API secret is empty".to_string());
+            return Err(BullShiftError::Validation("API secret is empty".to_string()));
         }
         if self.api_key.len() < 10 {
-            return Err("API key appears to be invalid (too short)".to_string());
+            return Err(BullShiftError::Validation("API key appears to be invalid (too short)".to_string()));
         }
         Ok(())
     }
 }
 
 pub trait MarketDataStream {
-    fn connect(&mut self, symbols: Vec<String>) -> Result<(), String>;
-    fn subscribe_ticks(&mut self, symbols: Vec<String>) -> Result<(), String>;
-    fn subscribe_bars(&mut self, symbols: Vec<String>, timeframe: String) -> Result<(), String>;
+    fn connect(&mut self, symbols: Vec<String>) -> Result<(), BullShiftError>;
+    fn subscribe_ticks(&mut self, symbols: Vec<String>) -> Result<(), BullShiftError>;
+    fn subscribe_bars(&mut self, symbols: Vec<String>, timeframe: String) -> Result<(), BullShiftError>;
     fn get_tick_receiver(&self) -> mpsc::UnboundedReceiver<MarketTick>;
     fn get_bar_receiver(&self) -> mpsc::UnboundedReceiver<MarketBar>;
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class SentimentMoverCard extends StatelessWidget {
   final Map<String, dynamic> mover;
@@ -10,10 +11,10 @@ class SentimentMoverCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = mover['symbol'] as String;
-    final sentimentScore = (mover['sentimentScore'] as double).clamp(-1.0, 1.0);
-    final buzzScore = (mover['buzzScore'] as double).clamp(0.0, 1.0);
-    final articleCount = mover['articleCount'] as int;
+    final symbol = mover.safeString('symbol');
+    final sentimentScore = mover.safeDouble('sentimentScore').clamp(-1.0, 1.0);
+    final buzzScore = mover.safeDouble('buzzScore').clamp(0.0, 1.0);
+    final articleCount = mover.safeInt('articleCount');
     
     Color getSentimentColor() {
       if (sentimentScore > 0.3) return Colors.green;

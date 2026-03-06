@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class NewsAnalysisDialog extends StatelessWidget {
   final Map<String, dynamic> article;
@@ -10,10 +11,10 @@ class NewsAnalysisDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = article['title'] as String;
-    final sentiment = article['sentiment'] as String;
-    final score = (article['sentimentScore'] as double).clamp(-1.0, 1.0);
-    final confidence = (article['confidence'] as double).clamp(0.0, 1.0);
+    final title = article.safeString('title');
+    final sentiment = article.safeString('sentiment');
+    final score = article.safeDouble('sentimentScore').clamp(-1.0, 1.0);
+    final confidence = article.safeDouble('confidence').clamp(0.0, 1.0);
     final aspects = article['aspects'] as Map<String, dynamic>? ?? {};
 
     return AlertDialog(
@@ -85,8 +86,8 @@ class NewsAnalysisDialog extends StatelessWidget {
   }
 
   Widget _buildAspectRow(String aspect, Map<String, dynamic> data) {
-    final sentiment = data['sentiment'] as String;
-    final score = (data['score'] as double).clamp(-1.0, 1.0);
+    final sentiment = data.safeString('sentiment');
+    final score = data.safeDouble('score').clamp(-1.0, 1.0);
     
     Color getColor() {
       if (score > 0.3) return Colors.green;

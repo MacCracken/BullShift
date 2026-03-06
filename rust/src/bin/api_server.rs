@@ -95,7 +95,7 @@ async fn submit_order_handler(
         },
         Err(e) => (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": e })),
+            Json(serde_json::json!({ "error": e.to_string() })),
         )
             .into_response(),
     }
@@ -109,7 +109,7 @@ async fn get_positions_handler(State(state): State<Arc<AppState>>) -> impl IntoR
         },
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": e })),
+            Json(serde_json::json!({ "error": e.to_string() })),
         )
             .into_response(),
     }
@@ -123,7 +123,7 @@ async fn get_account_handler(State(state): State<Arc<AppState>>) -> impl IntoRes
         },
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": e })),
+            Json(serde_json::json!({ "error": e.to_string() })),
         )
             .into_response(),
     }
@@ -146,7 +146,7 @@ async fn cancel_order_handler(
             .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": e })),
+            Json(serde_json::json!({ "error": e.to_string() })),
         )
             .into_response(),
     }

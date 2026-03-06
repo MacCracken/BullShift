@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class AIProviderCard extends StatelessWidget {
   final Map<String, dynamic> provider;
@@ -18,11 +19,11 @@ class AIProviderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = provider['name'] as String;
-    final providerType = provider['type'] as String;
-    final modelName = provider['modelName'] as String;
-    final isConfigured = provider['isConfigured'] as bool;
-    final isActive = provider['isActive'] as bool;
+    final name = provider.safeString('name');
+    final providerType = provider.safeString('type');
+    final modelName = provider.safeString('modelName');
+    final isConfigured = provider.safeBool('isConfigured');
+    final isActive = provider.safeBool('isActive');
     final lastUsed = provider['lastUsed'] as String?;
     
     Color getProviderColor() {
