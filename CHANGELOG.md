@@ -102,7 +102,7 @@ All notable changes to BullShift Trading Platform will be documented in this fil
   Configure via `ALPACA_API_KEY`, `ALPACA_API_SECRET`, `ALPACA_SANDBOX`,
   `BULLSHIFT_PORT` env vars.
 - **SecureYeoman AI provider entry** — `SecureYeoman` type pre-registered in
-  BearlyManaged's provider list (UI only; HTTP bridge implementation tracked for 2026.5.x).
+  BearlyManaged's provider list (UI only; backend HTTP bridge added in 2026.3.5).
 
 ### Technical
 - Added `axum = "0.7"` dependency for the HTTP API server binary
@@ -139,4 +139,4 @@ Features from earlier alpha/beta releases included:
 
 For older releases, please refer to the git history.
 
-*Last Updated: March 5, 2026*
+*Last Updated: March 6, 2026*
