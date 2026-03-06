@@ -5,7 +5,7 @@
 ![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen)
 ![Security](https://img.shields.io/badge/Security-Fixed-green)
 ![Coverage](https://img.shields.io/badge/Coverage-30%25-yellowgreen)
-![Version](https://img.shields.io/badge/Version-2026.2.16-blue)
+![Version](https://img.shields.io/badge/Version-2026.3.5-blue)
 
 ## 🚀 High-Performance Cross-Platform Trading Platform
 
