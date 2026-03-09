@@ -2,6 +2,54 @@
 
 All notable changes to BullShift Trading Platform will be documented in this file.
 
+## [2027.9.3] - 2026-03-09
+
+### Added
+- **Market data API endpoint** — `GET /v1/market/:symbol` returns real-time quote
+  with last price, bid/ask, volume, OHLC, change, and change percentage via
+  Alpaca market data snapshot API. New `ApiQuote` type and `AlpacaApi::get_quote()`
+  method (`src/trading/api.rs`)
+- **Algo strategies API** — 4 new endpoints in `api_server`:
+  - `GET /v1/algo/strategies` — list all strategies with performance metrics
+  - `GET /v1/algo/strategies/:id` — get single strategy details
+  - `POST /v1/algo/strategies` — create new strategy (9 types supported)
+  - `GET /v1/algo/signals` — recent signals with configurable limit
+  Exposes `AlgoEngine` over REST for SecureYeoman MCP tool integration
+- **Sentiment API** — 3 new endpoints:
+  - `GET /v1/sentiment` — overview with sources and recent signals
+  - `GET /v1/sentiment/:symbol` — per-symbol aggregate sentiment + signals
+  - `GET /v1/sentiment/signals` — raw signal feed with limit parameter
+  Exposes `SentimentRouter` for MCP tool `bullshift_sentiment`
+- **Alerts API** — 4 new endpoints:
+  - `GET /v1/alerts` — list active (unresolved) alerts
+  - `POST /v1/alerts` — create alert rules with metric, condition, threshold,
+    severity, and cooldown
+  - `GET /v1/alerts/rules` — list all alert rules
+  - `DELETE /v1/alerts/rules/:id` — remove an alert rule
+  Exposes `AlertManager` for MCP tool `bullshift_alerts`
+- **Multi-currency portfolio support** — `Currency` enum supporting 9 currencies
+  (USD, EUR, GBP, JPY, CAD, AUD, CHF, USDT, USDC), `ExchangeRates` with
+  conversion via base currency, `CurrencyBalance` summaries, `deposit()`/
+  `withdraw()` for multi-currency cash management, `Portfolio::with_currency()`
+  constructor, position values auto-converted to base currency for total value
+  calculation. 11 new tests (`src/trading/portfolio.rs`)
+- **Tax lot tracking and reporting** — `TaxLotTracker` in `src/trading/tax_lots.rs`
+  with 5 cost basis methods (FIFO, LIFO, Highest Cost, Lowest Cost, Specific ID),
+  per-purchase `TaxLot` tracking with remaining quantity, `RealizedGainLoss`
+  for dispositions with commission proration, long-term vs short-term capital
+  gains classification (365-day threshold), `TaxReport` annual generation with
+  short/long-term gains/losses breakdown and wash sale detection (30-day window),
+  `SymbolTaxSummary` per-symbol open lot reporting. 22 new tests
+
+### Technical
+- 372 tests total (358 lib + 14 bin), 0 failures, 0 clippy warnings
+- 46 new tests: 13 api_server endpoints, 11 multi-currency portfolio, 22 tax lots
+- API server expanded from 10 to 21 endpoints (trading, market data, algo,
+  sentiment, alerts, AI)
+- No new Rust dependencies added
+
+---
+
 ## [2027.3.0] - 2026-03-05
 
 ### Added

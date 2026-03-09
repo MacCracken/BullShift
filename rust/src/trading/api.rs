@@ -49,6 +49,22 @@ pub struct ApiAccount {
     pub margin_used: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiQuote {
+    pub symbol: String,
+    pub last_price: f64,
+    pub bid: f64,
+    pub ask: f64,
+    pub volume: u64,
+    pub high: f64,
+    pub low: f64,
+    pub open: f64,
+    pub prev_close: f64,
+    pub change: f64,
+    pub change_pct: f64,
+    pub timestamp: String,
+}
+
 #[async_trait]
 pub trait TradingApi {
     async fn submit_order(
@@ -81,6 +97,71 @@ impl AlpacaApi {
             api_secret: credentials.api_secret,
             base_url,
         }
+    }
+
+    pub fn data_url(&self) -> &str {
+        "https://data.alpaca.markets"
+    }
+
+    pub async fn get_quote(&self, symbol: &str) -> Result<ApiQuote, BullShiftError> {
+        let url = format!(
+            "{}/v2/stocks/{}/snapshot",
+            self.data_url(),
+            symbol.to_uppercase()
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("APCA-API-KEY-ID", &self.api_key)
+            .header("APCA-API-SECRET-KEY", &self.api_secret)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(BullShiftError::Api(format!(
+                "Failed to get quote for {}: {}",
+                symbol,
+                response.status()
+            )));
+        }
+
+        let data: serde_json::Value = response.json().await?;
+
+        let latest_trade_price = data["latestTrade"]["p"].as_f64().unwrap_or(0.0);
+        let latest_quote_bid = data["latestQuote"]["bp"].as_f64().unwrap_or(0.0);
+        let latest_quote_ask = data["latestQuote"]["ap"].as_f64().unwrap_or(0.0);
+        let daily_bar = &data["dailyBar"];
+        let prev_daily_bar = &data["prevDailyBar"];
+        let prev_close = prev_daily_bar["c"].as_f64().unwrap_or(0.0);
+        let change = if prev_close > 0.0 {
+            latest_trade_price - prev_close
+        } else {
+            0.0
+        };
+        let change_pct = if prev_close > 0.0 {
+            (change / prev_close) * 100.0
+        } else {
+            0.0
+        };
+
+        Ok(ApiQuote {
+            symbol: symbol.to_uppercase(),
+            last_price: latest_trade_price,
+            bid: latest_quote_bid,
+            ask: latest_quote_ask,
+            volume: daily_bar["v"].as_u64().unwrap_or(0),
+            high: daily_bar["h"].as_f64().unwrap_or(0.0),
+            low: daily_bar["l"].as_f64().unwrap_or(0.0),
+            open: daily_bar["o"].as_f64().unwrap_or(0.0),
+            prev_close,
+            change,
+            change_pct,
+            timestamp: data["latestTrade"]["t"]
+                .as_str()
+                .unwrap_or("")
+                .to_string(),
+        })
     }
 }
 

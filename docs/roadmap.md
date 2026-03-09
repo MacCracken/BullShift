@@ -1,7 +1,7 @@
 # BullShift Roadmap
 
-**Version:** 2026.3.6
-**Last Updated:** March 5, 2026
+**Version:** 2027.9.3
+**Last Updated:** March 9, 2026
 
 ---
 
@@ -136,21 +136,63 @@
 
 ---
 
+## 2027.9.3 - MCP API Endpoints & Portfolio Features (Complete)
+
+### Focus: REST endpoints for MCP tool integration, multi-currency support, tax lot tracking
+
+**Status:** Complete
+
+- [x] **Market data API** — `GET /v1/market/:symbol` returns real-time quote
+      (last price, bid/ask, volume, OHLC, change %) via Alpaca market data API.
+      New `ApiQuote` type and `AlpacaApi::get_quote()` method
+      (`src/trading/api.rs`)
+- [x] **Algo strategies API** — `GET /v1/algo/strategies` lists all strategies
+      with performance metrics, `GET /v1/algo/strategies/:id` gets a single
+      strategy, `POST /v1/algo/strategies` creates new strategies,
+      `GET /v1/algo/signals` returns recent signals. Exposes `AlgoEngine` over
+      REST for SecureYeoman MCP tool `bullshift_algo_status`
+- [x] **Sentiment API** — `GET /v1/sentiment` returns overview with sources and
+      recent signals, `GET /v1/sentiment/:symbol` returns per-symbol aggregate
+      with signal history, `GET /v1/sentiment/signals` returns raw signals.
+      Exposes `SentimentRouter` for MCP tool `bullshift_sentiment`
+- [x] **Alerts API** — `GET /v1/alerts` lists active alerts, `POST /v1/alerts`
+      creates alert rules, `GET /v1/alerts/rules` lists rules,
+      `DELETE /v1/alerts/rules/:id` removes rules. Exposes `AlertManager` for
+      MCP tool `bullshift_alerts`
+- [x] **Multi-currency portfolio** — `Currency` enum (USD, EUR, GBP, JPY, CAD,
+      AUD, CHF, USDT, USDC), `ExchangeRates` with conversion via base currency,
+      `CurrencyBalance` per-currency summaries, `deposit()`/`withdraw()` for
+      multi-currency cash, `Portfolio::with_currency()` constructor, all position
+      values auto-converted to base currency. 11 new tests
+      (`src/trading/portfolio.rs`)
+- [x] **Tax lot tracking** — `TaxLotTracker` in `src/trading/tax_lots.rs` with 5
+      cost basis methods (FIFO, LIFO, Highest Cost, Lowest Cost, Specific ID),
+      `TaxLot` per-purchase tracking, `RealizedGainLoss` for dispositions,
+      long-term vs short-term classification, `TaxReport` annual generation with
+      wash sale detection, `SymbolTaxSummary` per-symbol reporting, commission
+      proration. 22 new tests
+
+---
+
 ## SecureYeoman & AGNOS Integration
 
 ### MCP Tool Registration
-**Status:** Ready — BullShift REST API server exists, SecureYeoman integration module complete.
+**Status:** Ready — all REST endpoints implemented, SecureYeoman MCP tools complete.
 
-The BullShift `api_server` binary (added 2026-02-22) exposes REST endpoints that SecureYeoman can proxy as MCP tools. Candidates for `packages/mcp/src/tools/manifest.ts` registration:
+The BullShift `api_server` binary exposes REST endpoints that SecureYeoman proxies as MCP tools via `registerApiProxyTool()` in `tool-utils.ts`.
 
-- [ ] **`bullshift_portfolio`** — Portfolio summary (positions, P&L, Greeks) via GET `/api/portfolio`
-- [ ] **`bullshift_trade`** — Execute trades via POST `/api/orders` with agent order validation from `SecureYeomanBridge`
-- [ ] **`bullshift_market_data`** — Price quotes and candles via GET `/api/market/:symbol`
-- [ ] **`bullshift_algo_status`** — Active algo strategies and performance via GET `/api/algo/strategies`
-- [ ] **`bullshift_sentiment`** — Aggregated sentiment signals via GET `/api/sentiment` (feeds from `SentimentRouter`)
-- [ ] **`bullshift_alerts`** — Price/trade alerts via GET/POST `/api/alerts`
+**Registered in SecureYeoman** (`packages/mcp/src/tools/trading-tools.ts`):
+- [x] **`bullshift_health`** — Verify API server is reachable
+- [x] **`bullshift_get_account`** — Account balance, available funds, margin
+- [x] **`bullshift_get_positions`** — All open positions with P&L
+- [x] **`bullshift_submit_order`** — Place market/limit/stop/stop-limit orders
+- [x] **`bullshift_cancel_order`** — Cancel open orders by ID
 
-These should use SecureYeoman's `registerApiProxyTool()` factory in `tool-utils.ts` for zero-code registration.
+**Planned** (tracked in SecureYeoman roadmap Phase 145, BullShift endpoints ready):
+- [ ] **`bullshift_market_data`** — Price quotes and candles via GET `/v1/market/:symbol`
+- [ ] **`bullshift_algo_status`** — Active algo strategies and performance via GET `/v1/algo/strategies`
+- [ ] **`bullshift_sentiment`** — Aggregated sentiment signals via GET `/v1/sentiment`
+- [ ] **`bullshift_alerts`** — Price/trade alerts via GET/POST `/v1/alerts`
 
 ### AGNOS Docker Base Migration
 **Priority:** Medium — depends on AGNOS Alpha (Q2 2026).
@@ -169,8 +211,7 @@ These should use SecureYeoman's `registerApiProxyTool()` factory in `tool-utils.
 
 ### Nice to Have
 
-- Multi-currency portfolio support
-- Tax lot tracking and reporting
+*(No remaining items — multi-currency and tax lots now implemented)*
 
 ---
 
@@ -178,6 +219,7 @@ These should use SecureYeoman's `registerApiProxyTool()` factory in `tool-utils.
 
 | Version | Date | Status |
 |---------|------|--------|
+| 2027.9.3 | 2026-03-09 | Released |
 | 2027.3.0 | 2026-03-05 | Released |
 | 2026.3.6 | 2026-03-05 | Released |
 | 2026.3.5 | 2026-03-05 | Released |

@@ -2,6 +2,7 @@ pub mod api;
 pub mod brokers;
 pub mod execution;
 pub mod portfolio;
+pub mod tax_lots;
 pub mod trade_history;
 
 use serde::{Deserialize, Serialize};

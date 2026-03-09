@@ -259,7 +259,7 @@ dependencies = [
 
 [[package]]
 name = "bullshift-core"
-version = "2026.3.6"
+version = "2027.9.3"
 dependencies = [
  "aes-gcm",
  "async-trait",

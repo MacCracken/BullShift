@@ -14,28 +14,42 @@
 //!
 //! # Endpoints
 //!
-//! | Method | Path                        | Description                  |
-//! |--------|-----------------------------|------------------------------|
-//! | GET    | /health                     | Health check                 |
-//! | POST   | /v1/orders                  | Submit a trading order       |
-//! | GET    | /v1/positions               | List open positions          |
-//! | GET    | /v1/account                 | Get account details          |
-//! | DELETE | /v1/orders/:id              | Cancel an open order         |
-//! | GET    | /v1/ai/providers            | List AI providers            |
-//! | POST   | /v1/ai/providers            | Add an AI provider           |
-//! | POST   | /v1/ai/providers/:id/configure | Store API key for provider |
-//! | POST   | /v1/ai/providers/:id/test   | Test provider connection     |
-//! | POST   | /v1/ai/chat                 | Send a chat request          |
+//! | Method | Path                        | Description                        |
+//! |--------|-----------------------------|------------------------------------|
+//! | GET    | /health                     | Health check                       |
+//! | POST   | /v1/orders                  | Submit a trading order             |
+//! | GET    | /v1/positions               | List open positions                |
+//! | GET    | /v1/account                 | Get account details                |
+//! | DELETE | /v1/orders/:id              | Cancel an open order               |
+//! | GET    | /v1/market/:symbol          | Get market quote for a symbol      |
+//! | GET    | /v1/algo/strategies         | List algo strategies + performance |
+//! | GET    | /v1/algo/strategies/:id     | Get a single algo strategy         |
+//! | GET    | /v1/algo/signals            | Get recent algo signals            |
+//! | GET    | /v1/sentiment               | Get aggregated sentiment           |
+//! | GET    | /v1/sentiment/:symbol       | Get sentiment for a symbol         |
+//! | GET    | /v1/sentiment/signals       | Get recent sentiment signals       |
+//! | GET    | /v1/alerts                  | List active alerts                 |
+//! | POST   | /v1/alerts                  | Create an alert rule               |
+//! | GET    | /v1/alerts/rules            | List all alert rules               |
+//! | DELETE | /v1/alerts/rules/:id        | Delete an alert rule               |
+//! | GET    | /v1/ai/providers            | List AI providers                  |
+//! | POST   | /v1/ai/providers            | Add an AI provider                 |
+//! | POST   | /v1/ai/providers/:id/configure | Store API key for provider      |
+//! | POST   | /v1/ai/providers/:id/test   | Test provider connection           |
+//! | POST   | /v1/ai/chat                 | Send a chat request                |
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post},
     Json, Router,
 };
 use bullshift_core::ai_bridge::{AIProvider, AIProviderType, BearlyManaged};
+use bullshift_core::algo::{AlgoEngine, AlgoParameters, AlgoStrategyType};
+use bullshift_core::monitoring::{AlertCondition, AlertManager, AlertRule, AlertSeverity};
 use bullshift_core::security::SecurityManager;
+use bullshift_core::sentiment::SentimentRouter;
 use bullshift_core::trading::api::{AlpacaApi, ApiOrderRequest, TradingApi, TradingCredentials};
 use serde::Deserialize;
 use std::sync::Arc;
@@ -46,6 +60,9 @@ use uuid::Uuid;
 struct AppState {
     api: AlpacaApi,
     ai: Mutex<BearlyManaged>,
+    algo: Mutex<AlgoEngine>,
+    sentiment: Mutex<SentimentRouter>,
+    alerts: Mutex<AlertManager>,
 }
 
 #[tokio::main]
@@ -78,6 +95,9 @@ async fn main() {
     let state = Arc::new(AppState {
         api: AlpacaApi::new(credentials),
         ai: Mutex::new(bearly),
+        algo: Mutex::new(AlgoEngine::new()),
+        sentiment: Mutex::new(SentimentRouter::new()),
+        alerts: Mutex::new(AlertManager::new()),
     });
 
     let app = Router::new()
@@ -87,6 +107,26 @@ async fn main() {
         .route("/v1/positions", get(get_positions_handler))
         .route("/v1/account", get(get_account_handler))
         .route("/v1/orders/:id", delete(cancel_order_handler))
+        // Market data endpoint
+        .route("/v1/market/:symbol", get(market_data_handler))
+        // Algo strategy endpoints
+        .route(
+            "/v1/algo/strategies",
+            get(list_strategies_handler).post(create_strategy_handler),
+        )
+        .route("/v1/algo/strategies/:id", get(get_strategy_handler))
+        .route("/v1/algo/signals", get(recent_signals_handler))
+        // Sentiment endpoints
+        .route("/v1/sentiment", get(aggregate_sentiment_handler))
+        .route("/v1/sentiment/:symbol", get(symbol_sentiment_handler))
+        .route("/v1/sentiment/signals", get(sentiment_signals_handler))
+        // Alert endpoints
+        .route(
+            "/v1/alerts",
+            get(list_active_alerts_handler).post(create_alert_rule_handler),
+        )
+        .route("/v1/alerts/rules", get(list_alert_rules_handler))
+        .route("/v1/alerts/rules/:id", delete(delete_alert_rule_handler))
         // AI provider endpoints
         .route("/v1/ai/providers", get(list_providers_handler))
         .route("/v1/ai/providers", post(add_provider_handler))
@@ -193,6 +233,352 @@ async fn cancel_order_handler(
             Json(serde_json::json!({ "error": format!("{}", e) })),
         )
             .into_response(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Market data endpoint
+// ---------------------------------------------------------------------------
+
+async fn market_data_handler(
+    State(state): State<Arc<AppState>>,
+    Path(symbol): Path<String>,
+) -> impl IntoResponse {
+    match state.api.get_quote(&symbol).await {
+        Ok(quote) => match serde_json::to_value(quote) {
+            Ok(val) => (StatusCode::OK, Json(val)).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Serialization error: {}", e) })),
+            )
+                .into_response(),
+        },
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Algo strategy endpoints
+// ---------------------------------------------------------------------------
+
+async fn list_strategies_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let algo = state.algo.lock().await;
+    let strategies: Vec<serde_json::Value> = algo
+        .list_strategies()
+        .iter()
+        .map(|s| serde_json::to_value(s).unwrap_or_default())
+        .collect();
+
+    Json(serde_json::json!({ "strategies": strategies }))
+}
+
+#[derive(Deserialize)]
+struct CreateStrategyRequest {
+    name: String,
+    strategy_type: String,
+    #[serde(default)]
+    parameters: Option<AlgoParameters>,
+}
+
+fn parse_strategy_type(s: &str) -> AlgoStrategyType {
+    match s {
+        "ma_crossover" | "MovingAverageCrossover" => AlgoStrategyType::MovingAverageCrossover,
+        "mean_reversion" | "MeanReversion" => AlgoStrategyType::MeanReversion,
+        "breakout" | "Breakout" => AlgoStrategyType::Breakout,
+        "vwap" | "Vwap" => AlgoStrategyType::Vwap,
+        "twap" | "Twap" => AlgoStrategyType::Twap,
+        "grid" | "Grid" => AlgoStrategyType::Grid,
+        "trailing_stop" | "TrailingStop" => AlgoStrategyType::TrailingStop,
+        "pairs" | "PairsTrading" => AlgoStrategyType::PairsTrading,
+        other => AlgoStrategyType::Custom(other.to_string()),
+    }
+}
+
+async fn create_strategy_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<CreateStrategyRequest>,
+) -> impl IntoResponse {
+    let mut algo = state.algo.lock().await;
+    let strategy_type = parse_strategy_type(&req.strategy_type);
+    let params = req.parameters.unwrap_or_default();
+    let id = algo.add_strategy(&req.name, strategy_type, params);
+
+    (
+        StatusCode::CREATED,
+        Json(serde_json::json!({ "id": id.to_string() })),
+    )
+        .into_response()
+}
+
+async fn get_strategy_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let strategy_id = match Uuid::parse_str(&id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": "Invalid strategy ID" })),
+            )
+                .into_response()
+        }
+    };
+
+    let algo = state.algo.lock().await;
+    match algo.get_strategy(&strategy_id) {
+        Some(strategy) => match serde_json::to_value(strategy) {
+            Ok(val) => (StatusCode::OK, Json(val)).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Serialization error: {}", e) })),
+            )
+                .into_response(),
+        },
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "Strategy not found" })),
+        )
+            .into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+struct SignalsQuery {
+    #[serde(default = "default_signal_limit")]
+    limit: usize,
+}
+
+fn default_signal_limit() -> usize {
+    50
+}
+
+async fn recent_signals_handler(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<SignalsQuery>,
+) -> impl IntoResponse {
+    let algo = state.algo.lock().await;
+    let signals: Vec<serde_json::Value> = algo
+        .recent_signals(query.limit)
+        .iter()
+        .map(|s| serde_json::to_value(s).unwrap_or_default())
+        .collect();
+
+    Json(serde_json::json!({ "signals": signals }))
+}
+
+// ---------------------------------------------------------------------------
+// Sentiment endpoints
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+struct SentimentQuery {
+    #[serde(default)]
+    symbol: Option<String>,
+}
+
+async fn aggregate_sentiment_handler(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<SentimentQuery>,
+) -> impl IntoResponse {
+    let sentiment = state.sentiment.lock().await;
+
+    if let Some(symbol) = &query.symbol {
+        match sentiment.aggregate_sentiment(symbol) {
+            Some(agg) => match serde_json::to_value(&agg) {
+                Ok(val) => (StatusCode::OK, Json(val)).into_response(),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "error": format!("Serialization error: {}", e) })),
+                )
+                    .into_response(),
+            },
+            None => (
+                StatusCode::OK,
+                Json(serde_json::json!({ "symbol": symbol, "overall_score": 0.0, "signal_count": 0 })),
+            )
+                .into_response(),
+        }
+    } else {
+        let sources: Vec<serde_json::Value> = sentiment
+            .list_sources()
+            .iter()
+            .map(|s| serde_json::to_value(s).unwrap_or_default())
+            .collect();
+        let signals: Vec<serde_json::Value> = sentiment
+            .recent_signals(20, None)
+            .iter()
+            .map(|s| serde_json::to_value(s).unwrap_or_default())
+            .collect();
+
+        Json(serde_json::json!({
+            "sources": sources,
+            "recent_signals": signals,
+        }))
+        .into_response()
+    }
+}
+
+async fn symbol_sentiment_handler(
+    State(state): State<Arc<AppState>>,
+    Path(symbol): Path<String>,
+) -> impl IntoResponse {
+    let sentiment = state.sentiment.lock().await;
+    let aggregate = sentiment.aggregate_sentiment(&symbol);
+    let signals: Vec<serde_json::Value> = sentiment
+        .signals_for_symbol(&symbol, 50)
+        .iter()
+        .map(|s| serde_json::to_value(s).unwrap_or_default())
+        .collect();
+
+    Json(serde_json::json!({
+        "symbol": symbol,
+        "aggregate": aggregate,
+        "signals": signals,
+    }))
+}
+
+#[derive(Deserialize)]
+struct SentimentSignalsQuery {
+    #[serde(default = "default_signal_limit")]
+    limit: usize,
+}
+
+async fn sentiment_signals_handler(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<SentimentSignalsQuery>,
+) -> impl IntoResponse {
+    let sentiment = state.sentiment.lock().await;
+    let signals: Vec<serde_json::Value> = sentiment
+        .recent_signals(query.limit, None)
+        .iter()
+        .map(|s| serde_json::to_value(s).unwrap_or_default())
+        .collect();
+
+    Json(serde_json::json!({ "signals": signals }))
+}
+
+// ---------------------------------------------------------------------------
+// Alert endpoints
+// ---------------------------------------------------------------------------
+
+async fn list_active_alerts_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let alerts = state.alerts.lock().await;
+    let active: Vec<serde_json::Value> = alerts
+        .active_alerts()
+        .iter()
+        .map(|a| serde_json::to_value(a).unwrap_or_default())
+        .collect();
+
+    Json(serde_json::json!({ "alerts": active }))
+}
+
+#[derive(Deserialize)]
+struct CreateAlertRuleRequest {
+    name: String,
+    metric_name: String,
+    condition: String,
+    threshold: f64,
+    #[serde(default = "default_severity")]
+    severity: String,
+    #[serde(default = "default_cooldown")]
+    cooldown_seconds: u64,
+}
+
+fn default_severity() -> String {
+    "warning".to_string()
+}
+fn default_cooldown() -> u64 {
+    300
+}
+
+fn parse_alert_condition(s: &str) -> AlertCondition {
+    match s {
+        "greater_than" | "gt" | ">" | "GreaterThan" => AlertCondition::GreaterThan,
+        "less_than" | "lt" | "<" | "LessThan" => AlertCondition::LessThan,
+        "equal_to" | "eq" | "=" | "EqualTo" => AlertCondition::EqualTo,
+        _ => AlertCondition::GreaterThan,
+    }
+}
+
+fn parse_alert_severity(s: &str) -> AlertSeverity {
+    match s {
+        "info" | "Info" => AlertSeverity::Info,
+        "warning" | "Warning" => AlertSeverity::Warning,
+        "critical" | "Critical" => AlertSeverity::Critical,
+        _ => AlertSeverity::Warning,
+    }
+}
+
+async fn create_alert_rule_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<CreateAlertRuleRequest>,
+) -> impl IntoResponse {
+    let rule = AlertRule {
+        id: Uuid::new_v4(),
+        name: req.name,
+        metric_name: req.metric_name,
+        condition: parse_alert_condition(&req.condition),
+        threshold: req.threshold,
+        severity: parse_alert_severity(&req.severity),
+        enabled: true,
+        cooldown_seconds: req.cooldown_seconds,
+    };
+
+    let rule_id = rule.id;
+    let mut alerts = state.alerts.lock().await;
+    alerts.add_rule(rule);
+
+    (
+        StatusCode::CREATED,
+        Json(serde_json::json!({ "id": rule_id.to_string() })),
+    )
+        .into_response()
+}
+
+async fn list_alert_rules_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let alerts = state.alerts.lock().await;
+    let rules: Vec<serde_json::Value> = alerts
+        .rules()
+        .iter()
+        .map(|r| serde_json::to_value(r).unwrap_or_default())
+        .collect();
+
+    Json(serde_json::json!({ "rules": rules }))
+}
+
+async fn delete_alert_rule_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let rule_id = match Uuid::parse_str(&id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": "Invalid rule ID" })),
+            )
+                .into_response()
+        }
+    };
+
+    let mut alerts = state.alerts.lock().await;
+    if alerts.remove_rule(&rule_id) {
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({ "deleted": true })),
+        )
+            .into_response()
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "Rule not found" })),
+        )
+            .into_response()
     }
 }
 
@@ -422,18 +808,8 @@ async fn chat_handler(
     let mut provider_with_key = provider;
     provider_with_key.api_key = decrypted_key;
 
-    // Use the internal send helper via a direct HTTP call matching the provider type
-    // For now, we forward through BearlyManaged's public interface
     drop(ai); // release lock before async network call
 
-    // Re-acquire for the send — BearlyManaged::send_ai_request is private,
-    // so we use execute_prompt or build a minimal approach.
-    // Since send_ai_request is private, we need a public chat method.
-    // For now, return a structured error indicating the chat endpoint needs
-    // a public send method on BearlyManaged.
-
-    // Actually, let's just make the HTTP call directly here using reqwest,
-    // matching the provider type. This avoids needing to expose BearlyManaged internals.
     let client = reqwest::Client::new();
     let result = match provider_with_key.provider_type {
         AIProviderType::OpenAI => send_openai_chat(&client, &provider_with_key, &req.prompt).await,
@@ -703,10 +1079,46 @@ mod tests {
     use axum::http::Request;
     use tower::ServiceExt;
 
+    fn make_test_state() -> Arc<AppState> {
+        let credentials = TradingCredentials {
+            api_key: "test-key".to_string(),
+            api_secret: "test-secret".to_string(),
+            sandbox: true,
+        };
+        let security_manager = SecurityManager::new().unwrap();
+        let bearly = BearlyManaged::new(security_manager);
+
+        Arc::new(AppState {
+            api: AlpacaApi::new(credentials),
+            ai: Mutex::new(bearly),
+            algo: Mutex::new(AlgoEngine::new()),
+            sentiment: Mutex::new(SentimentRouter::new()),
+            alerts: Mutex::new(AlertManager::new()),
+        })
+    }
+
     fn make_app() -> Router {
-        // Tests use a stub state — credentials are fake, network calls are not made
-        // Integration tests against a live Alpaca sandbox should be run separately
-        Router::new().route("/health", get(health_handler))
+        let state = make_test_state();
+
+        Router::new()
+            .route("/health", get(health_handler))
+            .route("/v1/market/:symbol", get(market_data_handler))
+            .route(
+                "/v1/algo/strategies",
+                get(list_strategies_handler).post(create_strategy_handler),
+            )
+            .route("/v1/algo/strategies/:id", get(get_strategy_handler))
+            .route("/v1/algo/signals", get(recent_signals_handler))
+            .route("/v1/sentiment", get(aggregate_sentiment_handler))
+            .route("/v1/sentiment/:symbol", get(symbol_sentiment_handler))
+            .route("/v1/sentiment/signals", get(sentiment_signals_handler))
+            .route(
+                "/v1/alerts",
+                get(list_active_alerts_handler).post(create_alert_rule_handler),
+            )
+            .route("/v1/alerts/rules", get(list_alert_rules_handler))
+            .route("/v1/alerts/rules/:id", delete(delete_alert_rule_handler))
+            .with_state(state)
     }
 
     #[tokio::test]
@@ -722,5 +1134,380 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_list_strategies_empty() {
+        let app = make_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/algo/strategies")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["strategies"], serde_json::json!([]));
+    }
+
+    #[tokio::test]
+    async fn test_create_and_get_strategy() {
+        let state = make_test_state();
+        let app = Router::new()
+            .route(
+                "/v1/algo/strategies",
+                get(list_strategies_handler).post(create_strategy_handler),
+            )
+            .route("/v1/algo/strategies/:id", get(get_strategy_handler))
+            .with_state(state);
+
+        // Create a strategy
+        let create_body = serde_json::json!({
+            "name": "Test MA Crossover",
+            "strategy_type": "ma_crossover",
+            "parameters": {
+                "symbols": ["AAPL", "TSLA"],
+                "max_position_size": 1000.0,
+                "max_total_exposure": 10000.0,
+                "stop_loss_pct": 0.02,
+                "take_profit_pct": 0.05,
+                "custom": {},
+            }
+        });
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/algo/strategies")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&create_body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let strategy_id = json["id"].as_str().unwrap();
+
+        // Get the strategy
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/v1/algo/strategies/{}", strategy_id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["name"], "Test MA Crossover");
+    }
+
+    #[tokio::test]
+    async fn test_get_strategy_not_found() {
+        let app = make_app();
+        let fake_id = Uuid::new_v4();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/v1/algo/strategies/{}", fake_id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_recent_signals_empty() {
+        let app = make_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/algo/signals")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["signals"], serde_json::json!([]));
+    }
+
+    #[tokio::test]
+    async fn test_sentiment_overview() {
+        let app = make_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/sentiment")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json["sources"].is_array());
+        assert!(json["recent_signals"].is_array());
+    }
+
+    #[tokio::test]
+    async fn test_symbol_sentiment() {
+        let app = make_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/sentiment/AAPL")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["symbol"], "AAPL");
+    }
+
+    #[tokio::test]
+    async fn test_sentiment_signals_empty() {
+        let app = make_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/sentiment/signals")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_alerts_empty() {
+        let app = make_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/alerts")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["alerts"], serde_json::json!([]));
+    }
+
+    #[tokio::test]
+    async fn test_create_and_list_alert_rules() {
+        let state = make_test_state();
+        let app = Router::new()
+            .route(
+                "/v1/alerts",
+                get(list_active_alerts_handler).post(create_alert_rule_handler),
+            )
+            .route("/v1/alerts/rules", get(list_alert_rules_handler))
+            .route("/v1/alerts/rules/:id", delete(delete_alert_rule_handler))
+            .with_state(state);
+
+        // Create a rule
+        let rule_body = serde_json::json!({
+            "name": "High CPU",
+            "metric_name": "cpu_usage",
+            "condition": "greater_than",
+            "threshold": 90.0,
+            "severity": "critical",
+            "cooldown_seconds": 60,
+        });
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/alerts")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&rule_body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let rule_id = json["id"].as_str().unwrap().to_string();
+
+        // List rules
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/alerts/rules")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["rules"].as_array().unwrap().len(), 1);
+
+        // Delete rule
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(format!("/v1/alerts/rules/{}", rule_id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_delete_alert_rule_not_found() {
+        let app = make_app();
+        let fake_id = Uuid::new_v4();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(format!("/v1/alerts/rules/{}", fake_id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_parse_strategy_types() {
+        assert!(matches!(
+            parse_strategy_type("ma_crossover"),
+            AlgoStrategyType::MovingAverageCrossover
+        ));
+        assert!(matches!(
+            parse_strategy_type("mean_reversion"),
+            AlgoStrategyType::MeanReversion
+        ));
+        assert!(matches!(
+            parse_strategy_type("breakout"),
+            AlgoStrategyType::Breakout
+        ));
+        assert!(matches!(
+            parse_strategy_type("vwap"),
+            AlgoStrategyType::Vwap
+        ));
+        assert!(matches!(
+            parse_strategy_type("twap"),
+            AlgoStrategyType::Twap
+        ));
+        assert!(matches!(
+            parse_strategy_type("grid"),
+            AlgoStrategyType::Grid
+        ));
+        assert!(matches!(
+            parse_strategy_type("trailing_stop"),
+            AlgoStrategyType::TrailingStop
+        ));
+        assert!(matches!(
+            parse_strategy_type("pairs"),
+            AlgoStrategyType::PairsTrading
+        ));
+        assert!(matches!(
+            parse_strategy_type("custom_foo"),
+            AlgoStrategyType::Custom(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_parse_alert_conditions() {
+        assert!(matches!(
+            parse_alert_condition("greater_than"),
+            AlertCondition::GreaterThan
+        ));
+        assert!(matches!(
+            parse_alert_condition("gt"),
+            AlertCondition::GreaterThan
+        ));
+        assert!(matches!(
+            parse_alert_condition("less_than"),
+            AlertCondition::LessThan
+        ));
+        assert!(matches!(
+            parse_alert_condition("lt"),
+            AlertCondition::LessThan
+        ));
+        assert!(matches!(
+            parse_alert_condition("equal_to"),
+            AlertCondition::EqualTo
+        ));
+        assert!(matches!(
+            parse_alert_condition("eq"),
+            AlertCondition::EqualTo
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_parse_alert_severities() {
+        assert!(matches!(
+            parse_alert_severity("info"),
+            AlertSeverity::Info
+        ));
+        assert!(matches!(
+            parse_alert_severity("warning"),
+            AlertSeverity::Warning
+        ));
+        assert!(matches!(
+            parse_alert_severity("critical"),
+            AlertSeverity::Critical
+        ));
+        assert!(matches!(
+            parse_alert_severity("unknown"),
+            AlertSeverity::Warning
+        ));
     }
 }

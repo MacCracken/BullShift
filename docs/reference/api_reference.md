@@ -6,12 +6,76 @@ BullShift provides comprehensive APIs for trading integration, data access, and 
 
 ## Table of Contents
 
-1. [Rust Backend API](#rust-backend-api)
-2. [Flutter/Dart API](#flutterdart-api)
-3. [WebSocket API](#websocket-api)
-4. [FFI Interface](#ffi-interface)
-5. [Error Handling](#error-handling)
-6. [Examples](#examples)
+1. [REST API (api_server)](#rest-api-api_server)
+2. [Rust Backend API](#rust-backend-api)
+3. [Flutter/Dart API](#flutterdart-api)
+4. [WebSocket API](#websocket-api)
+5. [FFI Interface](#ffi-interface)
+6. [Error Handling](#error-handling)
+7. [Examples](#examples)
+
+---
+
+## REST API (api_server)
+
+The `api_server` binary exposes BullShift functionality over HTTP on port `8787` (configurable via `BULLSHIFT_PORT`). Used by SecureYeoman MCP tools and external integrations.
+
+### Trading
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/v1/orders` | Submit a trading order |
+| GET | `/v1/positions` | List open positions |
+| GET | `/v1/account` | Get account details (balance, margin) |
+| DELETE | `/v1/orders/:id` | Cancel an open order |
+
+### Market Data
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/v1/market/:symbol` | Get real-time quote (price, bid/ask, volume, OHLC, change) |
+
+### Algo Strategies
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/v1/algo/strategies` | List all strategies with performance metrics |
+| POST | `/v1/algo/strategies` | Create a new strategy |
+| GET | `/v1/algo/strategies/:id` | Get a single strategy |
+| GET | `/v1/algo/signals` | Get recent algo signals (`?limit=N`) |
+
+### Sentiment
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/v1/sentiment` | Overview: sources + recent signals (or `?symbol=X` for aggregate) |
+| GET | `/v1/sentiment/:symbol` | Per-symbol aggregate sentiment + signal history |
+| GET | `/v1/sentiment/signals` | Raw sentiment signals (`?limit=N`) |
+
+### Alerts
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/v1/alerts` | List active (unresolved) alerts |
+| POST | `/v1/alerts` | Create an alert rule |
+| GET | `/v1/alerts/rules` | List all alert rules |
+| DELETE | `/v1/alerts/rules/:id` | Delete an alert rule |
+
+### AI Providers
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/v1/ai/providers` | List configured AI providers |
+| POST | `/v1/ai/providers` | Add a new AI provider |
+| POST | `/v1/ai/providers/:id/configure` | Store API key for provider |
+| POST | `/v1/ai/providers/:id/test` | Test provider connectivity |
+| POST | `/v1/ai/chat` | Send a chat request to a provider |
+
+### Health
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Service health check |
 
 ---
 
