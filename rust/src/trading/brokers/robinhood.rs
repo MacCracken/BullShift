@@ -27,7 +27,11 @@ pub struct RobinhoodApi {
 impl RobinhoodApi {
     pub fn new(credentials: TradingCredentials) -> Self {
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| Client::new()),
             base_url: "https://api.robinhood.com".to_string(),
             access_token: credentials.api_key,
         }
@@ -79,8 +83,10 @@ impl RobinhoodApi {
 
         if response.status().is_success() {
             let body: serde_json::Value = response.json().await?;
-            body["results"][0]["url"]
-                .as_str()
+            body["results"]
+                .as_array()
+                .and_then(|arr| arr.first())
+                .and_then(|item| item["url"].as_str())
                 .map(|s| s.to_string())
                 .ok_or_else(|| BullShiftError::Api(format!("Instrument not found: {}", symbol)))
         } else {
@@ -102,9 +108,21 @@ impl RobinhoodApi {
 
         if response.status().is_success() {
             let body: serde_json::Value = response.json().await?;
-            Ok(body["symbol"].as_str().unwrap_or("???").to_string())
+            body["symbol"]
+                .as_str()
+                .map(|s| s.to_string())
+                .ok_or_else(|| {
+                    BullShiftError::Api(format!(
+                        "No symbol in instrument response for {}",
+                        instrument_url
+                    ))
+                })
         } else {
-            Ok("???".to_string())
+            Err(BullShiftError::Api(format!(
+                "Instrument lookup failed ({}): {}",
+                response.status(),
+                instrument_url
+            )))
         }
     }
 
@@ -200,8 +218,14 @@ impl TradingApi for RobinhoodApi {
         if response.status().is_success() {
             let resp_body: serde_json::Value = response.json().await?;
 
+            let order_id = resp_body["id"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| BullShiftError::Api("Missing order id in Robinhood response".to_string()))?
+                .to_string();
+
             Ok(ApiOrderResponse {
-                order_id: resp_body["id"].as_str().unwrap_or("").to_string(),
+                order_id,
                 symbol: order.symbol,
                 side: order.side,
                 quantity: order.quantity,
@@ -246,11 +270,20 @@ impl TradingApi for RobinhoodApi {
                         .and_then(|s| s.parse().ok())
                         .unwrap_or(0.0);
 
-                    let instrument_url = p["instrument"].as_str().unwrap_or("");
-                    let symbol = self
-                        .resolve_symbol(instrument_url)
-                        .await
-                        .unwrap_or_else(|_| "???".to_string());
+                    let instrument_url = match p["instrument"].as_str() {
+                        Some(url) if !url.is_empty() => url,
+                        _ => {
+                            log::warn!("Position missing instrument URL, skipping");
+                            continue;
+                        }
+                    };
+                    let symbol = match self.resolve_symbol(instrument_url).await {
+                        Ok(s) => s,
+                        Err(e) => {
+                            log::warn!("Failed to resolve instrument {}: {}, skipping position", instrument_url, e);
+                            continue;
+                        }
+                    };
 
                     // Fetch current price
                     let current_price = self.get_quote(&symbol).await.unwrap_or(avg_buy);
@@ -287,7 +320,10 @@ impl TradingApi for RobinhoodApi {
 
         if response.status().is_success() {
             let body: serde_json::Value = response.json().await?;
-            let account = &body["results"][0];
+            let account = body["results"]
+                .as_array()
+                .and_then(|arr| arr.first())
+                .ok_or_else(|| BullShiftError::Api("No account data returned".to_string()))?;
 
             let portfolio_cash: f64 = account["portfolio_cash"]
                 .as_str()
@@ -312,6 +348,12 @@ impl TradingApi for RobinhoodApi {
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
+        if !order_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+            return Err(BullShiftError::Validation(format!(
+                "Invalid order_id format: {}",
+                order_id
+            )));
+        }
         let url = format!("{}/orders/{}/cancel/", self.base_url, order_id);
 
         let response = self

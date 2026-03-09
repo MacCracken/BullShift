@@ -264,7 +264,8 @@ impl AlgoEngine {
         let history = self.price_history.entry(bar.symbol.clone()).or_default();
         history.push(bar.clone());
         if history.len() > self.max_history {
-            history.drain(..history.len() - self.max_history);
+            let excess = history.len().saturating_sub(self.max_history);
+            history.drain(..excess);
         }
 
         // Evaluate all running strategies for this symbol
@@ -276,14 +277,15 @@ impl AlgoEngine {
             .map(|s| s.id)
             .collect();
 
+        let empty_history = Vec::new();
+        let history_ref = self
+            .price_history
+            .get(&bar.symbol)
+            .unwrap_or(&empty_history);
+
         for sid in strategy_ids {
-            let history_clone = self
-                .price_history
-                .get(&bar.symbol)
-                .cloned()
-                .unwrap_or_default();
             if let Some(strategy) = self.strategies.get(&sid) {
-                if let Some(signal) = evaluate_strategy(strategy, &bar, &history_clone) {
+                if let Some(signal) = evaluate_strategy(strategy, &bar, history_ref) {
                     new_signals.push(signal);
                 }
             }
@@ -428,13 +430,23 @@ fn evaluate_ma_crossover(
 
     // Bullish crossover
     if prev_fast <= prev_slow && fast_ma > slow_ma {
+        let strength = if slow_ma.abs() < f64::EPSILON {
+            1.0
+        } else {
+            ((fast_ma - slow_ma) / slow_ma).min(1.0)
+        };
+        let suggested_quantity = if bar.close.abs() < f64::EPSILON {
+            0.0
+        } else {
+            strategy.parameters.max_position_size / bar.close
+        };
         return Some(AlgoSignal {
             id: Uuid::new_v4(),
             strategy_id: strategy.id,
             symbol: bar.symbol.clone(),
             side: OrderSide::Buy,
-            strength: ((fast_ma - slow_ma) / slow_ma).min(1.0),
-            suggested_quantity: strategy.parameters.max_position_size / bar.close,
+            strength,
+            suggested_quantity,
             suggested_price: None,
             reason: format!(
                 "MA crossover: fast({})={:.2} crossed above slow({})={:.2}",
@@ -446,13 +458,23 @@ fn evaluate_ma_crossover(
 
     // Bearish crossover
     if prev_fast >= prev_slow && fast_ma < slow_ma {
+        let strength = if slow_ma.abs() < f64::EPSILON {
+            1.0
+        } else {
+            ((slow_ma - fast_ma) / slow_ma).min(1.0)
+        };
+        let suggested_quantity = if bar.close.abs() < f64::EPSILON {
+            0.0
+        } else {
+            strategy.parameters.max_position_size / bar.close
+        };
         return Some(AlgoSignal {
             id: Uuid::new_v4(),
             strategy_id: strategy.id,
             symbol: bar.symbol.clone(),
             side: OrderSide::Sell,
-            strength: ((slow_ma - fast_ma) / slow_ma).min(1.0),
-            suggested_quantity: strategy.parameters.max_position_size / bar.close,
+            strength,
+            suggested_quantity,
             suggested_price: None,
             reason: format!(
                 "MA crossover: fast({})={:.2} crossed below slow({})={:.2}",
@@ -1251,5 +1273,163 @@ mod tests {
                 signal.strength
             );
         }
+    }
+
+    #[test]
+    fn test_pause_strategy() {
+        let mut engine = AlgoEngine::new();
+        let mut params = AlgoParameters::default();
+        params.symbols = vec!["TEST".to_string()];
+        let id = engine.add_strategy("Pauser", AlgoStrategyType::Vwap, params);
+        engine.start_strategy(&id).unwrap();
+        assert_eq!(engine.get_strategy(&id).unwrap().state, AlgoState::Running);
+
+        engine.pause_strategy(&id).unwrap();
+        assert_eq!(engine.get_strategy(&id).unwrap().state, AlgoState::Paused);
+    }
+
+    #[test]
+    fn test_pause_non_running_strategy() {
+        let mut engine = AlgoEngine::new();
+        let params = AlgoParameters::default();
+        let id = engine.add_strategy("Idle", AlgoStrategyType::Twap, params);
+        assert!(engine.pause_strategy(&id).is_err());
+    }
+
+    #[test]
+    fn test_remove_strategy_idle() {
+        let mut engine = AlgoEngine::new();
+        let params = AlgoParameters::default();
+        let id = engine.add_strategy("Removable", AlgoStrategyType::Grid, params);
+        engine.remove_strategy(&id).unwrap();
+        assert!(engine.get_strategy(&id).is_none());
+    }
+
+    #[test]
+    fn test_remove_running_strategy_fails() {
+        let mut engine = AlgoEngine::new();
+        let mut params = AlgoParameters::default();
+        params.symbols = vec!["TEST".to_string()];
+        let id = engine.add_strategy("Runner", AlgoStrategyType::Grid, params);
+        engine.start_strategy(&id).unwrap();
+        assert!(engine.remove_strategy(&id).is_err());
+    }
+
+    #[test]
+    fn test_remove_nonexistent_strategy() {
+        let mut engine = AlgoEngine::new();
+        assert!(engine.remove_strategy(&Uuid::new_v4()).is_err());
+    }
+
+    #[test]
+    fn test_stop_strategy() {
+        let mut engine = AlgoEngine::new();
+        let mut params = AlgoParameters::default();
+        params.symbols = vec!["TEST".to_string()];
+        let id = engine.add_strategy("Stopper", AlgoStrategyType::TrailingStop, params);
+        engine.start_strategy(&id).unwrap();
+        engine.stop_strategy(&id).unwrap();
+        assert_eq!(engine.get_strategy(&id).unwrap().state, AlgoState::Stopped);
+    }
+
+    #[test]
+    fn test_strategy_type_display() {
+        assert_eq!(format!("{}", AlgoStrategyType::MovingAverageCrossover), "MA Crossover");
+        assert_eq!(format!("{}", AlgoStrategyType::MeanReversion), "Mean Reversion");
+        assert_eq!(format!("{}", AlgoStrategyType::Breakout), "Breakout");
+        assert_eq!(format!("{}", AlgoStrategyType::Vwap), "VWAP");
+        assert_eq!(format!("{}", AlgoStrategyType::Twap), "TWAP");
+        assert_eq!(format!("{}", AlgoStrategyType::Grid), "Grid");
+        assert_eq!(format!("{}", AlgoStrategyType::TrailingStop), "Trailing Stop");
+        assert_eq!(format!("{}", AlgoStrategyType::PairsTrading), "Pairs Trading");
+        assert_eq!(format!("{}", AlgoStrategyType::Custom("MyAlgo".to_string())), "Custom: MyAlgo");
+    }
+
+    #[test]
+    fn test_algo_state_equality() {
+        assert_eq!(AlgoState::Idle, AlgoState::Idle);
+        assert_ne!(AlgoState::Running, AlgoState::Paused);
+        assert_ne!(AlgoState::Error("a".to_string()), AlgoState::Error("b".to_string()));
+    }
+
+    #[test]
+    fn test_algo_parameters_default() {
+        let params = AlgoParameters::default();
+        assert!(params.symbols.is_empty());
+        assert_eq!(params.max_position_size, 1000.0);
+        assert_eq!(params.stop_loss_pct, Some(0.02));
+        assert_eq!(params.take_profit_pct, Some(0.05));
+    }
+
+    #[test]
+    fn test_algo_performance_default() {
+        let perf = AlgoPerformance::default();
+        assert_eq!(perf.total_trades, 0);
+        assert_eq!(perf.total_pnl, 0.0);
+        assert_eq!(perf.win_rate, 0.0);
+    }
+
+    #[test]
+    fn test_price_history_capped() {
+        let mut engine = AlgoEngine::new();
+        // Feed more than max_history bars
+        for i in 0..600 {
+            let bar = PriceBar {
+                symbol: "TEST".to_string(),
+                open: 100.0 + i as f64,
+                high: 105.0,
+                low: 95.0,
+                close: 100.0 + i as f64,
+                volume: 1000.0,
+                timestamp: Utc::now(),
+            };
+            engine.on_price_update(bar);
+        }
+        let history = engine.get_price_history("TEST");
+        assert!(history.is_some());
+        assert!(history.unwrap().len() <= 500);
+    }
+
+    #[test]
+    fn test_get_price_history_not_found() {
+        let engine = AlgoEngine::new();
+        assert!(engine.get_price_history("NONEXISTENT").is_none());
+    }
+
+    #[test]
+    fn test_recent_signals_empty() {
+        let engine = AlgoEngine::new();
+        let signals = engine.recent_signals(10);
+        assert!(signals.is_empty());
+    }
+
+    #[test]
+    fn test_on_price_update_no_running_strategies() {
+        let mut engine = AlgoEngine::new();
+        let bar = PriceBar {
+            symbol: "TEST".to_string(),
+            open: 100.0,
+            high: 105.0,
+            low: 95.0,
+            close: 102.0,
+            volume: 1000.0,
+            timestamp: Utc::now(),
+        };
+        let signals = engine.on_price_update(bar);
+        assert!(signals.is_empty());
+    }
+
+    #[test]
+    fn test_start_strategy_no_symbols() {
+        let mut engine = AlgoEngine::new();
+        let params = AlgoParameters::default(); // empty symbols
+        let id = engine.add_strategy("Empty", AlgoStrategyType::Vwap, params);
+        assert!(engine.start_strategy(&id).is_err());
+    }
+
+    #[test]
+    fn test_engine_default() {
+        let engine = AlgoEngine::default();
+        assert!(engine.list_strategies().is_empty());
     }
 }

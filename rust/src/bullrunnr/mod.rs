@@ -246,10 +246,11 @@ impl BullRunnr {
                 .reserve(estimated_size - self.article_cache.capacity());
         }
 
-        // Use drain iterator if we own the articles, otherwise clone
+        // Only insert articles not already in the cache
         for article in articles {
             self.article_cache
-                .insert(article.id.clone(), article.clone());
+                .entry(article.id.clone())
+                .or_insert_with(|| article.clone());
         }
 
         // Remove old articles only when we exceed the limit by 10% to avoid frequent cleanup

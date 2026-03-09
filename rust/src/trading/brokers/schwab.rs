@@ -33,7 +33,11 @@ impl SchwabApi {
         };
 
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| Client::new()),
             base_url,
             access_token: credentials.api_key,
             account_id: credentials.api_secret,
@@ -164,7 +168,8 @@ impl TradingApi for SchwabApi {
                 .get("Location")
                 .and_then(|v| v.to_str().ok())
                 .and_then(|loc| loc.rsplit('/').next())
-                .unwrap_or("")
+                .filter(|id| !id.is_empty())
+                .unwrap_or("unknown")
                 .to_string();
 
             Ok(ApiOrderResponse {
@@ -249,6 +254,12 @@ impl TradingApi for SchwabApi {
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
+        if !order_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+            return Err(BullShiftError::Validation(format!(
+                "Invalid order_id format: {}",
+                order_id
+            )));
+        }
         let url = format!(
             "{}/v1/accounts/{}/orders/{}",
             self.base_url, self.account_id, order_id

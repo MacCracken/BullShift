@@ -92,7 +92,11 @@ impl AlpacaApi {
         };
 
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| Client::new()),
             api_key: credentials.api_key,
             api_secret: credentials.api_secret,
             base_url,
@@ -129,6 +133,9 @@ impl AlpacaApi {
         let data: serde_json::Value = response.json().await?;
 
         let latest_trade_price = data["latestTrade"]["p"].as_f64().unwrap_or(0.0);
+        if latest_trade_price == 0.0 {
+            log::warn!("Alpaca returned zero last_trade_price for {}; snapshot may be stale or missing", symbol);
+        }
         let latest_quote_bid = data["latestQuote"]["bp"].as_f64().unwrap_or(0.0);
         let latest_quote_ask = data["latestQuote"]["ap"].as_f64().unwrap_or(0.0);
         let daily_bar = &data["dailyBar"];
@@ -233,6 +240,12 @@ impl TradingApi for AlpacaApi {
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
+        if !order_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+            return Err(BullShiftError::Validation(format!(
+                "Invalid order_id format: {}",
+                order_id
+            )));
+        }
         let url = format!("{}/v2/orders/{}", self.base_url, order_id);
 
         let response = self

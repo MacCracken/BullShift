@@ -76,17 +76,28 @@ impl HealthChecker {
 
     /// Run all registered checks and produce a report.
     pub fn check(&self) -> HealthReport {
-        let components: Vec<ComponentHealth> = self.checks.iter().map(|c| c()).collect();
-
-        let status = if components.iter().all(|c| c.status == HealthStatus::Healthy) {
-            HealthStatus::Healthy
-        } else if components
+        let mut has_unhealthy = false;
+        let mut has_degraded = false;
+        let components: Vec<ComponentHealth> = self
+            .checks
             .iter()
-            .any(|c| c.status == HealthStatus::Unhealthy)
-        {
+            .map(|c| {
+                let health = c();
+                match health.status {
+                    HealthStatus::Unhealthy => has_unhealthy = true,
+                    HealthStatus::Degraded => has_degraded = true,
+                    HealthStatus::Healthy => {}
+                }
+                health
+            })
+            .collect();
+
+        let status = if has_unhealthy {
             HealthStatus::Unhealthy
-        } else {
+        } else if has_degraded {
             HealthStatus::Degraded
+        } else {
+            HealthStatus::Healthy
         };
 
         let uptime = (Utc::now() - self.started_at).num_seconds().max(0) as u64;
@@ -891,5 +902,170 @@ mod tests {
         assert_eq!(AlertSeverity::Info.to_string(), "info");
         assert_eq!(AlertSeverity::Warning.to_string(), "warning");
         assert_eq!(AlertSeverity::Critical.to_string(), "critical");
+    }
+
+    #[test]
+    fn test_histogram_nan_ignored() {
+        let mut hist = Histogram::new("h");
+        hist.observe(10.0);
+        hist.observe(f64::NAN);
+        hist.observe(f64::INFINITY);
+        assert_eq!(hist.count(), 1);
+        assert!((hist.mean() - 10.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_histogram_single_value() {
+        let mut hist = Histogram::new("h");
+        hist.observe(42.0);
+        assert_eq!(hist.count(), 1);
+        assert!((hist.min() - 42.0).abs() < f64::EPSILON);
+        assert!((hist.max() - 42.0).abs() < f64::EPSILON);
+        assert!((hist.mean() - 42.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_histogram_with_label() {
+        let hist = Histogram::new("latency").with_label("endpoint", "/health");
+        assert_eq!(hist.name(), "latency");
+        assert_eq!(hist.labels().get("endpoint").unwrap(), "/health");
+    }
+
+    #[test]
+    fn test_gauge_with_label() {
+        let gauge = Gauge::new("memory_mb").with_label("host", "node1");
+        gauge.set(1024.0);
+        assert!((gauge.get() - 1024.0).abs() < f64::EPSILON);
+        assert_eq!(gauge.name(), "memory_mb");
+        assert_eq!(gauge.labels().get("host").unwrap(), "node1");
+    }
+
+    #[test]
+    fn test_gauge_default_zero() {
+        let gauge = Gauge::new("g");
+        assert!((gauge.get() - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_counter_multiple_labels() {
+        let counter = Counter::new("http")
+            .with_label("method", "POST")
+            .with_label("status", "200");
+        assert_eq!(counter.labels().len(), 2);
+    }
+
+    #[test]
+    fn test_metrics_registry_default() {
+        let registry = MetricsRegistry::default();
+        assert!(registry.snapshot().is_empty());
+    }
+
+    #[test]
+    fn test_metrics_registry_out_of_bounds() {
+        let registry = MetricsRegistry::new();
+        assert!(registry.counter(0).is_none());
+        assert!(registry.gauge(999).is_none());
+        assert!(registry.histogram(0).is_none());
+    }
+
+    #[test]
+    fn test_prometheus_export_with_labels() {
+        let mut registry = MetricsRegistry::new();
+        registry.add_gauge(Gauge::new("cpu").with_label("core", "0"));
+        registry.gauge(0).unwrap().set(55.0);
+
+        let prom = registry.prometheus_export();
+        assert!(prom.contains("# TYPE cpu gauge"));
+        assert!(prom.contains("core=\"0\""));
+    }
+
+    #[test]
+    fn test_prometheus_export_histogram() {
+        let mut registry = MetricsRegistry::new();
+        let hi = registry.add_histogram(Histogram::new("dur"));
+        registry.histogram_mut(hi).unwrap().observe(100.0);
+
+        let prom = registry.prometheus_export();
+        assert!(prom.contains("# TYPE dur summary"));
+        assert!(prom.contains("dur_count"));
+        assert!(prom.contains("dur_sum"));
+    }
+
+    #[test]
+    fn test_alert_equal_to_condition() {
+        let mut mgr = AlertManager::new();
+        mgr.add_rule(AlertRule {
+            id: Uuid::new_v4(),
+            name: "Exact match".to_string(),
+            metric_name: "status".to_string(),
+            condition: AlertCondition::EqualTo,
+            threshold: 1.0,
+            severity: AlertSeverity::Info,
+            enabled: true,
+            cooldown_seconds: 0,
+        });
+
+        let metrics = vec![MetricSnapshot {
+            name: "status".to_string(),
+            kind: "gauge".to_string(),
+            value: 1.0,
+            labels: HashMap::new(),
+            timestamp: Utc::now(),
+        }];
+
+        let fired = mgr.evaluate(&metrics);
+        assert_eq!(fired.len(), 1);
+    }
+
+    #[test]
+    fn test_alert_no_matching_metric() {
+        let mut mgr = AlertManager::new();
+        mgr.add_rule(AlertRule {
+            id: Uuid::new_v4(),
+            name: "Missing metric".to_string(),
+            metric_name: "nonexistent".to_string(),
+            condition: AlertCondition::GreaterThan,
+            threshold: 0.0,
+            severity: AlertSeverity::Warning,
+            enabled: true,
+            cooldown_seconds: 0,
+        });
+
+        let fired = mgr.evaluate(&[]);
+        assert!(fired.is_empty());
+    }
+
+    #[test]
+    fn test_alert_resolve_nonexistent() {
+        let mut mgr = AlertManager::new();
+        assert!(!mgr.resolve_alert(&Uuid::new_v4()));
+    }
+
+    #[test]
+    fn test_alert_remove_nonexistent_rule() {
+        let mut mgr = AlertManager::new();
+        assert!(!mgr.remove_rule(&Uuid::new_v4()));
+    }
+
+    #[test]
+    fn test_alert_manager_default() {
+        let mgr = AlertManager::default();
+        assert!(mgr.rules().is_empty());
+        assert!(mgr.alerts().is_empty());
+    }
+
+    #[test]
+    fn test_health_checker_no_checks() {
+        let checker = HealthChecker::new("1.0.0");
+        let report = checker.check();
+        assert_eq!(report.status, HealthStatus::Healthy);
+        assert!(report.components.is_empty());
+    }
+
+    #[test]
+    fn test_health_checker_uptime() {
+        let checker = HealthChecker::new("1.0.0");
+        let report = checker.check();
+        assert!(report.uptime_seconds < 5);
     }
 }

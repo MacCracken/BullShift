@@ -146,15 +146,16 @@ impl SecureYeomanBridge {
         if self.event_history.len() >= 500 {
             self.event_history.pop_front();
         }
-        self.event_history.push_back(event.clone());
-
-        // Broadcast to local subscribers
+        // Broadcast to local subscribers (ignore if no receivers)
         let _ = self.event_sender.send(event.clone());
 
         // Forward to SecureYeoman if configured and connected
         if self.config.auto_emit_events && self.connected {
             self.forward_event_to_secureyeoman(&event).await?;
         }
+
+        // Store locally (move instead of clone since we're done with event)
+        self.event_history.push_back(event);
 
         Ok(())
     }

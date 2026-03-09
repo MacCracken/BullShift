@@ -33,7 +33,11 @@ impl CoinbaseApi {
         };
 
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| Client::new()),
             base_url,
             api_key: credentials.api_key,
             account_id: credentials.api_secret,
@@ -163,8 +167,14 @@ impl TradingApi for CoinbaseApi {
             let body: serde_json::Value = response.json().await?;
             let result = &body["success_response"];
 
+            let order_id = result["order_id"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| BullShiftError::Api("Missing order_id in Coinbase response".to_string()))?
+                .to_string();
+
             Ok(ApiOrderResponse {
-                order_id: result["order_id"].as_str().unwrap_or("").to_string(),
+                order_id,
                 symbol: order.symbol,
                 side: order.side,
                 quantity: order.quantity,

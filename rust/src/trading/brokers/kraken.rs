@@ -29,7 +29,11 @@ impl KrakenApi {
         let base_url = "https://api.kraken.com".to_string();
 
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| Client::new()),
             base_url,
             api_key: credentials.api_key,
             api_secret: credentials.api_secret,
@@ -58,7 +62,7 @@ impl KrakenApi {
             .client
             .post(&url)
             .header("API-Key", &self.api_key)
-            .header("API-Sign", "stub-signature")
+            .header("API-Sign", self.sign_request("", "", ""))
             .send()
             .await
         {
@@ -117,6 +121,16 @@ impl KrakenApi {
         }
     }
 
+    /// Generate the API-Sign header for a Kraken private endpoint.
+    ///
+    /// TODO: Implement proper HMAC-SHA512 signing per Kraken docs:
+    /// `HMAC-SHA512(path + SHA256(nonce + POST_data), base64_decode(api_secret))`
+    /// Until implemented, all private API calls will be rejected by Kraken.
+    fn sign_request(&self, _path: &str, _nonce: &str, _post_data: &str) -> String {
+        log::warn!("Kraken API signature not implemented — private API calls will fail");
+        String::new()
+    }
+
     fn parse_kraken_response(
         body: &serde_json::Value,
     ) -> Result<&serde_json::Value, BullShiftError> {
@@ -161,7 +175,7 @@ impl TradingApi for KrakenApi {
             .client
             .post(&url)
             .header("API-Key", &self.api_key)
-            .header("API-Sign", "stub-signature")
+            .header("API-Sign", self.sign_request("", "", ""))
             .form(&params)
             .send()
             .await?;
@@ -204,7 +218,7 @@ impl TradingApi for KrakenApi {
             .client
             .post(&url)
             .header("API-Key", &self.api_key)
-            .header("API-Sign", "stub-signature")
+            .header("API-Sign", self.sign_request("", "", ""))
             .send()
             .await?;
 
@@ -239,7 +253,7 @@ impl TradingApi for KrakenApi {
             .client
             .post(&url)
             .header("API-Key", &self.api_key)
-            .header("API-Sign", "stub-signature")
+            .header("API-Sign", self.sign_request("", "", ""))
             .send()
             .await?;
 
@@ -280,7 +294,7 @@ impl TradingApi for KrakenApi {
             .client
             .post(&url)
             .header("API-Key", &self.api_key)
-            .header("API-Sign", "stub-signature")
+            .header("API-Sign", self.sign_request("", "", ""))
             .form(&params)
             .send()
             .await?;

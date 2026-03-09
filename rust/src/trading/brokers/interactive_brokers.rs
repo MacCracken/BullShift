@@ -32,9 +32,18 @@ impl InteractiveBrokersApi {
             credentials.api_key.clone()
         };
 
+        // IB Gateway uses self-signed certs. Only accept invalid certs when
+        // connecting to localhost (the expected gateway location). For remote
+        // gateways, require valid TLS to prevent MITM attacks.
+        let is_localhost = gateway_url.contains("://localhost")
+            || gateway_url.contains("://127.0.0.1")
+            || gateway_url.contains("://[::1]");
+
         Self {
             client: Client::builder()
-                .danger_accept_invalid_certs(true) // IB Gateway uses self-signed certs
+                .danger_accept_invalid_certs(is_localhost)
+                .timeout(std::time::Duration::from_secs(30))
+                .connect_timeout(std::time::Duration::from_secs(10))
                 .build()
                 .unwrap_or_else(|_| Client::new()),
             gateway_url,
@@ -126,10 +135,12 @@ impl TradingApi for InteractiveBrokersApi {
         if response.status().is_success() {
             let body: serde_json::Value = response.json().await?;
             // IB returns an array; first element has order_id
-            let order_id = body[0]["order_id"]
-                .as_str()
-                .or_else(|| body[0]["orderId"].as_str())
-                .unwrap_or("unknown")
+            let order_id = body.as_array()
+                .and_then(|arr| arr.first())
+                .and_then(|item| {
+                    item["order_id"].as_str().or_else(|| item["orderId"].as_str())
+                })
+                .ok_or_else(|| BullShiftError::Api("Missing order_id in IB response".to_string()))?
                 .to_string();
 
             Ok(ApiOrderResponse {
@@ -205,6 +216,12 @@ impl TradingApi for InteractiveBrokersApi {
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
+        if !order_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+            return Err(BullShiftError::Validation(format!(
+                "Invalid order_id format: {}",
+                order_id
+            )));
+        }
         let url = format!(
             "{}/v1/api/iserver/account/{}/order/{}",
             self.gateway_url, self.account_id, order_id

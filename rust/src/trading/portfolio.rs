@@ -104,7 +104,7 @@ impl ExchangeRates {
         }
         let from_rate = self.rates.get(&from)?;
         let to_rate = self.rates.get(&to)?;
-        if *to_rate == 0.0 {
+        if to_rate.abs() < f64::EPSILON {
             return None;
         }
         Some(amount * from_rate / to_rate)
@@ -318,6 +318,9 @@ impl Portfolio {
     }
 
     pub fn update_position(&mut self, symbol: &str, current_price: f64) {
+        if !current_price.is_finite() || current_price < 0.0 {
+            return;
+        }
         if let Some(position) = self.positions.get_mut(symbol) {
             position.current_price = current_price;
             position.unrealized_pnl = (current_price - position.entry_price) * position.quantity;
@@ -337,14 +340,19 @@ impl Portfolio {
             .positions
             .values()
             .map(|p| {
-                let local_value = p.quantity * p.current_price + p.unrealized_pnl;
+                let local_value = p.quantity * p.current_price;
                 self.exchange_rates
                     .convert(local_value, p.currency, self.base_currency)
                     .unwrap_or(local_value)
             })
+            .filter(|v| v.is_finite())
             .sum();
 
-        self.total_value = cash_total + positions_value;
+        self.total_value = if (cash_total + positions_value).is_finite() {
+            cash_total + positions_value
+        } else {
+            cash_total
+        };
 
         let margin_used: f64 = self
             .positions
@@ -355,6 +363,7 @@ impl Portfolio {
                     .convert(local_margin, p.currency, self.base_currency)
                     .unwrap_or(local_margin)
             })
+            .filter(|v| v.is_finite())
             .sum();
 
         self.available_margin = self.total_value - margin_used;
@@ -549,5 +558,136 @@ mod tests {
     fn test_default_currency() {
         let currency: Currency = Default::default();
         assert_eq!(currency, Currency::USD);
+    }
+
+    #[test]
+    fn test_deposit_and_withdraw() {
+        let mut portfolio = Portfolio::new(10_000.0);
+        portfolio.deposit(5_000.0, Currency::USD);
+        assert!((portfolio.cash_balance() - 15_000.0).abs() < f64::EPSILON);
+
+        portfolio.withdraw(3_000.0, Currency::USD).unwrap();
+        assert!((portfolio.cash_balance() - 12_000.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_withdraw_insufficient_funds() {
+        let mut portfolio = Portfolio::new(1_000.0);
+        assert!(portfolio.withdraw(5_000.0, Currency::USD).is_err());
+    }
+
+    #[test]
+    fn test_deposit_negative_ignored() {
+        let mut portfolio = Portfolio::new(10_000.0);
+        portfolio.deposit(-500.0, Currency::USD);
+        assert!((portfolio.cash_balance() - 10_000.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_deposit_nan_ignored() {
+        let mut portfolio = Portfolio::new(10_000.0);
+        portfolio.deposit(f64::NAN, Currency::USD);
+        assert!((portfolio.cash_balance() - 10_000.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_deposit_infinity_ignored() {
+        let mut portfolio = Portfolio::new(10_000.0);
+        portfolio.deposit(f64::INFINITY, Currency::USD);
+        assert!((portfolio.cash_balance() - 10_000.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_add_position_and_value() {
+        let mut portfolio = Portfolio::new(100_000.0);
+        portfolio.add_position(Position {
+            symbol: "AAPL".to_string(),
+            quantity: 10.0,
+            entry_price: 150.0,
+            current_price: 160.0,
+            unrealized_pnl: 100.0,
+            realized_pnl: 0.0,
+            currency: Currency::USD,
+            orders: Vec::new(),
+        });
+        // total_value = cash + position value = 100000 + 10*160 = 101600
+        assert!(portfolio.total_value > 100_000.0);
+    }
+
+    #[test]
+    fn test_update_position_valid() {
+        let mut portfolio = Portfolio::new(100_000.0);
+        portfolio.add_position(Position {
+            symbol: "AAPL".to_string(),
+            quantity: 10.0,
+            entry_price: 150.0,
+            current_price: 150.0,
+            unrealized_pnl: 0.0,
+            realized_pnl: 0.0,
+            currency: Currency::USD,
+            orders: Vec::new(),
+        });
+        portfolio.update_position("AAPL", 170.0);
+        let pos = portfolio.positions.get("AAPL").unwrap();
+        assert_eq!(pos.current_price, 170.0);
+        assert!((pos.unrealized_pnl - 200.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_update_position_negative_price_ignored() {
+        let mut portfolio = Portfolio::new(100_000.0);
+        portfolio.add_position(Position {
+            symbol: "AAPL".to_string(),
+            quantity: 10.0,
+            entry_price: 150.0,
+            current_price: 150.0,
+            unrealized_pnl: 0.0,
+            realized_pnl: 0.0,
+            currency: Currency::USD,
+            orders: Vec::new(),
+        });
+        portfolio.update_position("AAPL", -5.0);
+        assert_eq!(portfolio.positions.get("AAPL").unwrap().current_price, 150.0);
+    }
+
+    #[test]
+    fn test_update_position_nan_ignored() {
+        let mut portfolio = Portfolio::new(100_000.0);
+        portfolio.add_position(Position {
+            symbol: "AAPL".to_string(),
+            quantity: 10.0,
+            entry_price: 150.0,
+            current_price: 150.0,
+            unrealized_pnl: 0.0,
+            realized_pnl: 0.0,
+            currency: Currency::USD,
+            orders: Vec::new(),
+        });
+        portfolio.update_position("AAPL", f64::NAN);
+        assert_eq!(portfolio.positions.get("AAPL").unwrap().current_price, 150.0);
+    }
+
+    #[test]
+    fn test_update_position_nonexistent() {
+        let mut portfolio = Portfolio::new(100_000.0);
+        portfolio.update_position("NONEXISTENT", 100.0);
+        // Should not panic, nothing happens
+        assert!(portfolio.positions.is_empty());
+    }
+
+    #[test]
+    fn test_exchange_rate_convert_same_currency() {
+        let rates = ExchangeRates::default();
+        let result = rates.convert(1000.0, Currency::USD, Currency::USD);
+        assert_eq!(result, Some(1000.0));
+    }
+
+    #[test]
+    fn test_exchange_rate_convert_cross() {
+        let rates = ExchangeRates::default();
+        let result = rates.convert(1000.0, Currency::EUR, Currency::USD);
+        assert!(result.is_some());
+        // EUR → USD: 1000 * (eur_rate / usd_rate) — value depends on defaults
+        assert!(result.unwrap() > 0.0);
     }
 }

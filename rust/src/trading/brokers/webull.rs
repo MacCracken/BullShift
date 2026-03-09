@@ -29,7 +29,11 @@ impl WebullApi {
         let trade_url = "https://tradeapi.webull.com".to_string();
 
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| Client::new()),
             trade_url,
             access_token: credentials.api_key.clone(),
             device_id: credentials.api_secret.clone(),
@@ -241,6 +245,12 @@ impl TradingApi for WebullApi {
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
+        if !order_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+            return Err(BullShiftError::Validation(format!(
+                "Invalid order_id format: {}",
+                order_id
+            )));
+        }
         let url = format!(
             "{}/api/trade/v2/option/cancelOrder/{}",
             self.trade_url, order_id

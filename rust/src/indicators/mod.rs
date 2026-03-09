@@ -707,6 +707,15 @@ impl Indicator for Stochastic {
 
 type IndicatorFactory = Box<dyn Fn(&IndicatorParams) -> Box<dyn Indicator + Send> + Send>;
 
+/// Safely convert a parameter value to a period (usize), clamping to [1, 10000].
+fn param_to_period(value: f64) -> usize {
+    if !value.is_finite() || value < 1.0 {
+        1
+    } else {
+        (value as usize).min(10_000)
+    }
+}
+
 /// A registry of named indicator factories. Pre-registers all built-in
 /// indicators and allows custom indicators to be registered at runtime.
 pub struct IndicatorRegistry {
@@ -723,7 +732,7 @@ impl IndicatorRegistry {
         reg.factories.insert(
             "SMA".to_string(),
             Box::new(|params: &IndicatorParams| {
-                let period = params.get_or("period", 14.0) as usize;
+                let period = param_to_period(params.get_or("period", 14.0));
                 Box::new(Sma::new(period))
             }),
         );
@@ -731,7 +740,7 @@ impl IndicatorRegistry {
         reg.factories.insert(
             "EMA".to_string(),
             Box::new(|params: &IndicatorParams| {
-                let period = params.get_or("period", 14.0) as usize;
+                let period = param_to_period(params.get_or("period", 14.0));
                 Box::new(Ema::new(period))
             }),
         );
@@ -739,7 +748,7 @@ impl IndicatorRegistry {
         reg.factories.insert(
             "RSI".to_string(),
             Box::new(|params: &IndicatorParams| {
-                let period = params.get_or("period", 14.0) as usize;
+                let period = param_to_period(params.get_or("period", 14.0));
                 Box::new(Rsi::new(period))
             }),
         );
@@ -747,9 +756,9 @@ impl IndicatorRegistry {
         reg.factories.insert(
             "MACD".to_string(),
             Box::new(|params: &IndicatorParams| {
-                let fast = params.get_or("fast_period", 12.0) as usize;
-                let slow = params.get_or("slow_period", 26.0) as usize;
-                let signal = params.get_or("signal_period", 9.0) as usize;
+                let fast = param_to_period(params.get_or("fast_period", 12.0));
+                let slow = param_to_period(params.get_or("slow_period", 26.0));
+                let signal = param_to_period(params.get_or("signal_period", 9.0));
                 Box::new(Macd::new(fast, slow, signal))
             }),
         );
@@ -757,7 +766,7 @@ impl IndicatorRegistry {
         reg.factories.insert(
             "BB".to_string(),
             Box::new(|params: &IndicatorParams| {
-                let period = params.get_or("period", 20.0) as usize;
+                let period = param_to_period(params.get_or("period", 20.0));
                 let std_dev = params.get_or("num_std_dev", 2.0);
                 Box::new(BollingerBands::new(period, std_dev))
             }),
@@ -766,7 +775,7 @@ impl IndicatorRegistry {
         reg.factories.insert(
             "ATR".to_string(),
             Box::new(|params: &IndicatorParams| {
-                let period = params.get_or("period", 14.0) as usize;
+                let period = param_to_period(params.get_or("period", 14.0));
                 Box::new(Atr::new(period))
             }),
         );
@@ -774,8 +783,8 @@ impl IndicatorRegistry {
         reg.factories.insert(
             "STOCH".to_string(),
             Box::new(|params: &IndicatorParams| {
-                let k = params.get_or("k_period", 14.0) as usize;
-                let d = params.get_or("d_period", 3.0) as usize;
+                let k = param_to_period(params.get_or("k_period", 14.0));
+                let d = param_to_period(params.get_or("d_period", 3.0));
                 Box::new(Stochastic::new(k, d))
             }),
         );

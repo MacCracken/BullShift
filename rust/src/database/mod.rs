@@ -15,7 +15,9 @@ impl Database {
     }
 
     pub fn new(data_dir: PathBuf) -> Result<Self> {
-        std::fs::create_dir_all(&data_dir).ok();
+        if let Err(e) = std::fs::create_dir_all(&data_dir) {
+            log::warn!("Failed to create data directory {:?}: {}", data_dir, e);
+        }
         let db_path = data_dir.join("bullshift.db");
         let conn = Connection::open(db_path)?;
 

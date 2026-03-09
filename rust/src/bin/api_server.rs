@@ -900,8 +900,10 @@ async fn send_openai_chat(
         .await
         .map_err(|e| format!("Parse error: {}", e))?;
 
-    let content = data["choices"][0]["message"]["content"]
-        .as_str()
+    let content = data["choices"]
+        .as_array()
+        .and_then(|arr| arr.first())
+        .and_then(|choice| choice["message"]["content"].as_str())
         .unwrap_or("")
         .to_string();
     let tokens = data["usage"]["total_tokens"].as_u64().unwrap_or(0);
@@ -947,8 +949,10 @@ async fn send_anthropic_chat(
         .await
         .map_err(|e| format!("Parse error: {}", e))?;
 
-    let content = data["content"][0]["text"]
-        .as_str()
+    let content = data["content"]
+        .as_array()
+        .and_then(|arr| arr.first())
+        .and_then(|block| block["text"].as_str())
         .unwrap_or("")
         .to_string();
     let tokens = data["usage"]["input_tokens"].as_u64().unwrap_or(0)

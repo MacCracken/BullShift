@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 use std::thread;
-use std::time::Duration;
-
 use crate::error::BullShiftError;
 use crate::security::SecurityManager;
 
@@ -79,6 +77,12 @@ pub struct AlpacaStream {
     shutdown_tx: Option<std::sync::mpsc::Sender<()>>,
 }
 
+impl Default for AlpacaStream {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlpacaStream {
     pub fn new() -> Self {
         let (tick_sender, _) = mpsc::unbounded_channel();
@@ -125,7 +129,7 @@ impl AlpacaStream {
         Ok(())
     }
 
-    fn process_message(&mut self, msg: Message) {
+    pub fn process_message(&mut self, msg: Message) {
         match msg {
             Message::Text(text) => {
                 if let Ok(data) = serde_json::from_str::<serde_json::Value>(&text) {
@@ -146,10 +150,13 @@ impl AlpacaStream {
             Message::Pong(_) => {
                 // Handle pong
             }
+            _ => {
+                log::debug!("Unhandled WebSocket message type");
+            }
         }
     }
 
-    fn handle_alpaca_message(&mut self, data: serde_json::Value) {
+    pub fn handle_alpaca_message(&mut self, data: serde_json::Value) {
         if let Some(msg_type) = data.get("T").and_then(|v| v.as_str()) {
             match msg_type {
                 "t" => {
@@ -171,7 +178,7 @@ impl AlpacaStream {
         }
     }
 
-    fn parse_trade_message(&self, data: &serde_json::Value) -> Option<MarketTick> {
+    pub fn parse_trade_message(&self, data: &serde_json::Value) -> Option<MarketTick> {
         Some(MarketTick {
             symbol: data.get("S")?.as_str()?.to_string(),
             price: data.get("p")?.as_f64()?,
@@ -182,7 +189,7 @@ impl AlpacaStream {
         })
     }
 
-    fn parse_bar_message(&self, data: &serde_json::Value) -> Option<MarketBar> {
+    pub fn parse_bar_message(&self, data: &serde_json::Value) -> Option<MarketBar> {
         Some(MarketBar {
             symbol: data.get("S")?.as_str()?.to_string(),
             open: data.get("o")?.as_f64()?,
@@ -229,7 +236,7 @@ impl MarketDataStream for AlpacaStream {
                     "secret": credentials.api_secret
                 });
                 
-                if let Err(e) = ws_stream.write_message(Message::Text(auth_msg.to_string())) {
+                if let Err(e) = ws_stream.send(Message::Text(auth_msg.to_string())) {
                     return Err(BullShiftError::DataStream(format!("Failed to send auth: {}", e)));
                 }
                 
@@ -244,7 +251,7 @@ impl MarketDataStream for AlpacaStream {
                         "bars": [symbol]
                     });
                     
-                    if let Err(e) = ws_stream.write_message(Message::Text(sub_msg.to_string())) {
+                    if let Err(e) = ws_stream.send(Message::Text(sub_msg.to_string())) {
                         return Err(BullShiftError::DataStream(format!("Failed to subscribe to {}: {}", symbol, e)));
                     }
                     
@@ -252,14 +259,15 @@ impl MarketDataStream for AlpacaStream {
                 }
                 
                 // Start message processing loop with shutdown signal
-                let tick_sender = self.tick_sender.clone();
-                let bar_sender = self.bar_sender.clone();
+                let _tick_sender = self.tick_sender.clone();
+                let _bar_sender = self.bar_sender.clone();
                 let (shutdown_tx, shutdown_rx) = std::sync::mpsc::channel::<()>();
                 self.shutdown_tx = Some(shutdown_tx);
 
                 thread::spawn(move || {
                     // Set read timeout so we can check shutdown signal
-                    ws_stream.get_mut().set_read_timeout(Some(Duration::from_millis(500))).ok();
+                    // Note: set_read_timeout not available on MaybeTlsStream;
+                    // the read loop uses try_recv for shutdown instead.
                     loop {
                         // Check for shutdown signal
                         if shutdown_rx.try_recv().is_ok() {
@@ -267,7 +275,7 @@ impl MarketDataStream for AlpacaStream {
                             let _ = ws_stream.close(None);
                             break;
                         }
-                        match ws_stream.read_message() {
+                        match ws_stream.read() {
                             Ok(msg) => {
                                 log::debug!("Received message: {:?}", msg);
                             }
@@ -323,6 +331,12 @@ pub struct MarketDataManager {
     bar_cache: HashMap<String, Vec<MarketBar>>,
 }
 
+impl Default for MarketDataManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MarketDataManager {
     pub fn new() -> Self {
         Self {
@@ -346,7 +360,7 @@ impl MarketDataManager {
 
     pub fn start_data_collection(&mut self) -> Result<(), BullShiftError> {
         // Start collecting data from all streams
-        for (name, stream) in &self.streams {
+        for name in self.streams.keys() {
             log::info!("Starting data collection for stream: {}", name);
             // Implementation would start async tasks to receive data
         }
@@ -382,18 +396,243 @@ mod tests {
     #[test]
     fn test_alpaca_stream_credentials() {
         let mut stream = AlpacaStream::new();
-        
+
         // Should fail without credentials
         assert!(stream.load_credentials().is_err());
-        
+
         // Set credentials
         let creds = ApiCredentials::from_secure_storage(
             "PK_TEST_API_KEY_123".to_string(),
             "test_secret_key".to_string()
         );
         stream.set_credentials(creds);
-        
+
         // Should now have credentials
         assert!(stream.credentials.is_some());
+    }
+
+    #[test]
+    fn test_alpaca_stream_new_defaults() {
+        let stream = AlpacaStream::new();
+        assert!(!stream.connected);
+        assert!(stream.subscriptions.is_empty());
+        assert!(stream.credentials.is_none());
+        assert!(stream.shutdown_tx.is_none());
+    }
+
+    #[test]
+    fn test_parse_trade_message_valid() {
+        let stream = AlpacaStream::new();
+        let data = serde_json::json!({
+            "T": "t",
+            "S": "AAPL",
+            "p": 150.25,
+            "v": 100.0,
+            "t": 1678886400,
+            "bs": 150.20,
+            "as": 150.30
+        });
+        let tick = stream.parse_trade_message(&data);
+        assert!(tick.is_some());
+        let tick = tick.unwrap();
+        assert_eq!(tick.symbol, "AAPL");
+        assert_eq!(tick.price, 150.25);
+        assert_eq!(tick.volume, 100.0);
+        assert_eq!(tick.timestamp, 1678886400);
+        assert_eq!(tick.bid, Some(150.20));
+        assert_eq!(tick.ask, Some(150.30));
+    }
+
+    #[test]
+    fn test_parse_trade_message_missing_symbol() {
+        let stream = AlpacaStream::new();
+        let data = serde_json::json!({
+            "T": "t",
+            "p": 150.25,
+            "v": 100.0,
+            "t": 1678886400
+        });
+        assert!(stream.parse_trade_message(&data).is_none());
+    }
+
+    #[test]
+    fn test_parse_trade_message_missing_price() {
+        let stream = AlpacaStream::new();
+        let data = serde_json::json!({
+            "T": "t",
+            "S": "AAPL",
+            "v": 100.0,
+            "t": 1678886400
+        });
+        assert!(stream.parse_trade_message(&data).is_none());
+    }
+
+    #[test]
+    fn test_parse_bar_message_valid() {
+        let stream = AlpacaStream::new();
+        let data = serde_json::json!({
+            "T": "b",
+            "S": "GOOG",
+            "o": 100.0,
+            "h": 105.0,
+            "l": 99.0,
+            "c": 103.0,
+            "v": 50000.0,
+            "t": 1678886400
+        });
+        let bar = stream.parse_bar_message(&data);
+        assert!(bar.is_some());
+        let bar = bar.unwrap();
+        assert_eq!(bar.symbol, "GOOG");
+        assert_eq!(bar.open, 100.0);
+        assert_eq!(bar.high, 105.0);
+        assert_eq!(bar.low, 99.0);
+        assert_eq!(bar.close, 103.0);
+        assert_eq!(bar.volume, 50000.0);
+        assert_eq!(bar.timeframe, "1m");
+    }
+
+    #[test]
+    fn test_parse_bar_message_missing_field() {
+        let stream = AlpacaStream::new();
+        let data = serde_json::json!({
+            "T": "b",
+            "S": "GOOG",
+            "o": 100.0
+            // Missing h, l, c, v, t
+        });
+        assert!(stream.parse_bar_message(&data).is_none());
+    }
+
+    #[test]
+    fn test_handle_alpaca_message_trade() {
+        let mut stream = AlpacaStream::new();
+        let data = serde_json::json!({
+            "T": "t",
+            "S": "AAPL",
+            "p": 150.0,
+            "v": 100.0,
+            "t": 1678886400,
+            "bs": 149.0,
+            "as": 151.0
+        });
+        // Should not panic even though receiver is dropped
+        stream.handle_alpaca_message(data);
+    }
+
+    #[test]
+    fn test_handle_alpaca_message_bar() {
+        let mut stream = AlpacaStream::new();
+        let data = serde_json::json!({
+            "T": "b",
+            "S": "TSLA",
+            "o": 200.0,
+            "h": 210.0,
+            "l": 195.0,
+            "c": 205.0,
+            "v": 75000.0,
+            "t": 1678886400
+        });
+        stream.handle_alpaca_message(data);
+    }
+
+    #[test]
+    fn test_handle_alpaca_message_unknown_type() {
+        let mut stream = AlpacaStream::new();
+        let data = serde_json::json!({
+            "T": "unknown",
+            "data": "test"
+        });
+        stream.handle_alpaca_message(data);
+    }
+
+    #[test]
+    fn test_handle_alpaca_message_no_type() {
+        let mut stream = AlpacaStream::new();
+        let data = serde_json::json!({ "data": "test" });
+        stream.handle_alpaca_message(data);
+    }
+
+    #[test]
+    fn test_subscribe_ticks() {
+        let mut stream = AlpacaStream::new();
+        stream.subscribe_ticks(vec!["AAPL".to_string(), "GOOG".to_string()]).unwrap();
+        assert_eq!(stream.subscriptions.len(), 2);
+        assert_eq!(stream.subscriptions.get("AAPL"), Some(&"ticks".to_string()));
+    }
+
+    #[test]
+    fn test_subscribe_bars() {
+        let mut stream = AlpacaStream::new();
+        stream.subscribe_bars(vec!["AAPL".to_string()], "5m".to_string()).unwrap();
+        assert_eq!(stream.subscriptions.get("AAPL"), Some(&"5m".to_string()));
+    }
+
+    #[test]
+    fn test_market_data_manager_new() {
+        let manager = MarketDataManager::new();
+        assert!(manager.get_latest_ticks("AAPL").is_none());
+        assert!(manager.get_latest_bars("AAPL").is_none());
+    }
+
+    #[test]
+    fn test_market_data_manager_start_empty() {
+        let mut manager = MarketDataManager::new();
+        assert!(manager.start_data_collection().is_ok());
+    }
+
+    #[test]
+    fn test_process_message_close() {
+        let mut stream = AlpacaStream::new();
+        stream.connected = true;
+        stream.process_message(Message::Close(None));
+        assert!(!stream.connected);
+    }
+
+    #[test]
+    fn test_process_message_ping_pong() {
+        let mut stream = AlpacaStream::new();
+        stream.process_message(Message::Ping(vec![]));
+        stream.process_message(Message::Pong(vec![]));
+        // Should not panic
+    }
+
+    #[test]
+    fn test_process_message_binary() {
+        let mut stream = AlpacaStream::new();
+        stream.process_message(Message::Binary(vec![1, 2, 3]));
+        // Should not panic
+    }
+
+    #[test]
+    fn test_process_message_text_valid_trade() {
+        let mut stream = AlpacaStream::new();
+        let json = serde_json::json!({
+            "T": "t", "S": "AAPL", "p": 150.0, "v": 100.0, "t": 1678886400, "bs": 149.0, "as": 151.0
+        });
+        stream.process_message(Message::Text(json.to_string()));
+    }
+
+    #[test]
+    fn test_process_message_text_invalid_json() {
+        let mut stream = AlpacaStream::new();
+        stream.process_message(Message::Text("not json".to_string()));
+        // Should not panic — invalid JSON is silently ignored
+    }
+
+    #[test]
+    fn test_credentials_empty_secret() {
+        let creds = ApiCredentials::from_secure_storage(
+            "PK_VALID_KEY_1234567890".to_string(),
+            "".to_string(),
+        );
+        assert!(creds.validate().is_err());
+    }
+
+    #[test]
+    fn test_connect_without_credentials() {
+        let mut stream = AlpacaStream::new();
+        let result = stream.connect(vec!["AAPL".to_string()]);
+        assert!(result.is_err());
     }
 }

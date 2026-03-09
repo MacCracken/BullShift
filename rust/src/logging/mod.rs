@@ -170,10 +170,12 @@ impl Logger for StructuredLogger {
             message
         );
 
-        self.entries.borrow_mut().push(entry);
-
-        // Auto-flush if we have too many entries
-        if self.entries.borrow().len() >= self.max_buffer_size {
+        let should_flush = {
+            let mut entries = self.entries.borrow_mut();
+            entries.push(entry);
+            entries.len() >= self.max_buffer_size
+        };
+        if should_flush {
             self.flush();
         }
     }
@@ -210,10 +212,12 @@ impl Logger for StructuredLogger {
             message
         );
 
-        self.entries.borrow_mut().push(entry);
-
-        // Auto-flush if we have too many entries
-        if self.entries.borrow().len() >= self.max_buffer_size {
+        let should_flush = {
+            let mut entries = self.entries.borrow_mut();
+            entries.push(entry);
+            entries.len() >= self.max_buffer_size
+        };
+        if should_flush {
             self.flush();
         }
     }
@@ -484,5 +488,83 @@ mod tests {
         assert_eq!(entries[0].level, LogLevel::Warn);
         assert_eq!(entries[1].level, LogLevel::Error);
         assert_eq!(entries[2].level, LogLevel::Critical);
+    }
+
+    #[test]
+    fn test_structured_logger_default() {
+        let logger = StructuredLogger::default();
+        assert_eq!(logger.app_name, "bullshift");
+        assert_eq!(logger.min_level, LogLevel::Info);
+        assert_eq!(logger.max_buffer_size, 500);
+    }
+
+    #[test]
+    fn test_log_level_display() {
+        assert_eq!(LogLevel::Trace.to_string(), "TRACE");
+        assert_eq!(LogLevel::Debug.to_string(), "DEBUG");
+        assert_eq!(LogLevel::Info.to_string(), "INFO");
+        assert_eq!(LogLevel::Warn.to_string(), "WARN");
+        assert_eq!(LogLevel::Error.to_string(), "ERROR");
+        assert_eq!(LogLevel::Critical.to_string(), "CRITICAL");
+    }
+
+    #[test]
+    fn test_is_enabled() {
+        let logger = StructuredLogger::new("test".to_string(), LogLevel::Error);
+        assert!(!logger.is_enabled(LogLevel::Debug));
+        assert!(!logger.is_enabled(LogLevel::Info));
+        assert!(!logger.is_enabled(LogLevel::Warn));
+        assert!(logger.is_enabled(LogLevel::Error));
+        assert!(logger.is_enabled(LogLevel::Critical));
+    }
+
+    #[test]
+    fn test_get_recent_entries() {
+        let logger = StructuredLogger::new("test".to_string(), LogLevel::Debug);
+        logger.log(LogLevel::Debug, "mod", "debug1");
+        logger.log(LogLevel::Info, "mod", "info1");
+        logger.log(LogLevel::Error, "mod", "error1");
+        logger.log(LogLevel::Error, "mod", "error2");
+
+        let errors = logger.get_recent_entries(LogLevel::Error, 10);
+        assert_eq!(errors.len(), 2);
+
+        let limited = logger.get_recent_entries(LogLevel::Debug, 2);
+        assert_eq!(limited.len(), 2);
+    }
+
+    #[test]
+    fn test_error_details_struct() {
+        let details = ErrorDetails {
+            code: "E001".to_string(),
+            message: "Something failed".to_string(),
+            stack_trace: None,
+            source_file: Some("main.rs".to_string()),
+            line_number: Some(42),
+            function_name: Some("handle_request".to_string()),
+        };
+        assert_eq!(details.code, "E001");
+        assert_eq!(details.line_number, Some(42));
+    }
+
+    #[test]
+    fn test_log_error_with_details() {
+        let logger = StructuredLogger::new("test".to_string(), LogLevel::Debug);
+        let details = ErrorDetails {
+            code: "DB_CONN".to_string(),
+            message: "Connection refused".to_string(),
+            stack_trace: None,
+            source_file: None,
+            line_number: None,
+            function_name: None,
+        };
+        logger.log_error("database", "Failed to connect", &details);
+
+        let entries = logger.entries.borrow();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].level, LogLevel::Error);
+        assert!(entries[0].error_details.is_some());
+        let ed = entries[0].error_details.as_ref().unwrap();
+        assert_eq!(ed.code, "DB_CONN");
     }
 }

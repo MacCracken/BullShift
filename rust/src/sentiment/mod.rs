@@ -377,7 +377,8 @@ impl WebhookSource {
     pub fn push_article(&self, article: NewsArticle) {
         let mut articles = self.articles.lock().unwrap_or_else(|e| e.into_inner());
         if articles.len() >= 500 {
-            articles.drain(..100); // Evict oldest batch
+            let evict_count = articles.len().min(100);
+            articles.drain(..evict_count); // Evict oldest batch
         }
         articles.push(article);
     }

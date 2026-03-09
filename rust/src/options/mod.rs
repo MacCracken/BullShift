@@ -304,8 +304,8 @@ impl OptionsManager {
     pub fn portfolio_greeks(&self) -> Greeks {
         let mut total = Greeks::default();
         for pos in self.positions.values() {
-            let sign = if pos.quantity > 0 { 1.0 } else { -1.0 };
-            let qty = pos.quantity.unsigned_abs() as f64;
+            let sign = if pos.quantity >= 0 { 1.0 } else { -1.0 };
+            let qty = (pos.quantity as f64).abs();
             total.delta += pos.contract.greeks.delta * qty * sign * pos.contract.multiplier;
             total.gamma += pos.contract.greeks.gamma * qty * sign * pos.contract.multiplier;
             total.theta += pos.contract.greeks.theta * qty * sign * pos.contract.multiplier;
@@ -326,6 +326,14 @@ impl OptionsManager {
     ) -> f64 {
         if time_to_expiry <= 0.0 {
             // At expiration — intrinsic value
+            return match option_type {
+                OptionType::Call => (spot - strike).max(0.0),
+                OptionType::Put => (strike - spot).max(0.0),
+            };
+        }
+
+        if volatility <= 0.0 || !volatility.is_finite() {
+            // Zero/invalid volatility — return intrinsic value
             return match option_type {
                 OptionType::Call => (spot - strike).max(0.0),
                 OptionType::Put => (strike - spot).max(0.0),
@@ -822,5 +830,97 @@ mod tests {
             atm_vega,
             otm_vega
         );
+    }
+
+    #[test]
+    fn test_black_scholes_zero_volatility() {
+        let mgr = OptionsManager::new();
+        // Zero vol should return intrinsic value
+        let call = mgr.black_scholes(&OptionType::Call, 150.0, 140.0, 0.5, 0.0);
+        assert!((call - 10.0).abs() < 0.01, "Zero vol ITM call should be ~intrinsic, got {}", call);
+
+        let otm_call = mgr.black_scholes(&OptionType::Call, 130.0, 140.0, 0.5, 0.0);
+        assert!(otm_call.abs() < 0.01, "Zero vol OTM call should be ~0, got {}", otm_call);
+
+        let put = mgr.black_scholes(&OptionType::Put, 130.0, 140.0, 0.5, 0.0);
+        assert!((put - 10.0).abs() < 0.01, "Zero vol ITM put should be ~intrinsic, got {}", put);
+    }
+
+    #[test]
+    fn test_black_scholes_negative_volatility() {
+        let mgr = OptionsManager::new();
+        let price = mgr.black_scholes(&OptionType::Call, 150.0, 140.0, 0.5, -0.25);
+        assert!((price - 10.0).abs() < 0.01, "Negative vol should return intrinsic");
+    }
+
+    #[test]
+    fn test_portfolio_greeks_short_position() {
+        let mut mgr = OptionsManager::new();
+        let contract = OptionsContract {
+            symbol: "SPY250C450".to_string(),
+            underlying: "SPY".to_string(),
+            option_type: OptionType::Call,
+            strike: 450.0,
+            expiration: Utc::now(),
+            exercise_style: ExerciseStyle::European,
+            multiplier: 100.0,
+            bid: 10.0,
+            ask: 10.50,
+            last: 10.25,
+            volume: 500,
+            open_interest: 2000,
+            implied_volatility: 0.20,
+            greeks: Greeks {
+                delta: 0.50,
+                gamma: 0.02,
+                theta: -0.04,
+                vega: 0.12,
+                rho: 0.01,
+            },
+        };
+
+        mgr.open_position(OptionsPosition {
+            id: Uuid::new_v4(),
+            contract,
+            quantity: -3, // short position
+            avg_cost: 10.25,
+            current_value: 10.50,
+            unrealized_pnl: -75.0,
+            opened_at: Utc::now(),
+        });
+
+        let greeks = mgr.portfolio_greeks();
+        // Short 3 contracts: delta = 0.50 * 3 * 100 * -1 = -150
+        assert!((greeks.delta - (-150.0)).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_greeks_default() {
+        let g = Greeks::default();
+        assert_eq!(g.delta, 0.0);
+        assert_eq!(g.gamma, 0.0);
+        assert_eq!(g.theta, 0.0);
+        assert_eq!(g.vega, 0.0);
+        assert_eq!(g.rho, 0.0);
+    }
+
+    #[test]
+    fn test_exercise_style_equality() {
+        assert_eq!(ExerciseStyle::American, ExerciseStyle::American);
+        assert_ne!(ExerciseStyle::American, ExerciseStyle::European);
+    }
+
+    #[test]
+    fn test_close_nonexistent_position() {
+        let mut mgr = OptionsManager::new();
+        assert!(mgr.close_position(&Uuid::new_v4()).is_err());
+    }
+
+    #[test]
+    fn test_empty_portfolio_greeks() {
+        let mgr = OptionsManager::new();
+        let greeks = mgr.portfolio_greeks();
+        assert_eq!(greeks.delta, 0.0);
+        assert_eq!(greeks.gamma, 0.0);
     }
 }

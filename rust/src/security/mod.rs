@@ -102,7 +102,7 @@ impl SecurityManager {
                 })?;
 
                 let key_hex = hex::encode(key_bytes);
-                let _ = Command::new("secret-tool")
+                match Command::new("secret-tool")
                     .args([
                         "store",
                         "--label=BullShift Encryption Key",
@@ -111,7 +111,16 @@ impl SecurityManager {
                         "password",
                         &key_hex,
                     ])
-                    .output();
+                    .output()
+                {
+                    Ok(output) if !output.status.success() => {
+                        log::warn!("secret-tool store failed (exit {}), key not persisted", output.status);
+                    }
+                    Err(e) => {
+                        log::warn!("secret-tool store failed: {}, key not persisted", e);
+                    }
+                    _ => {}
+                }
 
                 return Ok(key_bytes.to_vec());
             }

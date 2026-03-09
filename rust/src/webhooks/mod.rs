@@ -234,7 +234,7 @@ impl WebhookManager {
 
         for attempt in 0..=webhook.retry_count {
             if attempt > 0 {
-                tokio::time::sleep(std::time::Duration::from_millis(500 * attempt as u64)).await;
+                tokio::time::sleep(std::time::Duration::from_millis(500 * 2u64.pow(attempt - 1))).await;
             }
 
             match self.send_request(webhook, trigger, payload).await {
@@ -696,5 +696,103 @@ mod tests {
         assert!(text_val.contains("*BullShift Alert*"));
         assert!(text_val.contains("stop_loss.triggered"));
         assert!(text_val.contains("TSLA"));
+    }
+
+    #[test]
+    fn test_all_trigger_display_values() {
+        assert_eq!(WebhookTrigger::OrderFilled.to_string(), "order.filled");
+        assert_eq!(WebhookTrigger::OrderCancelled.to_string(), "order.cancelled");
+        assert_eq!(WebhookTrigger::PriceAlert.to_string(), "price.alert");
+        assert_eq!(
+            WebhookTrigger::StopLossTriggered.to_string(),
+            "stop_loss.triggered"
+        );
+        assert_eq!(
+            WebhookTrigger::TakeProfitTriggered.to_string(),
+            "take_profit.triggered"
+        );
+    }
+
+    #[test]
+    fn test_webhook_format_variants() {
+        let json = WebhookFormat::Json;
+        let slack = WebhookFormat::Slack;
+        let form = WebhookFormat::FormEncoded;
+        assert_ne!(format!("{:?}", json), format!("{:?}", slack));
+        assert_ne!(format!("{:?}", slack), format!("{:?}", form));
+    }
+
+    #[test]
+    fn test_register_and_list_webhooks() {
+        let mut mgr = WebhookManager::new();
+        let id1 = mgr.add_webhook(
+            "hook1",
+            "https://example.com/1",
+            WebhookFormat::Json,
+            vec![WebhookTrigger::OrderFilled],
+        );
+        let id2 = mgr.add_webhook(
+            "hook2",
+            "https://example.com/2",
+            WebhookFormat::Slack,
+            vec![WebhookTrigger::PriceAlert],
+        );
+        assert_eq!(mgr.list().len(), 2);
+        assert!(mgr.get(&id1).is_some());
+        assert!(mgr.get(&id2).is_some());
+    }
+
+    #[test]
+    fn test_remove_and_verify_webhook() {
+        let mut mgr = WebhookManager::new();
+        let id = mgr.add_webhook(
+            "to-remove",
+            "https://example.com",
+            WebhookFormat::Json,
+            vec![WebhookTrigger::OrderFilled],
+        );
+        assert_eq!(mgr.list().len(), 1);
+        assert!(mgr.remove(&id));
+        assert!(mgr.list().is_empty());
+        assert!(!mgr.remove(&id)); // already removed
+    }
+
+    #[test]
+    fn test_get_nonexistent_webhook() {
+        let mgr = WebhookManager::new();
+        assert!(mgr.get(&Uuid::new_v4()).is_none());
+    }
+
+    #[test]
+    fn test_webhook_delivery_struct() {
+        let delivery = WebhookDelivery {
+            id: Uuid::new_v4(),
+            webhook_id: Uuid::new_v4(),
+            trigger: WebhookTrigger::OrderFilled,
+            status_code: Some(200),
+            success: true,
+            error: None,
+            response_time_ms: 42,
+            timestamp: Utc::now(),
+        };
+        assert!(delivery.success);
+        assert_eq!(delivery.status_code, Some(200));
+        assert!(delivery.error.is_none());
+    }
+
+    #[test]
+    fn test_webhook_delivery_failure() {
+        let delivery = WebhookDelivery {
+            id: Uuid::new_v4(),
+            webhook_id: Uuid::new_v4(),
+            trigger: WebhookTrigger::PriceAlert,
+            status_code: Some(500),
+            success: false,
+            error: Some("Internal Server Error".to_string()),
+            response_time_ms: 1500,
+            timestamp: Utc::now(),
+        };
+        assert!(!delivery.success);
+        assert_eq!(delivery.error.as_deref(), Some("Internal Server Error"));
     }
 }
