@@ -161,10 +161,7 @@ impl TradingApi for CoinbaseApi {
             let result = &body["success_response"];
 
             Ok(ApiOrderResponse {
-                order_id: result["order_id"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string(),
+                order_id: result["order_id"].as_str().unwrap_or("").to_string(),
                 symbol: order.symbol,
                 side: order.side,
                 quantity: order.quantity,

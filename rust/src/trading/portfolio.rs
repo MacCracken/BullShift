@@ -97,18 +97,24 @@ impl Default for ExchangeRates {
 
 impl ExchangeRates {
     /// Convert an amount from one currency to another.
+    /// Returns `None` if either currency is unknown or if `to_rate` is zero.
     pub fn convert(&self, amount: f64, from: Currency, to: Currency) -> Option<f64> {
         if from == to {
             return Some(amount);
         }
         let from_rate = self.rates.get(&from)?;
         let to_rate = self.rates.get(&to)?;
-        // Convert via base currency (USD)
+        if *to_rate == 0.0 {
+            return None;
+        }
         Some(amount * from_rate / to_rate)
     }
 
-    /// Update a single exchange rate.
+    /// Update a single exchange rate. Rate must be positive.
     pub fn set_rate(&mut self, currency: Currency, rate_to_usd: f64) {
+        if rate_to_usd <= 0.0 || !rate_to_usd.is_finite() {
+            return;
+        }
         self.rates.insert(currency, rate_to_usd);
         self.updated_at = chrono::Utc::now();
     }
@@ -169,14 +175,22 @@ impl Portfolio {
         *self.cash_balances.get(&currency).unwrap_or(&0.0)
     }
 
-    /// Add cash in a specific currency.
+    /// Add cash in a specific currency. Amount must be positive.
     pub fn deposit(&mut self, amount: f64, currency: Currency) {
+        if amount <= 0.0 || !amount.is_finite() {
+            return;
+        }
         *self.cash_balances.entry(currency).or_insert(0.0) += amount;
         self.calculate_total_value();
     }
 
-    /// Withdraw cash in a specific currency. Returns error if insufficient funds.
+    /// Withdraw cash in a specific currency. Returns error if insufficient funds or invalid amount.
     pub fn withdraw(&mut self, amount: f64, currency: Currency) -> Result<(), BullShiftError> {
+        if amount <= 0.0 || !amount.is_finite() {
+            return Err(BullShiftError::Portfolio(
+                "Withdraw amount must be a positive finite number".to_string(),
+            ));
+        }
         let balance = self.cash_balances.get(&currency).copied().unwrap_or(0.0);
         if balance < amount {
             return Err(BullShiftError::Portfolio(format!(
@@ -232,8 +246,7 @@ impl Portfolio {
 
         if let Some((id, cash, total, margin)) = db.get_portfolio()? {
             self.id = Some(id);
-            self.cash_balances
-                .insert(self.base_currency, cash);
+            self.cash_balances.insert(self.base_currency, cash);
             self.total_value = total;
             self.available_margin = margin;
 
@@ -268,15 +281,9 @@ impl Portfolio {
         let cash = self.cash_balance();
 
         if let Some(id) = self.id {
-            db.update_portfolio(
-                id,
-                cash,
-                self.total_value,
-                self.available_margin,
-            )?;
+            db.update_portfolio(id, cash, self.total_value, self.available_margin)?;
         } else {
-            let id =
-                db.save_portfolio(cash, self.total_value, self.available_margin)?;
+            let id = db.save_portfolio(cash, self.total_value, self.available_margin)?;
             self.id = Some(id);
         }
 

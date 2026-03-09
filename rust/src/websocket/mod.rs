@@ -152,9 +152,9 @@ impl ClientSession {
     /// are always delivered regardless of subscriptions.
     pub fn should_receive(&self, message: &StreamMessage) -> bool {
         match message {
-            StreamMessage::PriceUpdate { symbol, .. } => {
-                self.subscriptions.contains(&StreamChannel::Prices(symbol.clone()))
-            }
+            StreamMessage::PriceUpdate { symbol, .. } => self
+                .subscriptions
+                .contains(&StreamChannel::Prices(symbol.clone())),
             StreamMessage::TradeExecuted { .. } => {
                 self.subscriptions.contains(&StreamChannel::Trades)
             }
@@ -164,9 +164,7 @@ impl ClientSession {
             StreamMessage::PositionUpdate { .. } => {
                 self.subscriptions.contains(&StreamChannel::Positions)
             }
-            StreamMessage::Alert { .. } => {
-                self.subscriptions.contains(&StreamChannel::Alerts)
-            }
+            StreamMessage::Alert { .. } => self.subscriptions.contains(&StreamChannel::Alerts),
             // Control messages are always delivered.
             StreamMessage::Subscribed { .. }
             | StreamMessage::Unsubscribed { .. }
@@ -421,14 +419,19 @@ mod tests {
         let id = server.register_client().await;
 
         let response = server
-            .handle_command(&id, ClientCommand::Subscribe {
-                channel: StreamChannel::Trades,
-            })
+            .handle_command(
+                &id,
+                ClientCommand::Subscribe {
+                    channel: StreamChannel::Trades,
+                },
+            )
             .await;
 
         assert!(matches!(
             response,
-            Some(StreamMessage::Subscribed { channel: StreamChannel::Trades })
+            Some(StreamMessage::Subscribed {
+                channel: StreamChannel::Trades
+            })
         ));
 
         let subs = server.client_subscriptions(&id).await.unwrap();
@@ -442,20 +445,28 @@ mod tests {
         let id = server.register_client().await;
 
         server
-            .handle_command(&id, ClientCommand::Subscribe {
-                channel: StreamChannel::Orders,
-            })
+            .handle_command(
+                &id,
+                ClientCommand::Subscribe {
+                    channel: StreamChannel::Orders,
+                },
+            )
             .await;
 
         let response = server
-            .handle_command(&id, ClientCommand::Unsubscribe {
-                channel: StreamChannel::Orders,
-            })
+            .handle_command(
+                &id,
+                ClientCommand::Unsubscribe {
+                    channel: StreamChannel::Orders,
+                },
+            )
             .await;
 
         assert!(matches!(
             response,
-            Some(StreamMessage::Unsubscribed { channel: StreamChannel::Orders })
+            Some(StreamMessage::Unsubscribed {
+                channel: StreamChannel::Orders
+            })
         ));
 
         let subs = server.client_subscriptions(&id).await.unwrap();
@@ -539,14 +550,19 @@ mod tests {
         let id = server.register_client().await;
 
         let response = server
-            .handle_command(&id, ClientCommand::Subscribe {
-                channel: StreamChannel::Positions,
-            })
+            .handle_command(
+                &id,
+                ClientCommand::Subscribe {
+                    channel: StreamChannel::Positions,
+                },
+            )
             .await;
 
         assert!(matches!(
             response,
-            Some(StreamMessage::Subscribed { channel: StreamChannel::Positions })
+            Some(StreamMessage::Subscribed {
+                channel: StreamChannel::Positions
+            })
         ));
     }
 
@@ -555,9 +571,7 @@ mod tests {
         let server = StreamingServer::new(1024);
         let id = server.register_client().await;
 
-        let response = server
-            .handle_command(&id, ClientCommand::Ping)
-            .await;
+        let response = server.handle_command(&id, ClientCommand::Ping).await;
 
         assert!(matches!(response, Some(StreamMessage::Heartbeat { .. })));
     }
@@ -568,14 +582,20 @@ mod tests {
         let id = server.register_client().await;
 
         server
-            .handle_command(&id, ClientCommand::Subscribe {
-                channel: StreamChannel::Trades,
-            })
+            .handle_command(
+                &id,
+                ClientCommand::Subscribe {
+                    channel: StreamChannel::Trades,
+                },
+            )
             .await;
         server
-            .handle_command(&id, ClientCommand::Subscribe {
-                channel: StreamChannel::Alerts,
-            })
+            .handle_command(
+                &id,
+                ClientCommand::Subscribe {
+                    channel: StreamChannel::Alerts,
+                },
+            )
             .await;
 
         let stats = server.stats().await;
@@ -597,7 +617,12 @@ mod tests {
         let received = rx.recv().await.unwrap();
         match received {
             StreamMessage::PriceUpdate {
-                symbol, price, volume, bid, ask, ..
+                symbol,
+                price,
+                volume,
+                bid,
+                ask,
+                ..
             } => {
                 assert_eq!(symbol, "AAPL");
                 assert!((price - 150.0).abs() < f64::EPSILON);
@@ -622,7 +647,12 @@ mod tests {
         let received = rx.recv().await.unwrap();
         match received {
             StreamMessage::TradeExecuted {
-                trade_id, symbol, side, quantity, price, ..
+                trade_id,
+                symbol,
+                side,
+                quantity,
+                price,
+                ..
             } => {
                 assert_eq!(trade_id, "t-123");
                 assert_eq!(symbol, "TSLA");

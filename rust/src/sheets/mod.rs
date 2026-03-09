@@ -125,9 +125,8 @@ impl SheetsManager {
 
     /// Export trades to CSV format.
     pub fn trades_to_csv(trades: &[Trade]) -> String {
-        let mut output = String::from(
-            "Order ID,Symbol,Side,Quantity,Price,Commission,Executed At\n",
-        );
+        let mut output =
+            String::from("Order ID,Symbol,Side,Quantity,Price,Commission,Executed At\n");
         for t in trades {
             output.push_str(&format!(
                 "{},{},{},{},{},{},{}\n",
@@ -145,9 +144,8 @@ impl SheetsManager {
 
     /// Export trades to TSV format.
     pub fn trades_to_tsv(trades: &[Trade]) -> String {
-        let mut output = String::from(
-            "Order ID\tSymbol\tSide\tQuantity\tPrice\tCommission\tExecuted At\n",
-        );
+        let mut output =
+            String::from("Order ID\tSymbol\tSide\tQuantity\tPrice\tCommission\tExecuted At\n");
         for t in trades {
             output.push_str(&format!(
                 "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
@@ -159,9 +157,7 @@ impl SheetsManager {
 
     /// Export positions to CSV format.
     pub fn positions_to_csv(positions: &[ApiPosition]) -> String {
-        let mut output = String::from(
-            "Symbol,Quantity,Entry Price,Current Price,Unrealized P&L\n",
-        );
+        let mut output = String::from("Symbol,Quantity,Entry Price,Current Price,Unrealized P&L\n");
         for p in positions {
             output.push_str(&format!(
                 "{},{},{},{},{}\n",
@@ -184,11 +180,7 @@ impl SheetsManager {
     }
 
     /// Generic export: takes headers and rows, outputs CSV or TSV.
-    pub fn tabular_export(
-        headers: &[&str],
-        rows: &[DataRow],
-        format: &ExportFormat,
-    ) -> String {
+    pub fn tabular_export(headers: &[&str], rows: &[DataRow], format: &ExportFormat) -> String {
         let sep = match format {
             ExportFormat::Tsv => "\t",
             _ => ",",
@@ -198,13 +190,17 @@ impl SheetsManager {
         output.push('\n');
 
         for row in rows {
-            let line: Vec<String> = row.values.iter().map(|v| {
-                if matches!(format, ExportFormat::Csv) {
-                    csv_escape(v)
-                } else {
-                    v.clone()
-                }
-            }).collect();
+            let line: Vec<String> = row
+                .values
+                .iter()
+                .map(|v| {
+                    if matches!(format, ExportFormat::Csv) {
+                        csv_escape(v)
+                    } else {
+                        v.clone()
+                    }
+                })
+                .collect();
             output.push_str(&line.join(sep));
             output.push('\n');
         }
@@ -221,10 +217,9 @@ impl SheetsManager {
         headers: &[&str],
         rows: &[DataRow],
     ) -> Result<ExportResult, BullShiftError> {
-        let api_key = config
-            .api_key
-            .as_ref()
-            .ok_or_else(|| BullShiftError::Configuration("Google Sheets API key required".to_string()))?;
+        let api_key = config.api_key.as_ref().ok_or_else(|| {
+            BullShiftError::Configuration("Google Sheets API key required".to_string())
+        })?;
 
         let range = format!("{}!A1", config.sheet_name);
         let url = format!(
@@ -275,10 +270,9 @@ impl SheetsManager {
         config: &GoogleSheetsConfig,
         range: &str,
     ) -> Result<Vec<DataRow>, BullShiftError> {
-        let api_key = config
-            .api_key
-            .as_ref()
-            .ok_or_else(|| BullShiftError::Configuration("Google Sheets API key required".to_string()))?;
+        let api_key = config.api_key.as_ref().ok_or_else(|| {
+            BullShiftError::Configuration("Google Sheets API key required".to_string())
+        })?;
 
         let full_range = format!("{}!{}", config.sheet_name, range);
         let url = format!(
@@ -286,12 +280,10 @@ impl SheetsManager {
             config.spreadsheet_id, full_range, api_key,
         );
 
-        let resp = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| BullShiftError::Network(format!("Google Sheets read failed: {}", e)))?;
+        let resp =
+            self.client.get(&url).send().await.map_err(|e| {
+                BullShiftError::Network(format!("Google Sheets read failed: {}", e))
+            })?;
 
         if resp.status().is_success() {
             let body: serde_json::Value = resp.json().await.map_err(|e| {
@@ -338,16 +330,16 @@ impl SheetsManager {
                 let content = match format {
                     ExportFormat::Csv => Self::trades_to_csv(trades),
                     ExportFormat::Tsv => Self::trades_to_tsv(trades),
-                    ExportFormat::Json => serde_json::to_string_pretty(trades)
-                        .map_err(|e| BullShiftError::Api(format!("JSON serialize failed: {}", e)))?,
+                    ExportFormat::Json => serde_json::to_string_pretty(trades).map_err(|e| {
+                        BullShiftError::Api(format!("JSON serialize failed: {}", e))
+                    })?,
                     ExportFormat::GoogleSheets => {
                         return Err(BullShiftError::Configuration(
                             "Use GoogleSheets destination for Sheets export".to_string(),
                         ));
                     }
                 };
-                std::fs::write(path, &content)
-                    .map_err(BullShiftError::Io)?;
+                std::fs::write(path, &content).map_err(BullShiftError::Io)?;
                 Ok(ExportResult {
                     rows_exported: trades.len(),
                     format: format.clone(),
@@ -356,7 +348,15 @@ impl SheetsManager {
                 })
             }
             ExportDestination::GoogleSheets(config) => {
-                let headers = &["Order ID", "Symbol", "Side", "Quantity", "Price", "Commission", "Executed At"];
+                let headers = &[
+                    "Order ID",
+                    "Symbol",
+                    "Side",
+                    "Quantity",
+                    "Price",
+                    "Commission",
+                    "Executed At",
+                ];
                 let rows: Vec<DataRow> = trades
                     .iter()
                     .map(|t| DataRow {
@@ -383,7 +383,9 @@ impl SheetsManager {
                     .header("Content-Type", "application/json")
                     .send()
                     .await
-                    .map_err(|e| BullShiftError::Network(format!("Export webhook failed: {}", e)))?;
+                    .map_err(|e| {
+                        BullShiftError::Network(format!("Export webhook failed: {}", e))
+                    })?;
                 if resp.status().is_success() {
                     Ok(ExportResult {
                         rows_exported: trades.len(),
@@ -442,7 +444,10 @@ mod tests {
     fn test_trades_to_csv() {
         let csv = SheetsManager::trades_to_csv(&sample_trades());
         let lines: Vec<&str> = csv.lines().collect();
-        assert_eq!(lines[0], "Order ID,Symbol,Side,Quantity,Price,Commission,Executed At");
+        assert_eq!(
+            lines[0],
+            "Order ID,Symbol,Side,Quantity,Price,Commission,Executed At"
+        );
         assert!(lines[1].contains("AAPL"));
         assert!(lines[2].contains("TSLA"));
         assert_eq!(lines.len(), 3);
@@ -494,8 +499,12 @@ mod tests {
     fn test_tabular_export_csv() {
         let headers = &["Name", "Value"];
         let rows = vec![
-            DataRow { values: vec!["Alpha".to_string(), "100".to_string()] },
-            DataRow { values: vec!["Beta".to_string(), "200".to_string()] },
+            DataRow {
+                values: vec!["Alpha".to_string(), "100".to_string()],
+            },
+            DataRow {
+                values: vec!["Beta".to_string(), "200".to_string()],
+            },
         ];
         let output = SheetsManager::tabular_export(headers, &rows, &ExportFormat::Csv);
         let lines: Vec<&str> = output.lines().collect();
@@ -563,7 +572,10 @@ mod tests {
         let lines: Vec<&str> = csv.lines().collect();
         // Should have only the header line
         assert_eq!(lines.len(), 1);
-        assert_eq!(lines[0], "Order ID,Symbol,Side,Quantity,Price,Commission,Executed At");
+        assert_eq!(
+            lines[0],
+            "Order ID,Symbol,Side,Quantity,Price,Commission,Executed At"
+        );
 
         let tsv = SheetsManager::trades_to_tsv(&empty);
         let tsv_lines: Vec<&str> = tsv.lines().collect();

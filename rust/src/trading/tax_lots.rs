@@ -72,6 +72,9 @@ impl TaxLot {
 
     /// Total cost basis for remaining shares in this lot.
     pub fn cost_basis(&self) -> f64 {
+        if self.quantity == 0.0 {
+            return 0.0;
+        }
         self.remaining_quantity * self.cost_per_share
             + (self.commission * self.remaining_quantity / self.quantity)
     }
@@ -163,6 +166,7 @@ impl TaxLotTracker {
     }
 
     /// Record a purchase (creates a new tax lot).
+    /// Returns an error if quantity or price are not positive finite values.
     pub fn record_buy(
         &mut self,
         symbol: &str,
@@ -170,14 +174,26 @@ impl TaxLotTracker {
         price: f64,
         commission: f64,
         order_id: &str,
-    ) -> Uuid {
+    ) -> Result<Uuid, BullShiftError> {
+        if quantity <= 0.0 || !quantity.is_finite() {
+            return Err(BullShiftError::Validation(
+                "Quantity must be a positive finite number".to_string(),
+            ));
+        }
+        if price < 0.0 || !price.is_finite() {
+            return Err(BullShiftError::Validation(
+                "Price must be a non-negative finite number".to_string(),
+            ));
+        }
+        if commission < 0.0 || !commission.is_finite() {
+            return Err(BullShiftError::Validation(
+                "Commission must be a non-negative finite number".to_string(),
+            ));
+        }
         let lot = TaxLot::new(symbol, quantity, price, commission, order_id);
         let lot_id = lot.id;
-        self.lots
-            .entry(symbol.to_string())
-            .or_default()
-            .push(lot);
-        lot_id
+        self.lots.entry(symbol.to_string()).or_default().push(lot);
+        Ok(lot_id)
     }
 
     /// Record a purchase with a specific date (for imported trades).
@@ -189,14 +205,21 @@ impl TaxLotTracker {
         commission: f64,
         order_id: &str,
         date: DateTime<Utc>,
-    ) -> Uuid {
+    ) -> Result<Uuid, BullShiftError> {
+        if quantity <= 0.0 || !quantity.is_finite() {
+            return Err(BullShiftError::Validation(
+                "Quantity must be a positive finite number".to_string(),
+            ));
+        }
+        if price < 0.0 || !price.is_finite() {
+            return Err(BullShiftError::Validation(
+                "Price must be a non-negative finite number".to_string(),
+            ));
+        }
         let lot = TaxLot::new(symbol, quantity, price, commission, order_id).with_date(date);
         let lot_id = lot.id;
-        self.lots
-            .entry(symbol.to_string())
-            .or_default()
-            .push(lot);
-        lot_id
+        self.lots.entry(symbol.to_string()).or_default().push(lot);
+        Ok(lot_id)
     }
 
     /// Record a sale (disposes shares from tax lots using the configured method).
@@ -208,9 +231,10 @@ impl TaxLotTracker {
         commission: f64,
         order_id: &str,
     ) -> Result<Vec<RealizedGainLoss>, BullShiftError> {
-        let lots = self.lots.get_mut(symbol).ok_or_else(|| {
-            BullShiftError::Trading(format!("No tax lots found for {}", symbol))
-        })?;
+        let lots = self
+            .lots
+            .get_mut(symbol)
+            .ok_or_else(|| BullShiftError::Trading(format!("No tax lots found for {}", symbol)))?;
 
         let total_available: f64 = lots.iter().map(|l| l.remaining_quantity).sum();
         if total_available < quantity {
@@ -241,8 +265,11 @@ impl TaxLotTracker {
             }
 
             let sell_from_lot = remaining_to_sell.min(lot.remaining_quantity);
-            let buy_commission_portion =
-                lot.commission * sell_from_lot / lot.quantity;
+            let buy_commission_portion = if lot.quantity > 0.0 {
+                lot.commission * sell_from_lot / lot.quantity
+            } else {
+                0.0
+            };
             let sell_commission_portion = commission_per_share * sell_from_lot;
 
             let cost = sell_from_lot * lot.cost_per_share + buy_commission_portion;
@@ -300,7 +327,11 @@ impl TaxLotTracker {
             )));
         }
 
-        let buy_commission_portion = lot.commission * quantity / lot.quantity;
+        let buy_commission_portion = if lot.quantity > 0.0 {
+            lot.commission * quantity / lot.quantity
+        } else {
+            0.0
+        };
         let sell_commission_portion = commission;
         let cost = quantity * lot.cost_per_share + buy_commission_portion;
         let proceeds = quantity * sale_price - sell_commission_portion;
@@ -500,7 +531,9 @@ mod tests {
     #[test]
     fn test_record_buy_creates_lot() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        let lot_id = tracker.record_buy("AAPL", 10.0, 150.0, 5.0, "order-1");
+        let lot_id = tracker
+            .record_buy("AAPL", 10.0, 150.0, 5.0, "order-1")
+            .unwrap();
         assert!(!lot_id.is_nil());
 
         let lots = tracker.open_lots("AAPL");
@@ -513,10 +546,16 @@ mod tests {
     #[test]
     fn test_record_sell_fifo() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1");
-        tracker.record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2");
+        tracker
+            .record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2")
+            .unwrap();
 
-        let gains = tracker.record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1").unwrap();
+        let gains = tracker
+            .record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1")
+            .unwrap();
         assert_eq!(gains.len(), 1);
         assert!((gains[0].cost_per_share - 100.0).abs() < f64::EPSILON); // FIFO: sells cheapest first
         assert!((gains[0].gain_loss - 500.0).abs() < f64::EPSILON); // (150-100)*10 = 500
@@ -525,10 +564,16 @@ mod tests {
     #[test]
     fn test_record_sell_lifo() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Lifo);
-        tracker.record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1");
-        tracker.record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2");
+        tracker
+            .record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2")
+            .unwrap();
 
-        let gains = tracker.record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1").unwrap();
+        let gains = tracker
+            .record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1")
+            .unwrap();
         assert_eq!(gains.len(), 1);
         assert!((gains[0].cost_per_share - 200.0).abs() < f64::EPSILON); // LIFO: sells newest first
         assert!((gains[0].gain_loss - -500.0).abs() < f64::EPSILON); // (150-200)*10 = -500
@@ -537,11 +582,19 @@ mod tests {
     #[test]
     fn test_record_sell_high_cost() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::HighCost);
-        tracker.record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1");
-        tracker.record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2");
-        tracker.record_buy("AAPL", 10.0, 150.0, 0.0, "buy-3");
+        tracker
+            .record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2")
+            .unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 150.0, 0.0, "buy-3")
+            .unwrap();
 
-        let gains = tracker.record_sell("AAPL", 10.0, 175.0, 0.0, "sell-1").unwrap();
+        let gains = tracker
+            .record_sell("AAPL", 10.0, 175.0, 0.0, "sell-1")
+            .unwrap();
         assert_eq!(gains.len(), 1);
         assert!((gains[0].cost_per_share - 200.0).abs() < f64::EPSILON); // Highest cost first
     }
@@ -549,20 +602,32 @@ mod tests {
     #[test]
     fn test_record_sell_low_cost() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::LowCost);
-        tracker.record_buy("AAPL", 10.0, 200.0, 0.0, "buy-1");
-        tracker.record_buy("AAPL", 10.0, 100.0, 0.0, "buy-2");
-        tracker.record_buy("AAPL", 10.0, 150.0, 0.0, "buy-3");
+        tracker
+            .record_buy("AAPL", 10.0, 200.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 100.0, 0.0, "buy-2")
+            .unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 150.0, 0.0, "buy-3")
+            .unwrap();
 
-        let gains = tracker.record_sell("AAPL", 10.0, 175.0, 0.0, "sell-1").unwrap();
+        let gains = tracker
+            .record_sell("AAPL", 10.0, 175.0, 0.0, "sell-1")
+            .unwrap();
         assert!((gains[0].cost_per_share - 100.0).abs() < f64::EPSILON); // Lowest cost first
     }
 
     #[test]
     fn test_partial_lot_sell() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 100.0, 150.0, 10.0, "buy-1");
+        tracker
+            .record_buy("AAPL", 100.0, 150.0, 10.0, "buy-1")
+            .unwrap();
 
-        let gains = tracker.record_sell("AAPL", 30.0, 180.0, 3.0, "sell-1").unwrap();
+        let gains = tracker
+            .record_sell("AAPL", 30.0, 180.0, 3.0, "sell-1")
+            .unwrap();
         assert_eq!(gains.len(), 1);
         assert!((gains[0].quantity - 30.0).abs() < f64::EPSILON);
 
@@ -574,10 +639,16 @@ mod tests {
     #[test]
     fn test_multi_lot_sell() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 5.0, 100.0, 0.0, "buy-1");
-        tracker.record_buy("AAPL", 5.0, 150.0, 0.0, "buy-2");
+        tracker
+            .record_buy("AAPL", 5.0, 100.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_buy("AAPL", 5.0, 150.0, 0.0, "buy-2")
+            .unwrap();
 
-        let gains = tracker.record_sell("AAPL", 8.0, 200.0, 0.0, "sell-1").unwrap();
+        let gains = tracker
+            .record_sell("AAPL", 8.0, 200.0, 0.0, "sell-1")
+            .unwrap();
         assert_eq!(gains.len(), 2); // Spans two lots
         assert!((gains[0].quantity - 5.0).abs() < f64::EPSILON); // All of lot 1
         assert!((gains[1].quantity - 3.0).abs() < f64::EPSILON); // Part of lot 2
@@ -586,7 +657,9 @@ mod tests {
     #[test]
     fn test_sell_insufficient_shares() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 10.0, 150.0, 0.0, "buy-1");
+        tracker
+            .record_buy("AAPL", 10.0, 150.0, 0.0, "buy-1")
+            .unwrap();
 
         let result = tracker.record_sell("AAPL", 20.0, 200.0, 0.0, "sell-1");
         assert!(result.is_err());
@@ -602,11 +675,16 @@ mod tests {
     #[test]
     fn test_sell_specific_lot() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::SpecificId);
-        let lot1 = tracker.record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1");
-        let _lot2 = tracker.record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2");
+        let lot1 = tracker
+            .record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1")
+            .unwrap();
+        let _lot2 = tracker
+            .record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2")
+            .unwrap();
 
-        let gain =
-            tracker.record_sell_specific_lot(&lot1, 5.0, 150.0, 0.0, "sell-1").unwrap();
+        let gain = tracker
+            .record_sell_specific_lot(&lot1, 5.0, 150.0, 0.0, "sell-1")
+            .unwrap();
         assert!((gain.cost_per_share - 100.0).abs() < f64::EPSILON);
         assert!((gain.quantity - 5.0).abs() < f64::EPSILON);
         assert!((gain.gain_loss - 250.0).abs() < f64::EPSILON); // (150-100)*5
@@ -615,8 +693,12 @@ mod tests {
     #[test]
     fn test_symbol_summary() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1");
-        tracker.record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2");
+        tracker
+            .record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 200.0, 0.0, "buy-2")
+            .unwrap();
 
         let summary = tracker.symbol_summary("AAPL", 160.0);
         assert_eq!(summary.total_shares, 20.0);
@@ -630,8 +712,12 @@ mod tests {
     #[test]
     fn test_tax_report() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1");
-        tracker.record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1").unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1")
+            .unwrap();
 
         let report = tracker.tax_report(Utc::now().year());
         assert_eq!(report.transactions.len(), 1);
@@ -643,8 +729,12 @@ mod tests {
     #[test]
     fn test_tax_report_with_losses() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 10.0, 200.0, 0.0, "buy-1");
-        tracker.record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1").unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 200.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1")
+            .unwrap();
 
         let report = tracker.tax_report(Utc::now().year());
         assert!((report.short_term_losses - 500.0).abs() < f64::EPSILON);
@@ -654,9 +744,13 @@ mod tests {
     #[test]
     fn test_commission_in_cost_basis() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 10.0, 100.0, 10.0, "buy-1"); // $10 commission
+        tracker
+            .record_buy("AAPL", 10.0, 100.0, 10.0, "buy-1")
+            .unwrap(); // $10 commission
 
-        let gains = tracker.record_sell("AAPL", 10.0, 100.0, 5.0, "sell-1").unwrap();
+        let gains = tracker
+            .record_sell("AAPL", 10.0, 100.0, 5.0, "sell-1")
+            .unwrap();
         // Cost = 10*100 + 10 = 1010, Proceeds = 10*100 - 5 = 995
         // Loss = 995 - 1010 = -15
         assert!((gains[0].gain_loss - -15.0).abs() < f64::EPSILON);
@@ -665,9 +759,15 @@ mod tests {
     #[test]
     fn test_all_open_lots_multi_symbol() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 10.0, 150.0, 0.0, "buy-1");
-        tracker.record_buy("TSLA", 5.0, 200.0, 0.0, "buy-2");
-        tracker.record_buy("GOOG", 3.0, 100.0, 0.0, "buy-3");
+        tracker
+            .record_buy("AAPL", 10.0, 150.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_buy("TSLA", 5.0, 200.0, 0.0, "buy-2")
+            .unwrap();
+        tracker
+            .record_buy("GOOG", 3.0, 100.0, 0.0, "buy-3")
+            .unwrap();
 
         let all_lots = tracker.all_open_lots();
         assert_eq!(all_lots.len(), 3);
@@ -676,8 +776,12 @@ mod tests {
     #[test]
     fn test_closed_lot_excluded() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1");
-        tracker.record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1").unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1")
+            .unwrap();
 
         let lots = tracker.open_lots("AAPL");
         assert_eq!(lots.len(), 0);
@@ -689,10 +793,18 @@ mod tests {
     #[test]
     fn test_realized_for_symbol() {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
-        tracker.record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1");
-        tracker.record_buy("TSLA", 5.0, 200.0, 0.0, "buy-2");
-        tracker.record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1").unwrap();
-        tracker.record_sell("TSLA", 5.0, 250.0, 0.0, "sell-2").unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 100.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_buy("TSLA", 5.0, 200.0, 0.0, "buy-2")
+            .unwrap();
+        tracker
+            .record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1")
+            .unwrap();
+        tracker
+            .record_sell("TSLA", 5.0, 250.0, 0.0, "sell-2")
+            .unwrap();
 
         let aapl_realized = tracker.realized_for_symbol("AAPL");
         assert_eq!(aapl_realized.len(), 1);
@@ -735,9 +847,15 @@ mod tests {
         let mut tracker = TaxLotTracker::new(CostBasisMethod::Fifo);
 
         // Buy, sell at loss, buy again within 30 days
-        tracker.record_buy("AAPL", 10.0, 200.0, 0.0, "buy-1");
-        tracker.record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1").unwrap();
-        tracker.record_buy("AAPL", 10.0, 155.0, 0.0, "buy-2"); // Within 30 days
+        tracker
+            .record_buy("AAPL", 10.0, 200.0, 0.0, "buy-1")
+            .unwrap();
+        tracker
+            .record_sell("AAPL", 10.0, 150.0, 0.0, "sell-1")
+            .unwrap();
+        tracker
+            .record_buy("AAPL", 10.0, 155.0, 0.0, "buy-2")
+            .unwrap(); // Within 30 days
 
         let report = tracker.tax_report(Utc::now().year());
         assert!(report.wash_sale_disallowed > 0.0);

@@ -72,10 +72,16 @@ mod tests {
         assert_eq!(format!("{}", api_err), "API error: rate limited");
 
         let trading_err = BullShiftError::Trading("insufficient funds".to_string());
-        assert_eq!(format!("{}", trading_err), "Trading error: insufficient funds");
+        assert_eq!(
+            format!("{}", trading_err),
+            "Trading error: insufficient funds"
+        );
 
         let unknown_err = BullShiftError::Unknown("something went wrong".to_string());
-        assert_eq!(format!("{}", unknown_err), "Unknown error: something went wrong");
+        assert_eq!(
+            format!("{}", unknown_err),
+            "Unknown error: something went wrong"
+        );
     }
 
     #[test]

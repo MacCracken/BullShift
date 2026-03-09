@@ -140,7 +140,10 @@ impl TradingApi for KrakenApi {
         let mut params = vec![
             ("pair", order.symbol.clone()),
             ("type", Self::map_side(&order.side).to_string()),
-            ("ordertype", Self::map_order_type(&order.order_type).to_string()),
+            (
+                "ordertype",
+                Self::map_order_type(&order.order_type).to_string(),
+            ),
             ("volume", order.quantity.to_string()),
         ];
 

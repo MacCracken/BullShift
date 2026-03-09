@@ -217,6 +217,13 @@ async fn cancel_order_handler(
     State(state): State<Arc<AppState>>,
     Path(order_id): Path<String>,
 ) -> impl IntoResponse {
+    if order_id.contains('/') || order_id.contains("..") || order_id.len() > 64 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Invalid order ID" })),
+        )
+            .into_response();
+    }
     match state.api.cancel_order(order_id).await {
         Ok(true) => (
             StatusCode::OK,
@@ -240,10 +247,32 @@ async fn cancel_order_handler(
 // Market data endpoint
 // ---------------------------------------------------------------------------
 
+fn validate_symbol(symbol: &str) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+    if symbol.is_empty() || symbol.len() > 10 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Symbol must be 1-10 characters" })),
+        ));
+    }
+    if !symbol
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
+    {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Symbol contains invalid characters" })),
+        ));
+    }
+    Ok(())
+}
+
 async fn market_data_handler(
     State(state): State<Arc<AppState>>,
     Path(symbol): Path<String>,
 ) -> impl IntoResponse {
+    if let Err(e) = validate_symbol(&symbol) {
+        return e.into_response();
+    }
     match state.api.get_quote(&symbol).await {
         Ok(quote) => match serde_json::to_value(quote) {
             Ok(val) => (StatusCode::OK, Json(val)).into_response(),
@@ -357,13 +386,19 @@ fn default_signal_limit() -> usize {
     50
 }
 
+const MAX_QUERY_LIMIT: usize = 1000;
+
+fn clamp_limit(limit: usize) -> usize {
+    limit.min(MAX_QUERY_LIMIT)
+}
+
 async fn recent_signals_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<SignalsQuery>,
 ) -> impl IntoResponse {
     let algo = state.algo.lock().await;
     let signals: Vec<serde_json::Value> = algo
-        .recent_signals(query.limit)
+        .recent_signals(clamp_limit(query.limit))
         .iter()
         .map(|s| serde_json::to_value(s).unwrap_or_default())
         .collect();
@@ -454,7 +489,7 @@ async fn sentiment_signals_handler(
 ) -> impl IntoResponse {
     let sentiment = state.sentiment.lock().await;
     let signals: Vec<serde_json::Value> = sentiment
-        .recent_signals(query.limit, None)
+        .recent_signals(clamp_limit(query.limit), None)
         .iter()
         .map(|s| serde_json::to_value(s).unwrap_or_default())
         .collect();
@@ -568,11 +603,7 @@ async fn delete_alert_rule_handler(
 
     let mut alerts = state.alerts.lock().await;
     if alerts.remove_rule(&rule_id) {
-        (
-            StatusCode::OK,
-            Json(serde_json::json!({ "deleted": true })),
-        )
-            .into_response()
+        (StatusCode::OK, Json(serde_json::json!({ "deleted": true }))).into_response()
     } else {
         (
             StatusCode::NOT_FOUND,
@@ -1493,10 +1524,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_parse_alert_severities() {
-        assert!(matches!(
-            parse_alert_severity("info"),
-            AlertSeverity::Info
-        ));
+        assert!(matches!(parse_alert_severity("info"), AlertSeverity::Info));
         assert!(matches!(
             parse_alert_severity("warning"),
             AlertSeverity::Warning

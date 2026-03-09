@@ -1209,7 +1209,10 @@ mod tests {
             },
         };
 
-        bearly.configure_provider(provider_id, config).await.unwrap();
+        bearly
+            .configure_provider(provider_id, config)
+            .await
+            .unwrap();
 
         // After configuration
         assert!(bearly.get_provider(&provider_id).unwrap().is_configured);

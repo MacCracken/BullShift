@@ -113,10 +113,7 @@ impl TradingApi for WebullApi {
         &self,
         order: ApiOrderRequest,
     ) -> Result<ApiOrderResponse, BullShiftError> {
-        let url = format!(
-            "{}/api/trade/v2/option/placeOrder",
-            self.trade_url
-        );
+        let url = format!("{}/api/trade/v2/option/placeOrder", self.trade_url);
 
         let mut order_body = serde_json::json!({
             "action": order.side.to_uppercase(),
@@ -172,10 +169,7 @@ impl TradingApi for WebullApi {
     }
 
     async fn get_positions(&self) -> Result<Vec<ApiPosition>, BullShiftError> {
-        let url = format!(
-            "{}/api/trade/v2/option/list",
-            self.trade_url
-        );
+        let url = format!("{}/api/trade/v2/option/list", self.trade_url);
 
         let response = self
             .client
@@ -212,10 +206,7 @@ impl TradingApi for WebullApi {
     }
 
     async fn get_account(&self) -> Result<ApiAccount, BullShiftError> {
-        let url = format!(
-            "{}/api/trade/v2/home/{}",
-            self.trade_url, self.account_id
-        );
+        let url = format!("{}/api/trade/v2/home/{}", self.trade_url, self.account_id);
 
         let response = self
             .client

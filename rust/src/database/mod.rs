@@ -371,8 +371,12 @@ mod tests {
         let db = test_db();
         let portfolio_id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
 
-        let _pos1 = db.save_position(portfolio_id, "AAPL", 10.0, 150.0, 155.0, 50.0, 0.0).unwrap();
-        let _pos2 = db.save_position(portfolio_id, "TSLA", 5.0, 200.0, 210.0, 50.0, 10.0).unwrap();
+        let _pos1 = db
+            .save_position(portfolio_id, "AAPL", 10.0, 150.0, 155.0, 50.0, 0.0)
+            .unwrap();
+        let _pos2 = db
+            .save_position(portfolio_id, "TSLA", 5.0, 200.0, 210.0, 50.0, 10.0)
+            .unwrap();
 
         let positions = db.get_positions(portfolio_id).unwrap();
         assert_eq!(positions.len(), 2);
@@ -386,9 +390,12 @@ mod tests {
     fn test_update_position() {
         let db = test_db();
         let portfolio_id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
-        let pos_id = db.save_position(portfolio_id, "AAPL", 10.0, 150.0, 155.0, 50.0, 0.0).unwrap();
+        let pos_id = db
+            .save_position(portfolio_id, "AAPL", 10.0, 150.0, 155.0, 50.0, 0.0)
+            .unwrap();
 
-        db.update_position(pos_id, 20.0, 148.0, 160.0, 240.0, 25.0).unwrap();
+        db.update_position(pos_id, 20.0, 148.0, 160.0, 240.0, 25.0)
+            .unwrap();
 
         let positions = db.get_positions(portfolio_id).unwrap();
         assert_eq!(positions.len(), 1);
@@ -405,7 +412,9 @@ mod tests {
     fn test_delete_position() {
         let db = test_db();
         let portfolio_id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
-        let pos_id = db.save_position(portfolio_id, "AAPL", 10.0, 150.0, 155.0, 50.0, 0.0).unwrap();
+        let pos_id = db
+            .save_position(portfolio_id, "AAPL", 10.0, 150.0, 155.0, 50.0, 0.0)
+            .unwrap();
 
         assert_eq!(db.get_positions(portfolio_id).unwrap().len(), 1);
 
@@ -418,9 +427,12 @@ mod tests {
     fn test_save_and_get_trades() {
         let db = test_db();
 
-        db.save_trade("ord1", "AAPL", "BUY", 10.0, 150.0, 1.0).unwrap();
-        db.save_trade("ord2", "TSLA", "BUY", 5.0, 200.0, 1.5).unwrap();
-        db.save_trade("ord3", "GOOG", "SELL", 3.0, 2800.0, 2.0).unwrap();
+        db.save_trade("ord1", "AAPL", "BUY", 10.0, 150.0, 1.0)
+            .unwrap();
+        db.save_trade("ord2", "TSLA", "BUY", 5.0, 200.0, 1.5)
+            .unwrap();
+        db.save_trade("ord3", "GOOG", "SELL", 3.0, 2800.0, 2.0)
+            .unwrap();
 
         let trades = db.get_trades(None, None).unwrap();
         assert_eq!(trades.len(), 3);
@@ -430,9 +442,12 @@ mod tests {
     fn test_get_trades_by_symbol() {
         let db = test_db();
 
-        db.save_trade("ord1", "AAPL", "BUY", 10.0, 150.0, 1.0).unwrap();
-        db.save_trade("ord2", "TSLA", "BUY", 5.0, 200.0, 1.5).unwrap();
-        db.save_trade("ord3", "AAPL", "SELL", 3.0, 155.0, 1.0).unwrap();
+        db.save_trade("ord1", "AAPL", "BUY", 10.0, 150.0, 1.0)
+            .unwrap();
+        db.save_trade("ord2", "TSLA", "BUY", 5.0, 200.0, 1.5)
+            .unwrap();
+        db.save_trade("ord3", "AAPL", "SELL", 3.0, 155.0, 1.0)
+            .unwrap();
 
         let trades = db.get_trades(Some("AAPL"), None).unwrap();
         assert_eq!(trades.len(), 2);
@@ -446,7 +461,8 @@ mod tests {
         let db = test_db();
 
         for i in 0..5 {
-            db.save_trade(&format!("ord{}", i), "AAPL", "BUY", 1.0, 150.0, 1.0).unwrap();
+            db.save_trade(&format!("ord{}", i), "AAPL", "BUY", 1.0, 150.0, 1.0)
+                .unwrap();
         }
 
         let trades = db.get_trades(None, Some(2)).unwrap();
@@ -477,10 +493,9 @@ mod tests {
             ).unwrap();
         }
 
-        let trades = db.get_trades_by_date_range(
-            "2025-01-01T00:00:00+00:00",
-            "2025-02-28T23:59:59+00:00",
-        ).unwrap();
+        let trades = db
+            .get_trades_by_date_range("2025-01-01T00:00:00+00:00", "2025-02-28T23:59:59+00:00")
+            .unwrap();
 
         assert_eq!(trades.len(), 2);
         let symbols: Vec<&str> = trades.iter().map(|t| t.symbol.as_str()).collect();
@@ -493,9 +508,9 @@ mod tests {
         let db = test_db();
         let portfolio_id = db.save_portfolio(10000.0, 25000.0, 5000.0).unwrap();
 
-        let pos_id = db.save_position(
-            portfolio_id, "MSFT", 15.0, 300.0, 315.0, 225.0, 50.0,
-        ).unwrap();
+        let pos_id = db
+            .save_position(portfolio_id, "MSFT", 15.0, 300.0, 315.0, 225.0, 50.0)
+            .unwrap();
 
         let positions = db.get_positions(portfolio_id).unwrap();
         assert_eq!(positions.len(), 1);

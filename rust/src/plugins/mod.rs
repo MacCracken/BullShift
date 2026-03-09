@@ -245,7 +245,10 @@ impl PluginRegistry {
     }
 
     pub fn list_plugins(&self) -> Vec<(Uuid, &PluginMetadata)> {
-        self.plugins.iter().map(|(id, e)| (*id, &e.metadata)).collect()
+        self.plugins
+            .iter()
+            .map(|(id, e)| (*id, &e.metadata))
+            .collect()
     }
 
     pub fn list_by_type(&self, plugin_type: &PluginType) -> Vec<(Uuid, &PluginMetadata)> {

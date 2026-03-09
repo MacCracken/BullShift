@@ -390,7 +390,10 @@ mod tests {
 
     #[test]
     fn test_trade_event_type_display() {
-        assert_eq!(TradeEventType::OrderSubmitted.to_string(), "order.submitted");
+        assert_eq!(
+            TradeEventType::OrderSubmitted.to_string(),
+            "order.submitted"
+        );
         assert_eq!(TradeEventType::OrderFilled.to_string(), "order.filled");
         assert_eq!(
             TradeEventType::StopLossTriggered.to_string(),

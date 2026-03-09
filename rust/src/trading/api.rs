@@ -157,10 +157,7 @@ impl AlpacaApi {
             prev_close,
             change,
             change_pct,
-            timestamp: data["latestTrade"]["t"]
-                .as_str()
-                .unwrap_or("")
-                .to_string(),
+            timestamp: data["latestTrade"]["t"].as_str().unwrap_or("").to_string(),
         })
     }
 }

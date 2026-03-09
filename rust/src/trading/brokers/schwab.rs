@@ -96,17 +96,10 @@ impl SchwabApi {
     fn parse_position(p: &serde_json::Value) -> ApiPosition {
         let long_qty = p["longQuantity"].as_f64().unwrap_or(0.0);
         let short_qty = p["shortQuantity"].as_f64().unwrap_or(0.0);
-        let quantity = if long_qty > 0.0 {
-            long_qty
-        } else {
-            -short_qty
-        };
+        let quantity = if long_qty > 0.0 { long_qty } else { -short_qty };
 
         ApiPosition {
-            symbol: p["instrument"]["symbol"]
-                .as_str()
-                .unwrap_or("")
-                .to_string(),
+            symbol: p["instrument"]["symbol"].as_str().unwrap_or("").to_string(),
             quantity,
             entry_price: p["averagePrice"].as_f64().unwrap_or(0.0),
             current_price: p["lastPrice"].as_f64().unwrap_or(0.0),
@@ -121,10 +114,7 @@ impl TradingApi for SchwabApi {
         &self,
         order: ApiOrderRequest,
     ) -> Result<ApiOrderResponse, BullShiftError> {
-        let url = format!(
-            "{}/v1/accounts/{}/orders",
-            self.base_url, self.account_id
-        );
+        let url = format!("{}/v1/accounts/{}/orders", self.base_url, self.account_id);
 
         let side_instruction = if order.side.to_uppercase() == "BUY" {
             "BUY"
@@ -320,8 +310,14 @@ mod tests {
     #[test]
     fn test_time_in_force_mapping() {
         assert_eq!(SchwabApi::map_time_in_force(None), "DAY");
-        assert_eq!(SchwabApi::map_time_in_force(Some("GTC")), "GOOD_TILL_CANCEL");
-        assert_eq!(SchwabApi::map_time_in_force(Some("IOC")), "IMMEDIATE_OR_CANCEL");
+        assert_eq!(
+            SchwabApi::map_time_in_force(Some("GTC")),
+            "GOOD_TILL_CANCEL"
+        );
+        assert_eq!(
+            SchwabApi::map_time_in_force(Some("IOC")),
+            "IMMEDIATE_OR_CANCEL"
+        );
         assert_eq!(SchwabApi::map_time_in_force(Some("DAY")), "DAY");
     }
 

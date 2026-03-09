@@ -189,9 +189,16 @@ impl RbacManager {
     }
 
     /// Register an API key for a user (for token-based auth).
-    pub fn register_api_key(&mut self, user_id: &Uuid, api_key: String) -> Result<(), BullShiftError> {
+    pub fn register_api_key(
+        &mut self,
+        user_id: &Uuid,
+        api_key: String,
+    ) -> Result<(), BullShiftError> {
         if !self.users.contains_key(user_id) {
-            return Err(BullShiftError::Security(format!("User {} not found", user_id)));
+            return Err(BullShiftError::Security(format!(
+                "User {} not found",
+                user_id
+            )));
         }
         self.api_keys.insert(api_key, *user_id);
         Ok(())
@@ -245,10 +252,9 @@ impl RbacManager {
                 Permission::ViewAuditLog,
                 Permission::ExecuteAiPrompts,
             ]),
-            Role::ReadOnly => HashSet::from([
-                Permission::ViewMarketData,
-                Permission::ViewSentiment,
-            ]),
+            Role::ReadOnly => {
+                HashSet::from([Permission::ViewMarketData, Permission::ViewSentiment])
+            }
             Role::Agent => HashSet::from([
                 Permission::SubmitOrders,
                 Permission::ViewPositions,
@@ -256,11 +262,7 @@ impl RbacManager {
                 Permission::ViewSentiment,
                 Permission::ExecuteAiPrompts,
             ]),
-            Role::Custom(name) => self
-                .custom_roles
-                .get(name)
-                .cloned()
-                .unwrap_or_default(),
+            Role::Custom(name) => self.custom_roles.get(name).cloned().unwrap_or_default(),
         }
     }
 
@@ -340,9 +342,10 @@ impl RbacManager {
             )));
         }
 
-        let remote_roles: Vec<String> = resp.json().await.map_err(|e| {
-            BullShiftError::Api(format!("Failed to parse RBAC response: {}", e))
-        })?;
+        let remote_roles: Vec<String> = resp
+            .json()
+            .await
+            .map_err(|e| BullShiftError::Api(format!("Failed to parse RBAC response: {}", e)))?;
 
         // Find or create the local user linked to this SecureYeoman ID
         let user_id = self
@@ -533,10 +536,7 @@ mod tests {
     #[test]
     fn test_multi_role_union() {
         let mut mgr = RbacManager::new();
-        let uid = mgr.create_user(
-            "multi",
-            HashSet::from([Role::ReadOnly, Role::Analyst]),
-        );
+        let uid = mgr.create_user("multi", HashSet::from([Role::ReadOnly, Role::Analyst]));
 
         // Has permissions from both roles
         assert!(mgr.has_permission(&uid, &Permission::ViewMarketData)); // ReadOnly

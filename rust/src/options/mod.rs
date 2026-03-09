@@ -89,50 +89,154 @@ pub struct OptionsPosition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OptionsStrategy {
     /// Long a single call or put.
-    LongOption { contract: OptionsContract, quantity: u64 },
+    LongOption {
+        contract: OptionsContract,
+        quantity: u64,
+    },
     /// Short a single call or put (covered or naked).
-    ShortOption { contract: OptionsContract, quantity: u64, covered: bool },
+    ShortOption {
+        contract: OptionsContract,
+        quantity: u64,
+        covered: bool,
+    },
     /// Buy a call and put at the same strike (long straddle).
-    Straddle { underlying: String, strike: f64, expiration: DateTime<Utc>, quantity: u64 },
+    Straddle {
+        underlying: String,
+        strike: f64,
+        expiration: DateTime<Utc>,
+        quantity: u64,
+    },
     /// Buy a call and put at different strikes (long strangle).
-    Strangle { underlying: String, call_strike: f64, put_strike: f64, expiration: DateTime<Utc>, quantity: u64 },
+    Strangle {
+        underlying: String,
+        call_strike: f64,
+        put_strike: f64,
+        expiration: DateTime<Utc>,
+        quantity: u64,
+    },
     /// Bull call spread: buy lower strike call, sell higher strike call.
-    BullCallSpread { underlying: String, long_strike: f64, short_strike: f64, expiration: DateTime<Utc>, quantity: u64 },
+    BullCallSpread {
+        underlying: String,
+        long_strike: f64,
+        short_strike: f64,
+        expiration: DateTime<Utc>,
+        quantity: u64,
+    },
     /// Bear put spread: buy higher strike put, sell lower strike put.
-    BearPutSpread { underlying: String, long_strike: f64, short_strike: f64, expiration: DateTime<Utc>, quantity: u64 },
+    BearPutSpread {
+        underlying: String,
+        long_strike: f64,
+        short_strike: f64,
+        expiration: DateTime<Utc>,
+        quantity: u64,
+    },
     /// Iron condor: OTM bull put spread + OTM bear call spread.
-    IronCondor { underlying: String, put_long: f64, put_short: f64, call_short: f64, call_long: f64, expiration: DateTime<Utc>, quantity: u64 },
+    IronCondor {
+        underlying: String,
+        put_long: f64,
+        put_short: f64,
+        call_short: f64,
+        call_long: f64,
+        expiration: DateTime<Utc>,
+        quantity: u64,
+    },
     /// Covered call: long stock + short call.
-    CoveredCall { underlying: String, strike: f64, expiration: DateTime<Utc>, shares: u64 },
+    CoveredCall {
+        underlying: String,
+        strike: f64,
+        expiration: DateTime<Utc>,
+        shares: u64,
+    },
     /// Protective put: long stock + long put.
-    ProtectivePut { underlying: String, strike: f64, expiration: DateTime<Utc>, shares: u64 },
+    ProtectivePut {
+        underlying: String,
+        strike: f64,
+        expiration: DateTime<Utc>,
+        shares: u64,
+    },
 }
 
 impl std::fmt::Display for OptionsStrategy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::LongOption { contract, .. } => {
-                write!(f, "Long {} {} {:.0}", contract.underlying, contract.option_type, contract.strike)
+                write!(
+                    f,
+                    "Long {} {} {:.0}",
+                    contract.underlying, contract.option_type, contract.strike
+                )
             }
-            Self::ShortOption { contract, covered, .. } => {
-                let prefix = if *covered { "Covered Short" } else { "Naked Short" };
-                write!(f, "{} {} {} {:.0}", prefix, contract.underlying, contract.option_type, contract.strike)
+            Self::ShortOption {
+                contract, covered, ..
+            } => {
+                let prefix = if *covered {
+                    "Covered Short"
+                } else {
+                    "Naked Short"
+                };
+                write!(
+                    f,
+                    "{} {} {} {:.0}",
+                    prefix, contract.underlying, contract.option_type, contract.strike
+                )
             }
-            Self::Straddle { underlying, strike, .. } => write!(f, "Straddle {} {:.0}", underlying, strike),
-            Self::Strangle { underlying, call_strike, put_strike, .. } => {
-                write!(f, "Strangle {} {:.0}/{:.0}", underlying, put_strike, call_strike)
+            Self::Straddle {
+                underlying, strike, ..
+            } => write!(f, "Straddle {} {:.0}", underlying, strike),
+            Self::Strangle {
+                underlying,
+                call_strike,
+                put_strike,
+                ..
+            } => {
+                write!(
+                    f,
+                    "Strangle {} {:.0}/{:.0}",
+                    underlying, put_strike, call_strike
+                )
             }
-            Self::BullCallSpread { underlying, long_strike, short_strike, .. } => {
-                write!(f, "Bull Call {} {:.0}/{:.0}", underlying, long_strike, short_strike)
+            Self::BullCallSpread {
+                underlying,
+                long_strike,
+                short_strike,
+                ..
+            } => {
+                write!(
+                    f,
+                    "Bull Call {} {:.0}/{:.0}",
+                    underlying, long_strike, short_strike
+                )
             }
-            Self::BearPutSpread { underlying, long_strike, short_strike, .. } => {
-                write!(f, "Bear Put {} {:.0}/{:.0}", underlying, long_strike, short_strike)
+            Self::BearPutSpread {
+                underlying,
+                long_strike,
+                short_strike,
+                ..
+            } => {
+                write!(
+                    f,
+                    "Bear Put {} {:.0}/{:.0}",
+                    underlying, long_strike, short_strike
+                )
             }
-            Self::IronCondor { underlying, put_short, call_short, .. } => {
-                write!(f, "Iron Condor {} {:.0}/{:.0}", underlying, put_short, call_short)
+            Self::IronCondor {
+                underlying,
+                put_short,
+                call_short,
+                ..
+            } => {
+                write!(
+                    f,
+                    "Iron Condor {} {:.0}/{:.0}",
+                    underlying, put_short, call_short
+                )
             }
-            Self::CoveredCall { underlying, strike, .. } => write!(f, "Covered Call {} {:.0}", underlying, strike),
-            Self::ProtectivePut { underlying, strike, .. } => write!(f, "Protective Put {} {:.0}", underlying, strike),
+            Self::CoveredCall {
+                underlying, strike, ..
+            } => write!(f, "Covered Call {} {:.0}", underlying, strike),
+            Self::ProtectivePut {
+                underlying, strike, ..
+            } => write!(f, "Protective Put {} {:.0}", underlying, strike),
         }
     }
 }
@@ -295,34 +399,41 @@ impl OptionsManager {
 
         let rho = match option_type {
             OptionType::Call => {
-                strike * time_to_expiry
+                strike
+                    * time_to_expiry
                     * (-self.risk_free_rate * time_to_expiry).exp()
                     * norm_cdf(d2)
                     / 100.0
             }
             OptionType::Put => {
-                -strike * time_to_expiry
+                -strike
+                    * time_to_expiry
                     * (-self.risk_free_rate * time_to_expiry).exp()
                     * norm_cdf(-d2)
                     / 100.0
             }
         };
 
-        Greeks { delta, gamma, theta, vega, rho }
+        Greeks {
+            delta,
+            gamma,
+            theta,
+            vega,
+            rho,
+        }
     }
 
     /// Calculate max profit and max loss for a strategy.
-    pub fn strategy_risk_profile(
-        &self,
-        strategy: &OptionsStrategy,
-    ) -> (f64, f64) {
+    pub fn strategy_risk_profile(&self, strategy: &OptionsStrategy) -> (f64, f64) {
         match strategy {
             OptionsStrategy::LongOption { contract, quantity } => {
                 let cost = contract.ask * contract.multiplier * *quantity as f64;
                 let max_loss = cost;
                 let max_profit = match contract.option_type {
                     OptionType::Call => f64::INFINITY,
-                    OptionType::Put => (contract.strike * contract.multiplier * *quantity as f64) - cost,
+                    OptionType::Put => {
+                        (contract.strike * contract.multiplier * *quantity as f64) - cost
+                    }
                 };
                 (max_profit, max_loss)
             }
@@ -331,7 +442,14 @@ impl OptionsManager {
                 let max_loss = f64::INFINITY; // Stock can go to 0
                 (max_profit, max_loss)
             }
-            OptionsStrategy::IronCondor { put_long, put_short, call_short, call_long, quantity, .. } => {
+            OptionsStrategy::IronCondor {
+                put_long,
+                put_short,
+                call_short,
+                call_long,
+                quantity,
+                ..
+            } => {
                 let width = (call_long - call_short).max(put_short - put_long);
                 let credit = 2.0; // Placeholder — would use actual premiums
                 let max_profit = credit * 100.0 * *quantity as f64;
@@ -400,7 +518,9 @@ mod tests {
     #[test]
     fn test_black_scholes_at_expiry() {
         let mgr = OptionsManager::new();
-        assert!((mgr.black_scholes(&OptionType::Call, 150.0, 140.0, 0.0, 0.25) - 10.0).abs() < 0.01);
+        assert!(
+            (mgr.black_scholes(&OptionType::Call, 150.0, 140.0, 0.0, 0.25) - 10.0).abs() < 0.01
+        );
         assert!((mgr.black_scholes(&OptionType::Call, 130.0, 140.0, 0.0, 0.25)).abs() < 0.01);
         assert!((mgr.black_scholes(&OptionType::Put, 130.0, 140.0, 0.0, 0.25) - 10.0).abs() < 0.01);
     }
@@ -651,12 +771,16 @@ mod tests {
             assert!(
                 call_greeks.theta < 0.0,
                 "Call theta should be negative for spot={}, strike={}, got {}",
-                spot, strike, call_greeks.theta
+                spot,
+                strike,
+                call_greeks.theta
             );
             assert!(
                 put_greeks.theta < 0.0,
                 "Put theta should be negative for spot={}, strike={}, got {}",
-                spot, strike, put_greeks.theta
+                spot,
+                strike,
+                put_greeks.theta
             );
         }
     }
@@ -672,22 +796,31 @@ mod tests {
             assert!(
                 call_greeks.vega > 0.0,
                 "Call vega should be positive for spot={}, strike={}, got {}",
-                spot, strike, call_greeks.vega
+                spot,
+                strike,
+                call_greeks.vega
             );
             assert!(
                 put_greeks.vega > 0.0,
                 "Put vega should be positive for spot={}, strike={}, got {}",
-                spot, strike, put_greeks.vega
+                spot,
+                strike,
+                put_greeks.vega
             );
         }
 
         // ATM vega should be highest
-        let atm_vega = mgr.calculate_greeks(&OptionType::Call, 100.0, 100.0, 0.5, 0.25).vega;
-        let otm_vega = mgr.calculate_greeks(&OptionType::Call, 80.0, 100.0, 0.5, 0.25).vega;
+        let atm_vega = mgr
+            .calculate_greeks(&OptionType::Call, 100.0, 100.0, 0.5, 0.25)
+            .vega;
+        let otm_vega = mgr
+            .calculate_greeks(&OptionType::Call, 80.0, 100.0, 0.5, 0.25)
+            .vega;
         assert!(
             atm_vega > otm_vega,
             "ATM vega ({}) should be greater than OTM vega ({})",
-            atm_vega, otm_vega
+            atm_vega,
+            otm_vega
         );
     }
 }

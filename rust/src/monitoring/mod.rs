@@ -80,7 +80,10 @@ impl HealthChecker {
 
         let status = if components.iter().all(|c| c.status == HealthStatus::Healthy) {
             HealthStatus::Healthy
-        } else if components.iter().any(|c| c.status == HealthStatus::Unhealthy) {
+        } else if components
+            .iter()
+            .any(|c| c.status == HealthStatus::Unhealthy)
+        {
             HealthStatus::Unhealthy
         } else {
             HealthStatus::Degraded

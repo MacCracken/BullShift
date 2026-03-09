@@ -246,10 +246,7 @@ impl SecureYeomanEventSource {
 #[async_trait::async_trait]
 impl NewsSource for SecureYeomanEventSource {
     async fn fetch_articles(&self, client: &Client) -> Result<Vec<NewsArticle>, BullShiftError> {
-        let url = format!(
-            "{}/api/v1/integrations/bullshift/feed",
-            self.base_url
-        );
+        let url = format!("{}/api/v1/integrations/bullshift/feed", self.base_url);
 
         let mut req = client.get(&url);
         if let Some(ref key) = self.api_key {
@@ -727,12 +724,20 @@ mod tests {
 
     #[test]
     fn test_sentiment_source_type_display() {
-        assert_eq!(SentimentSourceType::SecureYeoman.to_string(), "SecureYeoman");
+        assert_eq!(
+            SentimentSourceType::SecureYeoman.to_string(),
+            "SecureYeoman"
+        );
         assert_eq!(SentimentSourceType::RssFeed.to_string(), "RSS");
         assert_eq!(SentimentSourceType::Webhook.to_string(), "Webhook");
     }
 
-    fn make_signal(symbol: &str, score: f64, confidence: f64, source: SentimentSourceType) -> SentimentSignal {
+    fn make_signal(
+        symbol: &str,
+        score: f64,
+        confidence: f64,
+        source: SentimentSourceType,
+    ) -> SentimentSignal {
         SentimentSignal {
             id: Uuid::new_v4(),
             source_type: source,
@@ -755,11 +760,20 @@ mod tests {
         // Signal 1: score=0.6, confidence=0.8 => weighted contribution = 0.48
         router.ingest_signal(make_signal("GOOG", 0.6, 0.8, SentimentSourceType::RssFeed));
         // Signal 2: score=-0.4, confidence=0.2 => weighted contribution = -0.08
-        router.ingest_signal(make_signal("GOOG", -0.4, 0.2, SentimentSourceType::TwitterApi));
+        router.ingest_signal(make_signal(
+            "GOOG",
+            -0.4,
+            0.2,
+            SentimentSourceType::TwitterApi,
+        ));
 
         let agg = router.aggregate_sentiment("GOOG").unwrap();
         // Expected weighted average: (0.6*0.8 + (-0.4)*0.2) / (0.8 + 0.2) = (0.48 - 0.08) / 1.0 = 0.4
-        assert!((agg.overall_score - 0.4).abs() < 0.001, "Expected ~0.4, got {}", agg.overall_score);
+        assert!(
+            (agg.overall_score - 0.4).abs() < 0.001,
+            "Expected ~0.4, got {}",
+            agg.overall_score
+        );
         assert_eq!(agg.signal_count, 2);
     }
 
@@ -783,8 +797,14 @@ mod tests {
 
         // Verify we can distinguish old from recent by timestamp
         let now = Utc::now();
-        let recent_count = all.iter().filter(|s| (now - s.timestamp).num_minutes() < 5).count();
-        let old_count = all.iter().filter(|s| (now - s.timestamp).num_minutes() >= 30).count();
+        let recent_count = all
+            .iter()
+            .filter(|s| (now - s.timestamp).num_minutes() < 5)
+            .count();
+        let old_count = all
+            .iter()
+            .filter(|s| (now - s.timestamp).num_minutes() >= 30)
+            .count();
         assert_eq!(recent_count, 1);
         assert_eq!(old_count, 1);
     }
@@ -794,8 +814,18 @@ mod tests {
         let mut router = SentimentRouter::new();
 
         router.ingest_signal(make_signal("AAPL", 0.7, 0.9, SentimentSourceType::RssFeed));
-        router.ingest_signal(make_signal("AAPL", 0.3, 0.5, SentimentSourceType::TwitterApi));
-        router.ingest_signal(make_signal("TSLA", -0.8, 0.7, SentimentSourceType::RedditApi));
+        router.ingest_signal(make_signal(
+            "AAPL",
+            0.3,
+            0.5,
+            SentimentSourceType::TwitterApi,
+        ));
+        router.ingest_signal(make_signal(
+            "TSLA",
+            -0.8,
+            0.7,
+            SentimentSourceType::RedditApi,
+        ));
         router.ingest_signal(make_signal("NVDA", 0.5, 0.6, SentimentSourceType::Webhook));
 
         let aapl = router.signals_for_symbol("AAPL", 10);
@@ -809,10 +839,16 @@ mod tests {
 
         // Aggregate per symbol
         let aapl_agg = router.aggregate_sentiment("AAPL").unwrap();
-        assert!(aapl_agg.overall_score > 0.0, "AAPL should have positive sentiment");
+        assert!(
+            aapl_agg.overall_score > 0.0,
+            "AAPL should have positive sentiment"
+        );
 
         let tsla_agg = router.aggregate_sentiment("TSLA").unwrap();
-        assert!(tsla_agg.overall_score < 0.0, "TSLA should have negative sentiment");
+        assert!(
+            tsla_agg.overall_score < 0.0,
+            "TSLA should have negative sentiment"
+        );
 
         // No signals for AMZN
         assert!(router.aggregate_sentiment("AMZN").is_none());
@@ -824,7 +860,12 @@ mod tests {
 
         // Ingest signals with extreme scores
         router.ingest_signal(make_signal("TEST", 1.0, 1.0, SentimentSourceType::RssFeed));
-        router.ingest_signal(make_signal("TEST", -1.0, 1.0, SentimentSourceType::TwitterApi));
+        router.ingest_signal(make_signal(
+            "TEST",
+            -1.0,
+            1.0,
+            SentimentSourceType::TwitterApi,
+        ));
         router.ingest_signal(make_signal("TEST", 0.0, 0.5, SentimentSourceType::Webhook));
 
         let agg = router.aggregate_sentiment("TEST").unwrap();
@@ -853,7 +894,9 @@ mod tests {
         assert!(router.aggregate_sentiment("ANY").is_none());
         assert!(router.signals_for_symbol("ANY", 10).is_empty());
         assert!(router.recent_signals(10, None).is_empty());
-        assert!(router.recent_signals(10, Some(&SentimentSourceType::RssFeed)).is_empty());
+        assert!(router
+            .recent_signals(10, Some(&SentimentSourceType::RssFeed))
+            .is_empty());
 
         let fake_id = Uuid::new_v4();
         assert!(router.get_source(&fake_id).is_none());
@@ -892,7 +935,13 @@ mod tests {
         assert_eq!(router.list_sources().len(), 2);
 
         // Both retrievable by their own ID
-        assert_eq!(router.get_source(&id1).unwrap().endpoint, "https://example.com/feed1.xml");
-        assert_eq!(router.get_source(&id2).unwrap().endpoint, "https://example.com/feed2.xml");
+        assert_eq!(
+            router.get_source(&id1).unwrap().endpoint,
+            "https://example.com/feed1.xml"
+        );
+        assert_eq!(
+            router.get_source(&id2).unwrap().endpoint,
+            "https://example.com/feed2.xml"
+        );
     }
 }

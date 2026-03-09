@@ -291,10 +291,7 @@ impl AuditTrail {
                 log::debug!("Audit entry {} emitted to SecureYeoman", entry.id);
             }
             Ok(resp) => {
-                log::warn!(
-                    "SecureYeoman audit emission returned {}",
-                    resp.status()
-                );
+                log::warn!("SecureYeoman audit emission returned {}", resp.status());
             }
             Err(e) => {
                 log::warn!("Failed to emit audit entry to SecureYeoman: {}", e);
@@ -467,7 +464,10 @@ mod tests {
 
     #[test]
     fn test_audit_event_type_display() {
-        assert_eq!(AuditEventType::OrderSubmitted.to_string(), "order.submitted");
+        assert_eq!(
+            AuditEventType::OrderSubmitted.to_string(),
+            "order.submitted"
+        );
         assert_eq!(
             AuditEventType::ConfigurationChanged.to_string(),
             "config.changed"
@@ -508,19 +508,43 @@ mod tests {
         let mut trail = test_trail();
 
         trail
-            .record(AuditEventType::OrderSubmitted, "alice", "submit", "AAPL", serde_json::json!({}))
+            .record(
+                AuditEventType::OrderSubmitted,
+                "alice",
+                "submit",
+                "AAPL",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
         trail
-            .record(AuditEventType::UserLogin, "bob", "login", "system", serde_json::json!({}))
+            .record(
+                AuditEventType::UserLogin,
+                "bob",
+                "login",
+                "system",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
         trail
-            .record(AuditEventType::ConfigurationChanged, "admin", "update", "config", serde_json::json!({}))
+            .record(
+                AuditEventType::ConfigurationChanged,
+                "admin",
+                "update",
+                "config",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
         trail
-            .record(AuditEventType::PositionOpened, "alice", "open", "TSLA", serde_json::json!({}))
+            .record(
+                AuditEventType::PositionOpened,
+                "alice",
+                "open",
+                "TSLA",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
 
@@ -563,19 +587,43 @@ mod tests {
         let mut trail = test_trail();
 
         trail
-            .record(AuditEventType::OrderSubmitted, "user:alice", "submit", "AAPL", serde_json::json!({}))
+            .record(
+                AuditEventType::OrderSubmitted,
+                "user:alice",
+                "submit",
+                "AAPL",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
         trail
-            .record(AuditEventType::OrderSubmitted, "user:bob", "submit", "TSLA", serde_json::json!({}))
+            .record(
+                AuditEventType::OrderSubmitted,
+                "user:bob",
+                "submit",
+                "TSLA",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
         trail
-            .record(AuditEventType::OrderFilled, "user:alice", "fill", "AAPL", serde_json::json!({}))
+            .record(
+                AuditEventType::OrderFilled,
+                "user:alice",
+                "fill",
+                "AAPL",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
         trail
-            .record(AuditEventType::ConfigurationChanged, "user:charlie", "update", "config", serde_json::json!({}))
+            .record(
+                AuditEventType::ConfigurationChanged,
+                "user:charlie",
+                "update",
+                "config",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
 
@@ -609,11 +657,23 @@ mod tests {
         let mut trail = test_trail();
 
         trail
-            .record(AuditEventType::OrderSubmitted, "alice", "submit", "AAPL", serde_json::json!({}))
+            .record(
+                AuditEventType::OrderSubmitted,
+                "alice",
+                "submit",
+                "AAPL",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
         trail
-            .record(AuditEventType::OrderFilled, "system", "fill", "AAPL", serde_json::json!({}))
+            .record(
+                AuditEventType::OrderFilled,
+                "system",
+                "fill",
+                "AAPL",
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
 

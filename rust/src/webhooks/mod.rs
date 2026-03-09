@@ -237,10 +237,7 @@ impl WebhookManager {
                 tokio::time::sleep(std::time::Duration::from_millis(500 * attempt as u64)).await;
             }
 
-            match self
-                .send_request(webhook, trigger, payload)
-                .await
-            {
+            match self.send_request(webhook, trigger, payload).await {
                 Ok(code) => {
                     status_code = Some(code);
                     if (200..300).contains(&code) {
@@ -426,7 +423,10 @@ mod tests {
             "Slack alerts",
             "https://hooks.slack.com/xxx",
             WebhookFormat::Slack,
-            vec![WebhookTrigger::OrderFilled, WebhookTrigger::StopLossTriggered],
+            vec![
+                WebhookTrigger::OrderFilled,
+                WebhookTrigger::StopLossTriggered,
+            ],
         );
 
         assert_eq!(mgr.list().len(), 1);
@@ -511,7 +511,10 @@ mod tests {
         );
         mgr.set_enabled(&id, false);
 
-        assert_eq!(mgr.webhooks_for_trigger(&WebhookTrigger::OrderFilled).len(), 0);
+        assert_eq!(
+            mgr.webhooks_for_trigger(&WebhookTrigger::OrderFilled).len(),
+            0
+        );
     }
 
     #[test]
@@ -541,7 +544,10 @@ mod tests {
     fn test_url_encoding() {
         assert_eq!(urlencoding::encode("hello world"), "hello%20world");
         assert_eq!(urlencoding::encode("a=b&c=d"), "a%3Db%26c%3Dd");
-        assert_eq!(urlencoding::encode("safe-text_here.ok~"), "safe-text_here.ok~");
+        assert_eq!(
+            urlencoding::encode("safe-text_here.ok~"),
+            "safe-text_here.ok~"
+        );
     }
 
     #[test]
@@ -609,8 +615,14 @@ mod tests {
         }
 
         // Should NOT match unregistered triggers
-        assert_eq!(mgr.webhooks_for_trigger(&WebhookTrigger::SystemError).len(), 0);
-        assert_eq!(mgr.webhooks_for_trigger(&WebhookTrigger::PriceAlert).len(), 0);
+        assert_eq!(
+            mgr.webhooks_for_trigger(&WebhookTrigger::SystemError).len(),
+            0
+        );
+        assert_eq!(
+            mgr.webhooks_for_trigger(&WebhookTrigger::PriceAlert).len(),
+            0
+        );
     }
 
     #[test]

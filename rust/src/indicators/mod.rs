@@ -784,16 +784,16 @@ impl IndicatorRegistry {
     }
 
     /// Create an indicator by name.
-    pub fn create(&self, name: &str, params: &IndicatorParams) -> Option<Box<dyn Indicator + Send>> {
+    pub fn create(
+        &self,
+        name: &str,
+        params: &IndicatorParams,
+    ) -> Option<Box<dyn Indicator + Send>> {
         self.factories.get(name).map(|f| f(params))
     }
 
     /// Register a custom indicator factory.
-    pub fn register_custom(
-        &mut self,
-        name: &str,
-        factory: IndicatorFactory,
-    ) {
+    pub fn register_custom(&mut self, name: &str, factory: IndicatorFactory) {
         self.factories.insert(name.to_string(), factory);
     }
 
@@ -914,7 +914,10 @@ mod tests {
         assert!(rsi.is_ready());
         let val = rsi.value().unwrap();
         // Should approach 100
-        assert!(val > 95.0, "RSI should approach 100 with all gains, got {val}");
+        assert!(
+            val > 95.0,
+            "RSI should approach 100 with all gains, got {val}"
+        );
     }
 
     #[test]
@@ -946,8 +949,14 @@ mod tests {
         let upper = bb.upper().unwrap();
         let middle = bb.middle().unwrap();
         let lower = bb.lower().unwrap();
-        assert!(upper > middle, "upper ({upper}) should be > middle ({middle})");
-        assert!(middle > lower, "middle ({middle}) should be > lower ({lower})");
+        assert!(
+            upper > middle,
+            "upper ({upper}) should be > middle ({middle})"
+        );
+        assert!(
+            middle > lower,
+            "middle ({middle}) should be > lower ({lower})"
+        );
         // Middle should be mean = 22.0
         assert!((middle - 22.0).abs() < 1e-10);
     }

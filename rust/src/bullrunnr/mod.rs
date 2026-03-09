@@ -1,8 +1,8 @@
 use crate::error::BullShiftError;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewsArticle {
@@ -22,7 +22,7 @@ pub struct NewsArticle {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SentimentAnalysis {
     pub overall: SentimentLabel,
-    pub score: f64, // -1.0 (very bearish) to 1.0 (very bullish)
+    pub score: f64,      // -1.0 (very bearish) to 1.0 (very bullish)
     pub confidence: f64, // 0.0 to 1.0
     pub aspects: HashMap<String, AspectSentiment>,
 }
@@ -130,7 +130,7 @@ impl BullRunnr {
 
     pub async fn fetch_latest_news(&mut self) -> Result<NewsStream, BullShiftError> {
         let mut all_articles = Vec::new();
-        
+
         // Fetch from all sources
         for source in &self.news_sources {
             match source.fetch_articles(&self.client).await {
@@ -150,7 +150,8 @@ impl BullRunnr {
 
         // Sort by relevance and recency
         all_articles.sort_by(|a, b| {
-            b.relevance_score.partial_cmp(&a.relevance_score)
+            b.relevance_score
+                .partial_cmp(&a.relevance_score)
                 .unwrap_or(std::cmp::Ordering::Equal)
                 .then(b.published_at.cmp(&a.published_at))
         });
@@ -163,7 +164,7 @@ impl BullRunnr {
         // Take ownership of sentiment data to avoid cloning
         let symbol_sentiment = std::mem::take(&mut self.symbol_sentiment);
         let market_sentiment = std::mem::take(&mut self.market_sentiment);
-        
+
         Ok(NewsStream {
             articles: all_articles,
             symbol_sentiment,
@@ -171,9 +172,13 @@ impl BullRunnr {
         })
     }
 
-    pub async fn search_news(&mut self, query: &str, symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError> {
+    pub async fn search_news(
+        &mut self,
+        query: &str,
+        symbols: &[String],
+    ) -> Result<Vec<NewsArticle>, BullShiftError> {
         let mut search_results = Vec::new();
-        
+
         for source in &self.news_sources {
             match source.search_articles(&self.client, query, symbols).await {
                 Ok(mut articles) => {
@@ -189,22 +194,26 @@ impl BullRunnr {
             }
         }
 
-        search_results.sort_by(|a, b| b.relevance_score.partial_cmp(&a.relevance_score).unwrap_or(std::cmp::Ordering::Equal));
+        search_results.sort_by(|a, b| {
+            b.relevance_score
+                .partial_cmp(&a.relevance_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         Ok(search_results)
     }
 
     fn calculate_relevance_score(&self, article: &NewsArticle) -> f64 {
         let mut score = 0.0;
-        
+
         // Recency factor (newer articles are more relevant)
         let hours_old = (Utc::now() - article.published_at).num_hours() as f64;
         let recency_score = (1.0 / (1.0 + hours_old / 24.0)).min(1.0);
         score += recency_score * 0.3;
-        
+
         // Source credibility
         let source_score = self.get_source_credibility(&article.source);
         score += source_score * 0.2;
-        
+
         // Symbol relevance
         let symbol_score = if !article.symbols.is_empty() {
             1.0
@@ -212,11 +221,11 @@ impl BullRunnr {
             0.5
         };
         score += symbol_score * 0.3;
-        
+
         // Content length (longer articles might be more detailed)
         let length_score = (article.content.len() as f64 / 1000.0).min(1.0);
         score += length_score * 0.2;
-        
+
         score.min(1.0)
     }
 
@@ -233,25 +242,28 @@ impl BullRunnr {
         // Batch insert to minimize rehashing
         let estimated_size = self.article_cache.len() + articles.len();
         if estimated_size > self.article_cache.capacity() {
-            self.article_cache.reserve(estimated_size - self.article_cache.capacity());
+            self.article_cache
+                .reserve(estimated_size - self.article_cache.capacity());
         }
-        
+
         // Use drain iterator if we own the articles, otherwise clone
         for article in articles {
-            self.article_cache.insert(article.id.clone(), article.clone());
+            self.article_cache
+                .insert(article.id.clone(), article.clone());
         }
-        
+
         // Remove old articles only when we exceed the limit by 10% to avoid frequent cleanup
         if self.article_cache.len() > 1100 {
             // Use a more efficient approach with binary heap or sorted vec
-            let mut ids_with_dates: Vec<_> = self.article_cache
+            let mut ids_with_dates: Vec<_> = self
+                .article_cache
                 .iter()
                 .map(|(id, article)| (article.published_at, id.clone()))
                 .collect();
-            
+
             // Sort by date (oldest first)
             ids_with_dates.sort_by(|a, b| a.0.cmp(&b.0));
-            
+
             // Remove oldest articles
             let to_remove = self.article_cache.len() - 1000;
             for item in ids_with_dates.iter().take(to_remove) {
@@ -263,16 +275,19 @@ impl BullRunnr {
     fn update_symbol_sentiment(&mut self, articles: &[NewsArticle]) {
         // Reset symbol sentiment
         self.symbol_sentiment.clear();
-        
+
         // Group articles by symbol using references only
         let mut symbol_articles: HashMap<&str, Vec<&NewsArticle>> = HashMap::new();
-        
+
         for article in articles {
             for symbol in &article.symbols {
-                symbol_articles.entry(symbol.as_str()).or_default().push(article);
+                symbol_articles
+                    .entry(symbol.as_str())
+                    .or_default()
+                    .push(article);
             }
         }
-        
+
         // Calculate sentiment for each symbol
         for (symbol, symbol_articles) in symbol_articles {
             let avg_sentiment = if !symbol_articles.is_empty() {
@@ -281,22 +296,24 @@ impl BullRunnr {
             } else {
                 0.0
             };
-            
+
             let buzz_score = (symbol_articles.len() as f64 / 10.0).min(1.0);
-            
-            let sentiment_scores: Vec<f64> = symbol_articles.iter()
-                .map(|a| a.sentiment.score)
-                .collect();
+
+            let sentiment_scores: Vec<f64> =
+                symbol_articles.iter().map(|a| a.sentiment.score).collect();
             let sentiment_trend = self.calculate_sentiment_trend(&sentiment_scores);
-            
-            self.symbol_sentiment.insert(symbol.to_string(), SymbolSentiment {
-                symbol: symbol.to_string(),
-                sentiment_score: avg_sentiment,
-                article_count: symbol_articles.len() as i32,
-                recent_articles: symbol_articles.iter().map(|a| a.id.clone()).collect(),
-                sentiment_trend,
-                buzz_score,
-            });
+
+            self.symbol_sentiment.insert(
+                symbol.to_string(),
+                SymbolSentiment {
+                    symbol: symbol.to_string(),
+                    sentiment_score: avg_sentiment,
+                    article_count: symbol_articles.len() as i32,
+                    recent_articles: symbol_articles.iter().map(|a| a.id.clone()).collect(),
+                    sentiment_trend,
+                    buzz_score,
+                },
+            );
         }
     }
 
@@ -304,15 +321,15 @@ impl BullRunnr {
         if scores.len() < 3 {
             return SentimentTrend::Stable;
         }
-        
+
         let first_half = &scores[..scores.len() / 2];
         let second_half = &scores[scores.len() / 2..];
-        
+
         let first_avg = first_half.iter().sum::<f64>() / first_half.len() as f64;
         let second_avg = second_half.iter().sum::<f64>() / second_half.len() as f64;
-        
+
         let difference = second_avg - first_avg;
-        
+
         if difference > 0.2 {
             SentimentTrend::Improving
         } else if difference < -0.2 {
@@ -323,30 +340,30 @@ impl BullRunnr {
     }
 
     fn update_market_sentiment(&mut self, articles: &[NewsArticle]) {
-        let sentiment_scores: Vec<f64> = articles
-            .iter()
-            .map(|a| a.sentiment.score)
-            .collect();
-        
+        let sentiment_scores: Vec<f64> = articles.iter().map(|a| a.sentiment.score).collect();
+
         let overall_score = if sentiment_scores.is_empty() {
             0.0
         } else {
             sentiment_scores.iter().sum::<f64>() / sentiment_scores.len() as f64
         };
-        
-        let (bullish_count, bearish_count, neutral_count) = sentiment_scores.iter().fold((0, 0, 0), |(bull, bear, neutral), &score| {
-            if score > 0.1 {
-                (bull + 1, bear, neutral)
-            } else if score < -0.1 {
-                (bull, bear + 1, neutral)
-            } else {
-                (bull, bear, neutral + 1)
-            }
-        });
-        
+
+        let (bullish_count, bearish_count, neutral_count) =
+            sentiment_scores
+                .iter()
+                .fold((0, 0, 0), |(bull, bear, neutral), &score| {
+                    if score > 0.1 {
+                        (bull + 1, bear, neutral)
+                    } else if score < -0.1 {
+                        (bull, bear + 1, neutral)
+                    } else {
+                        (bull, bear, neutral + 1)
+                    }
+                });
+
         // Calculate Fear & Greed Index (simplified)
         let fear_greed_index = ((overall_score + 1.0) * 50.0).clamp(0.0, 100.0);
-        
+
         self.market_sentiment = MarketSentiment {
             overall_score,
             bullish_count,
@@ -368,7 +385,11 @@ impl BullRunnr {
 
     pub fn get_top_sentiment_movers(&self, limit: usize) -> Vec<&SymbolSentiment> {
         let mut symbols: Vec<_> = self.symbol_sentiment.values().collect();
-        symbols.sort_by(|a, b| b.buzz_score.partial_cmp(&a.buzz_score).unwrap_or(std::cmp::Ordering::Equal));
+        symbols.sort_by(|a, b| {
+            b.buzz_score
+                .partial_cmp(&a.buzz_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         symbols.into_iter().take(limit).collect()
     }
 }
@@ -377,7 +398,12 @@ impl BullRunnr {
 #[async_trait::async_trait]
 pub trait NewsSource {
     async fn fetch_articles(&self, client: &Client) -> Result<Vec<NewsArticle>, BullShiftError>;
-    async fn search_articles(&self, client: &Client, query: &str, symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError>;
+    async fn search_articles(
+        &self,
+        client: &Client,
+        query: &str,
+        symbols: &[String],
+    ) -> Result<Vec<NewsArticle>, BullShiftError>;
 }
 
 #[async_trait::async_trait]
@@ -407,7 +433,12 @@ impl NewsSource for AlphaVantageNews {
         Ok(vec![])
     }
 
-    async fn search_articles(&self, _client: &Client, _query: &str, _symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError> {
+    async fn search_articles(
+        &self,
+        _client: &Client,
+        _query: &str,
+        _symbols: &[String],
+    ) -> Result<Vec<NewsArticle>, BullShiftError> {
         Ok(vec![])
     }
 }
@@ -432,7 +463,12 @@ impl NewsSource for NewsAPI {
         Ok(vec![])
     }
 
-    async fn search_articles(&self, _client: &Client, _query: &str, _symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError> {
+    async fn search_articles(
+        &self,
+        _client: &Client,
+        _query: &str,
+        _symbols: &[String],
+    ) -> Result<Vec<NewsArticle>, BullShiftError> {
         Ok(vec![])
     }
 }
@@ -457,7 +493,12 @@ impl NewsSource for TwitterNews {
         Ok(vec![])
     }
 
-    async fn search_articles(&self, _client: &Client, _query: &str, _symbols: &[String]) -> Result<Vec<NewsArticle>, BullShiftError> {
+    async fn search_articles(
+        &self,
+        _client: &Client,
+        _query: &str,
+        _symbols: &[String],
+    ) -> Result<Vec<NewsArticle>, BullShiftError> {
         Ok(vec![])
     }
 }
@@ -479,14 +520,30 @@ impl VaderSentimentAnalyzer {
 impl SentimentAnalyzer for VaderSentimentAnalyzer {
     fn analyze(&self, text: &str) -> SentimentAnalysis {
         // Simplified sentiment analysis
-        let positive_words = ["good", "great", "excellent", "bullish", "growth", "profit", "rally"];
-        let negative_words = ["bad", "terrible", "awful", "bearish", "decline", "loss", "crash"];
+        let positive_words = [
+            "good",
+            "great",
+            "excellent",
+            "bullish",
+            "growth",
+            "profit",
+            "rally",
+        ];
+        let negative_words = [
+            "bad", "terrible", "awful", "bearish", "decline", "loss", "crash",
+        ];
 
         let text_lower = text.to_lowercase();
         let words: Vec<&str> = text_lower.split_whitespace().collect();
 
-        let positive_count = words.iter().filter(|&&w| positive_words.contains(&w)).count() as f64;
-        let negative_count = words.iter().filter(|&&w| negative_words.contains(&w)).count() as f64;
+        let positive_count = words
+            .iter()
+            .filter(|&&w| positive_words.contains(&w))
+            .count() as f64;
+        let negative_count = words
+            .iter()
+            .filter(|&&w| negative_words.contains(&w))
+            .count() as f64;
 
         let score = (positive_count - negative_count) / (words.len() as f64 + 1.0);
         let score = score.clamp(-1.0, 1.0);
@@ -554,7 +611,11 @@ mod tests {
         let analyzer = VaderSentimentAnalyzer::new();
         let result = analyzer.analyze("great amazing excellent");
         // "great" and "excellent" are in the positive word list
-        assert!(result.score > 0.0, "Expected positive score, got {}", result.score);
+        assert!(
+            result.score > 0.0,
+            "Expected positive score, got {}",
+            result.score
+        );
         assert!(result.confidence > 0.0);
     }
 
@@ -563,7 +624,11 @@ mod tests {
         let analyzer = VaderSentimentAnalyzer::new();
         let result = analyzer.analyze("terrible crash disaster");
         // "terrible" and "crash" are in the negative word list
-        assert!(result.score < 0.0, "Expected negative score, got {}", result.score);
+        assert!(
+            result.score < 0.0,
+            "Expected negative score, got {}",
+            result.score
+        );
         assert!(result.confidence > 0.0);
     }
 

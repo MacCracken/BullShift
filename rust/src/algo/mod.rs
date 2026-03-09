@@ -229,7 +229,9 @@ impl AlgoEngine {
             .ok_or_else(|| BullShiftError::Trading(format!("Strategy {} not found", id)))?;
 
         if strategy.state != AlgoState::Running {
-            return Err(BullShiftError::Trading("Strategy is not running".to_string()));
+            return Err(BullShiftError::Trading(
+                "Strategy is not running".to_string(),
+            ));
         }
         strategy.state = AlgoState::Paused;
         Ok(())
@@ -259,10 +261,7 @@ impl AlgoEngine {
     /// Feed a new price bar into the engine and evaluate running strategies.
     pub fn on_price_update(&mut self, bar: PriceBar) -> Vec<AlgoSignal> {
         // Store price history
-        let history = self
-            .price_history
-            .entry(bar.symbol.clone())
-            .or_default();
+        let history = self.price_history.entry(bar.symbol.clone()).or_default();
         history.push(bar.clone());
         if history.len() > self.max_history {
             history.drain(..history.len() - self.max_history);
@@ -273,14 +272,16 @@ impl AlgoEngine {
         let strategy_ids: Vec<Uuid> = self
             .strategies
             .values()
-            .filter(|s| {
-                s.state == AlgoState::Running && s.parameters.symbols.contains(&bar.symbol)
-            })
+            .filter(|s| s.state == AlgoState::Running && s.parameters.symbols.contains(&bar.symbol))
             .map(|s| s.id)
             .collect();
 
         for sid in strategy_ids {
-            let history_clone = self.price_history.get(&bar.symbol).cloned().unwrap_or_default();
+            let history_clone = self
+                .price_history
+                .get(&bar.symbol)
+                .cloned()
+                .unwrap_or_default();
             if let Some(strategy) = self.strategies.get(&sid) {
                 if let Some(signal) = evaluate_strategy(strategy, &bar, &history_clone) {
                     new_signals.push(signal);
@@ -333,10 +334,9 @@ impl AlgoEngine {
         strategy_id: &Uuid,
         pnl: f64,
     ) -> Result<(), BullShiftError> {
-        let strategy = self
-            .strategies
-            .get_mut(strategy_id)
-            .ok_or_else(|| BullShiftError::Trading(format!("Strategy {} not found", strategy_id)))?;
+        let strategy = self.strategies.get_mut(strategy_id).ok_or_else(|| {
+            BullShiftError::Trading(format!("Strategy {} not found", strategy_id))
+        })?;
 
         strategy.performance.total_trades += 1;
         strategy.performance.total_pnl += pnl;
@@ -356,8 +356,8 @@ impl AlgoEngine {
         }
 
         if strategy.performance.total_trades > 0 {
-            strategy.performance.win_rate =
-                strategy.performance.winning_trades as f64 / strategy.performance.total_trades as f64;
+            strategy.performance.win_rate = strategy.performance.winning_trades as f64
+                / strategy.performance.total_trades as f64;
         }
 
         // Update max drawdown
@@ -487,7 +487,10 @@ fn evaluate_mean_reversion(
         return None;
     }
 
-    let closes: Vec<f64> = history[history.len() - lookback..].iter().map(|b| b.close).collect();
+    let closes: Vec<f64> = history[history.len() - lookback..]
+        .iter()
+        .map(|b| b.close)
+        .collect();
     let mean = sma(&closes);
     let std_dev = std_deviation(&closes);
 
@@ -553,7 +556,10 @@ fn evaluate_breakout(
     }
 
     let recent = &history[history.len() - lookback..];
-    let high = recent.iter().map(|b| b.high).fold(f64::NEG_INFINITY, f64::max);
+    let high = recent
+        .iter()
+        .map(|b| b.high)
+        .fold(f64::NEG_INFINITY, f64::max);
     let low = recent.iter().map(|b| b.low).fold(f64::INFINITY, f64::min);
 
     if bar.close > high {
@@ -787,8 +793,12 @@ mod tests {
             symbols: vec!["AAPL".to_string()],
             ..Default::default()
         };
-        params.custom.insert("fast_period".to_string(), serde_json::json!(3));
-        params.custom.insert("slow_period".to_string(), serde_json::json!(5));
+        params
+            .custom
+            .insert("fast_period".to_string(), serde_json::json!(3));
+        params
+            .custom
+            .insert("slow_period".to_string(), serde_json::json!(5));
 
         let id = engine.add_strategy("MA", AlgoStrategyType::MovingAverageCrossover, params);
         engine.start_strategy(&id).unwrap();
@@ -823,8 +833,12 @@ mod tests {
             symbols: vec!["SPY".to_string()],
             ..Default::default()
         };
-        params.custom.insert("lookback".to_string(), serde_json::json!(5));
-        params.custom.insert("std_devs".to_string(), serde_json::json!(1.5));
+        params
+            .custom
+            .insert("lookback".to_string(), serde_json::json!(5));
+        params
+            .custom
+            .insert("std_devs".to_string(), serde_json::json!(1.5));
 
         let id = engine.add_strategy("MR", AlgoStrategyType::MeanReversion, params);
         engine.start_strategy(&id).unwrap();
@@ -908,7 +922,10 @@ mod tests {
 
     #[test]
     fn test_algo_strategy_type_display() {
-        assert_eq!(AlgoStrategyType::MovingAverageCrossover.to_string(), "MA Crossover");
+        assert_eq!(
+            AlgoStrategyType::MovingAverageCrossover.to_string(),
+            "MA Crossover"
+        );
         assert_eq!(AlgoStrategyType::Vwap.to_string(), "VWAP");
         assert_eq!(
             AlgoStrategyType::Custom("My Algo".to_string()).to_string(),
@@ -923,7 +940,9 @@ mod tests {
             symbols: vec!["BTC".to_string()],
             ..Default::default()
         };
-        params.custom.insert("lookback".to_string(), serde_json::json!(5));
+        params
+            .custom
+            .insert("lookback".to_string(), serde_json::json!(5));
 
         let id = engine.add_strategy("Breakout", AlgoStrategyType::Breakout, params);
         engine.start_strategy(&id).unwrap();
@@ -969,7 +988,9 @@ mod tests {
             symbols: vec!["ETH".to_string()],
             ..Default::default()
         };
-        params.custom.insert("trail_pct".to_string(), serde_json::json!(0.05));
+        params
+            .custom
+            .insert("trail_pct".to_string(), serde_json::json!(0.05));
 
         let id = engine.add_strategy("Trail", AlgoStrategyType::TrailingStop, params);
         engine.start_strategy(&id).unwrap();
@@ -1014,8 +1035,12 @@ mod tests {
             symbols: vec!["DOGE".to_string()],
             ..Default::default()
         };
-        params.custom.insert("grid_size".to_string(), serde_json::json!(10.0));
-        params.custom.insert("base_price".to_string(), serde_json::json!(100.0));
+        params
+            .custom
+            .insert("grid_size".to_string(), serde_json::json!(10.0));
+        params
+            .custom
+            .insert("base_price".to_string(), serde_json::json!(100.0));
 
         let id = engine.add_strategy("Grid", AlgoStrategyType::Grid, params);
         engine.start_strategy(&id).unwrap();
@@ -1033,7 +1058,10 @@ mod tests {
         };
         let signals = engine.on_price_update(bar);
 
-        assert!(!signals.is_empty(), "Expected a grid Buy signal at one grid level below");
+        assert!(
+            !signals.is_empty(),
+            "Expected a grid Buy signal at one grid level below"
+        );
         assert!(matches!(signals[0].side, OrderSide::Buy));
         assert!(signals[0].reason.contains("Grid"));
         assert!((signals[0].strength - 0.5).abs() < f64::EPSILON);
@@ -1142,8 +1170,12 @@ mod tests {
             ..Default::default()
         };
         // MA crossover needs slow_period + 2 bars (default slow=30, so 32 bars)
-        params.custom.insert("fast_period".to_string(), serde_json::json!(10));
-        params.custom.insert("slow_period".to_string(), serde_json::json!(30));
+        params
+            .custom
+            .insert("fast_period".to_string(), serde_json::json!(10));
+        params
+            .custom
+            .insert("slow_period".to_string(), serde_json::json!(30));
 
         let id = engine.add_strategy("MA", AlgoStrategyType::MovingAverageCrossover, params);
         engine.start_strategy(&id).unwrap();
@@ -1163,7 +1195,10 @@ mod tests {
             all_signals.extend(engine.on_price_update(bar));
         }
 
-        assert!(all_signals.is_empty(), "Should not generate signals with insufficient data");
+        assert!(
+            all_signals.is_empty(),
+            "Should not generate signals with insufficient data"
+        );
     }
 
     #[test]
@@ -1176,7 +1211,9 @@ mod tests {
             symbols: vec!["TEST".to_string()],
             ..Default::default()
         };
-        params.custom.insert("lookback".to_string(), serde_json::json!(5));
+        params
+            .custom
+            .insert("lookback".to_string(), serde_json::json!(5));
         let id = engine.add_strategy("Breakout", AlgoStrategyType::Breakout, params);
         engine.start_strategy(&id).unwrap();
 

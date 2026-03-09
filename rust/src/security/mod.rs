@@ -557,7 +557,10 @@ mod tests {
         let plaintext = "same input twice";
         let enc1 = mgr.encrypt_sensitive_data(plaintext).unwrap();
         let enc2 = mgr.encrypt_sensitive_data(plaintext).unwrap();
-        assert_ne!(enc1, enc2, "Two encryptions of the same plaintext should produce different ciphertexts");
+        assert_ne!(
+            enc1, enc2,
+            "Two encryptions of the same plaintext should produce different ciphertexts"
+        );
     }
 
     #[test]
@@ -653,14 +656,20 @@ mod tests {
         )
         .unwrap();
         let valid = mgr.validate_credentials("valid_broker").unwrap();
-        assert!(valid, "Credentials with api_key length > 10 should validate as true");
+        assert!(
+            valid,
+            "Credentials with api_key length > 10 should validate as true"
+        );
     }
 
     #[test]
     fn test_validate_credentials_not_found() {
         let mgr = SecurityManager::new_for_test();
         let result = mgr.validate_credentials("missing_broker").unwrap();
-        assert!(!result, "Validating non-existent broker should return Ok(false)");
+        assert!(
+            !result,
+            "Validating non-existent broker should return Ok(false)"
+        );
     }
 
     #[test]
@@ -675,9 +684,16 @@ mod tests {
     #[test]
     fn test_has_api_key() {
         let mut mgr = SecurityManager::new_for_test();
-        assert!(!mgr.has_api_key("anthropic"), "Should not have key before storing");
-        mgr.store_api_key("anthropic", "sk-ant-test-key-value").unwrap();
-        assert!(mgr.has_api_key("anthropic"), "Should have key after storing");
+        assert!(
+            !mgr.has_api_key("anthropic"),
+            "Should not have key before storing"
+        );
+        mgr.store_api_key("anthropic", "sk-ant-test-key-value")
+            .unwrap();
+        assert!(
+            mgr.has_api_key("anthropic"),
+            "Should have key after storing"
+        );
     }
 
     #[test]
@@ -686,6 +702,9 @@ mod tests {
         mgr.store_api_key("deepmind", "dm-key-abcdef12345").unwrap();
         assert!(mgr.has_api_key("deepmind"));
         mgr.remove_api_key("deepmind").unwrap();
-        assert!(!mgr.has_api_key("deepmind"), "Key should be gone after removal");
+        assert!(
+            !mgr.has_api_key("deepmind"),
+            "Key should be gone after removal"
+        );
     }
 }

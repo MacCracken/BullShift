@@ -123,47 +123,41 @@ impl PushNotificationManager {
             .filter(|d| d.topics.contains(&notification.topic))
             .map(|d| {
                 let payload_json = match d.platform {
-                    Platform::IOS => {
-                        serde_json::json!({
-                            "aps": {
-                                "alert": {
-                                    "title": notification.title,
-                                    "body": notification.body,
-                                },
-                                "sound": "default",
-                                "priority": match notification.priority {
-                                    Priority::High => 10,
-                                    Priority::Normal => 5,
-                                    Priority::Low => 1,
-                                },
-                            },
-                            "data": notification.data,
-                        })
-                        .to_string()
-                    }
-                    Platform::Android => {
-                        serde_json::json!({
-                            "notification": {
+                    Platform::IOS => serde_json::json!({
+                        "aps": {
+                            "alert": {
                                 "title": notification.title,
                                 "body": notification.body,
                             },
+                            "sound": "default",
                             "priority": match notification.priority {
-                                Priority::High => "high",
-                                Priority::Normal => "normal",
-                                Priority::Low => "low",
+                                Priority::High => 10,
+                                Priority::Normal => 5,
+                                Priority::Low => 1,
                             },
-                            "data": notification.data,
-                        })
-                        .to_string()
-                    }
-                    Platform::Web => {
-                        serde_json::json!({
+                        },
+                        "data": notification.data,
+                    })
+                    .to_string(),
+                    Platform::Android => serde_json::json!({
+                        "notification": {
                             "title": notification.title,
                             "body": notification.body,
-                            "data": notification.data,
-                        })
-                        .to_string()
-                    }
+                        },
+                        "priority": match notification.priority {
+                            Priority::High => "high",
+                            Priority::Normal => "normal",
+                            Priority::Low => "low",
+                        },
+                        "data": notification.data,
+                    })
+                    .to_string(),
+                    Platform::Web => serde_json::json!({
+                        "title": notification.title,
+                        "body": notification.body,
+                        "data": notification.data,
+                    })
+                    .to_string(),
                 };
 
                 PushPayload {
@@ -503,7 +497,9 @@ mod tests {
 
         let payloads = mgr.create_notification(&make_notification("alerts"));
         assert_eq!(payloads.len(), 2);
-        assert!(payloads.iter().all(|p| p.platform == Platform::IOS || p.platform == Platform::Web));
+        assert!(payloads
+            .iter()
+            .all(|p| p.platform == Platform::IOS || p.platform == Platform::Web));
     }
 
     #[test]
