@@ -64,257 +64,98 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 
 ---
 
-## [2026.3.5-5] - 2026-03-05
-
-### Added
-- **Real-time WebSocket streaming API** — `StreamingServer` in `src/websocket/`
-  with broadcast-based pub/sub architecture using `tokio::sync::broadcast`.
-  5 subscribable channel types: `Prices` (per-symbol), `Trades`, `Orders`,
-  `Positions`, `Alerts`. Client session management with subscription tracking,
-  `ClientCommand` protocol (subscribe/unsubscribe/ping), message filtering via
-  `should_receive()`, convenience publishers for price updates, trades, order
-  status changes, and alerts. Server statistics reporting. 15 tests.
-
-### Technical
-- 326 tests total (325 lib + 1 bin), 0 failures, 0 clippy warnings
-- 15 new tests for WebSocket streaming module
-- No new Rust dependencies added (uses existing tokio broadcast channels)
-
----
-
-## [2026.3.5-4] - 2026-03-05
-
-### Added
-- **Charles Schwab broker** — `SchwabApi` in `src/trading/brokers/schwab.rs` with
-  OAuth2 Bearer auth, sandbox/production URLs, JSON order body with
-  orderLegCollection, position parsing from longQuantity/shortQuantity. 7 tests.
-- **Coinbase broker** — `CoinbaseApi` in `src/trading/brokers/coinbase.rs` for
-  crypto trading via Advanced Trade API. Market/limit order configs, account
-  balances parsed as positions. Sandbox support. 7 tests.
-- **Kraken broker** — `KrakenApi` in `src/trading/brokers/kraken.rs` for crypto
-  with API-Key/API-Sign HMAC-SHA512 auth. Form-encoded POST orders, Kraken
-  response format parsing. Production only. 7 tests.
-- **Webull broker** — `WebullApi` in `src/trading/brokers/webull.rs` with
-  access_token/device_id auth. Supports options, fractional shares, crypto,
-  extended hours. Production only. 7 tests.
-- **Plugin system** — `PluginRegistry` in `src/plugins/` with `Plugin` trait,
-  6 plugin types, 6 event types, 6 action types. Full lifecycle management
-  (register, unregister, pause, resume). Event dispatch to active plugins
-  with action collection. 12 tests.
-- **Custom indicator framework** — `IndicatorRegistry` in `src/indicators/` with
-  `Indicator` trait and 7 built-in indicators: SMA, EMA, RSI, MACD, Bollinger
-  Bands, ATR, Stochastic. `IndicatorParams` builder for configuration. Factory
-  pattern creation by name. Custom indicator registration. 14 tests.
-- **Mobile app support** — `src/mobile/` with three subsystems:
-  - Push notifications: device registration, platform-specific payloads (APNs,
-    FCM, Web), topic-based filtering
-  - Offline sync: change queue, conflict detection, resolution (KeepLocal,
-    KeepServer, Merge)
-  - Biometric auth: FaceID/TouchID/Fingerprint/PIN registration with
-    challenge-response verification. 14 tests.
-
-### Technical
-- 209 tests total (208 lib + 1 bin), 0 failures, 0 clippy warnings
-- 68 new tests across brokers (28), plugins (12), indicators (14), mobile (14)
-- Total broker count: 8 (Alpaca, Interactive Brokers, Tradier, Robinhood,
-  Schwab, Coinbase, Kraken, Webull)
-- No new Rust dependencies added
-
----
-
-## [2026.3.5-3] - 2026-03-05
-
-### Added
-- **Docker containerization** — multi-stage `Dockerfile` with dependency caching,
-  non-root `bullshift` user, built-in health check. `docker-compose.yml` with
-  resource limits, volume mounts, and `.env.example` for configuration.
-- **CI/CD pipelines** — GitHub Actions workflows:
-  - `ci.yml`: formatting, clippy (warnings as errors), tests, release build,
-    Docker build on main branch
-  - `release.yml`: cross-compiles for Linux x86_64, macOS x86_64, macOS ARM64
-    on version tags, uploads to GitHub Releases
-- **Cloud deployment configs** — ready-to-use templates:
-  - AWS ECS Fargate task definition with Secrets Manager integration
-  - Google Cloud Run Knative service with Secret Manager refs
-  - Azure Container Apps ARM template with auto-scaling rules
-- **Monitoring and alerting** — `monitoring` module in `src/monitoring/` with:
-  - Component-level health checks with latency tracking
-  - Atomic counters, gauges, and histograms
-  - Prometheus text exposition format export
-  - Threshold-based alert rules with severity levels and cooldown periods
-  - Alert lifecycle management (fire, resolve, query active)
-- **Production deployment guide** — `docs/guides/production-deployment.md`
-  covering Docker, AWS/GCP/Azure, bare-metal systemd, Prometheus integration,
-  and security checklist.
-
-### Technical
-- 141 tests total (140 lib + 1 bin), 0 failures, 0 clippy warnings
-- 16 new tests for monitoring module (health checks, metrics, alerting)
-- No new Rust dependencies added
-
----
-
-## [2026.3.5-2] - 2026-03-05
-
-### Added
-- **Webhook notifications** — `WebhookManager` in `src/webhooks/` with Slack,
-  Discord, JSON, and FormEncoded dispatch formats. 12 trigger types (trade
-  executed, order filled, price alert, stop loss triggered, etc.), retry logic
-  with exponential backoff, HMAC-SHA256 payload signatures, delivery tracking
-  with success/failure history.
-- **Excel/Google Sheets integration** — `SheetsManager` in `src/sheets/` with
-  CSV/TSV/JSON export for trades, positions, and account data. Google Sheets
-  API v4 append/read support. Scheduled export management with configurable
-  intervals. RFC 4180 CSV escaping for safe spreadsheet import.
-- **Algorithmic trading engine** — `AlgoEngine` in `src/algo/` with 8 strategy
-  types: Moving Average Crossover, Mean Reversion, Breakout, VWAP, TWAP, Grid
-  Trading, Trailing Stop, and Pairs Trading. Signal generation with strength
-  scoring, performance tracking (win rate, P&L), and price history management.
-- **Options trading** — `OptionsManager` in `src/options/` with Black-Scholes
-  pricing model, full Greeks calculation (delta, gamma, theta, vega, rho),
-  options chain management, position tracking, and portfolio-level Greeks
-  aggregation. 9 strategy types: Long/Short Option, Straddle, Strangle,
-  Bull Call Spread, Bear Put Spread, Iron Condor, Covered Call, Protective Put.
-
-### Technical
-- 125 tests total (124 lib + 1 bin), 0 failures, 0 clippy warnings
-- 41 new tests across webhooks (9), sheets (8), algo (12), options (12)
-- Black-Scholes with Abramowitz & Stegun normal CDF approximation
-- No new dependencies added
-
----
-
-## [2026.3.5-1] - 2026-03-05
-
-### Added
-- **SecureYeoman integration bridge** — `SecureYeomanBridge` in `src/integration/`
-  provides bidirectional communication: emits trade events to SecureYeoman agents,
-  validates autonomous order requests, and subscribes to SecureYeoman's event bus.
-  Includes broadcast channels for local event subscribers.
-- **Cryptographic audit trail** — `AuditTrail` in `src/audit/` with HMAC-SHA256
-  signed entries forming a tamper-evident chain. Each entry references the previous
-  hash. Supports chain integrity verification, event filtering by type/resource,
-  and optional emission to SecureYeoman's audit chain for compliance.
-- **Multi-source sentiment routing** — `SentimentRouter` in `src/sentiment/`
-  aggregates signals from SecureYeoman's event bus AND independent sources.
-  Three new `NewsSource` implementations for BullRunnr: `SecureYeomanEventSource`
-  (event bus feed), `RssFeedSource` (direct RSS/Atom parsing), and `WebhookSource`
-  (push-based article ingestion). Weighted aggregate sentiment per symbol.
-- **RBAC system** — `RbacManager` in `src/rbac/` with roles (Admin, Trader,
-  Analyst, ReadOnly, Agent, Custom) and 14 fine-grained permissions. Supports
-  API key auth, user management, custom role definitions, and SecureYeoman
-  RBAC sync for federated user/role management.
-- **BullRunnr module** — `src/bullrunnr/` now compiled as part of the library
-  (was previously orphaned). Fixed compilation errors and all clippy warnings.
-
-### Fixed
-- All clippy warnings resolved across the codebase (0 warnings)
-- FFI-unsafe `Option<f64>` in `TradeOrder` replaced with `price: f64` + `has_price: bool`
-- Unused imports, dead code, `clone_on_copy`, `needless_return`,
-  `needless_borrows_for_generic_args`, missing `Default` impls
-- `store_credentials()` AES-GCM buffer pre-resize bug (same fix as
-  `encrypt_sensitive_data()` from prior release)
-- BullRunnr: `MarketSentiment` missing `Default` derive, temporary value
-  lifetime in `VaderSentimentAnalyzer`, unused `clamp` return value
-
-### Technical
-- 85 tests total (84 lib + 1 bin), 0 failures
-- 38 new tests across integration (8), audit (6), sentiment (7), rbac (14),
-  bullrunnr fixes (3)
-- `tokio::sync::broadcast` used for trade event pub/sub
-- `ring::hmac` used for audit trail signing (no new dependencies)
-
----
-
 ## [2026.3.5] - 2026-03-05
 
 ### Added
-- **API key encryption for AI providers** — `BearlyManaged` now encrypts API keys
-  via `SecurityManager` on `add_provider()`. Keys are stored encrypted at rest and
+- **API key encryption for AI providers** — `BearlyManaged` encrypts API keys
+  via `SecurityManager` on `add_provider()`. Keys stored encrypted at rest,
   decrypted only at request time. New methods: `update_provider_api_key()`,
-  `has_encrypted_api_key()`, `resolve_api_key()`.
+  `has_encrypted_api_key()`, `resolve_api_key()`
 - **SecurityManager API key storage** — `store_api_key()`, `get_api_key()`,
-  `has_api_key()`, `remove_api_key()` methods for AI provider credential management.
-- **SecureYeoman AI provider** — `SecureYeoman` variant added to `AIProviderType`.
+  `has_api_key()`, `remove_api_key()` for AI provider credential management
+- **SecureYeoman AI provider** — `SecureYeoman` variant in `AIProviderType`.
   `send_secureyeoman_request()` sends chat completions to
-  `POST http://localhost:18789/api/v1/chat`. Optional bearer token auth supported.
+  `POST http://localhost:18789/api/v1/chat`. Optional bearer token auth
 - **AI provider API endpoints** — `api_server` gains AI provider management:
   `GET/POST /v1/ai/providers`, `POST /v1/ai/providers/:id/configure`,
-  `POST /v1/ai/providers/:id/test`, `POST /v1/ai/chat`. Supports OpenAI,
-  Anthropic, Ollama, SecureYeoman, and custom providers.
+  `POST /v1/ai/providers/:id/test`, `POST /v1/ai/chat`
 - **Flutter AI bridge service** — `AiBridgeService` HTTP client replaces
-  simulated provider operations. `BearlyManagedProvider` now calls the
-  api_server for configure, test, and chat with graceful fallback.
-- **SecureYeoman in Add Provider dialog** — dropdown now includes SecureYeoman
-  with default endpoint `http://localhost:18789` and model `auto`.
-- **Interactive Brokers integration** — Client Portal Gateway API support for
-  equities, options, crypto, and extended-hours trading. Requires IB Gateway
-  running locally. (`rust/src/trading/brokers/interactive_brokers.rs`)
-- **Tradier integration** — Full REST API integration with OAuth bearer token
-  auth. Supports sandbox and production environments.
-  (`rust/src/trading/brokers/tradier.rs`)
-- **Robinhood integration** — OAuth2 bearer token integration with instrument
-  resolution, fractional shares, and crypto support. No sandbox available.
-  (`rust/src/trading/brokers/robinhood.rs`)
-- **Unified broker abstraction layer** — `TradingApiManager` enhanced with
-  broker registration, capability queries, runtime broker switching,
-  named routing (`submit_order_to`), and broker info/status reporting.
-- **`BrokerCapabilities` metadata** — each broker declares what it supports
-  (fractional shares, options, crypto, short selling, extended hours, etc.)
-- **Broker integration guide** — `docs/guides/broker-integration.md`
+  simulated provider operations with graceful fallback
+- **SecureYeoman integration bridge** — `SecureYeomanBridge` in `src/integration/`
+  with trade event emission, broadcast subscriptions, agent order validation,
+  and bidirectional event forwarding
+- **Cryptographic audit trail** — `AuditTrail` in `src/audit/` with HMAC-SHA256
+  signed entries, tamper-evident chain, chain verification, and optional
+  SecureYeoman audit emission
+- **Multi-source sentiment routing** — `SentimentRouter` in `src/sentiment/`
+  aggregates signals from SecureYeoman event bus AND independent sources
+  (RSS, webhooks). `SecureYeomanEventSource`, `RssFeedSource`, `WebhookSource`
+- **RBAC system** — `RbacManager` in `src/rbac/` with 6 roles and 14
+  fine-grained permissions. API key auth, user management, SecureYeoman sync
+- **Webhook notifications** — `WebhookManager` in `src/webhooks/` with Slack,
+  Discord, JSON, FormEncoded formats. 12 trigger types, retry with backoff,
+  HMAC-SHA256 signatures, delivery tracking
+- **Excel/Google Sheets integration** — `SheetsManager` in `src/sheets/` with
+  CSV/TSV/JSON export, Google Sheets API v4, scheduled exports, RFC 4180 escaping
+- **Algorithmic trading engine** — `AlgoEngine` in `src/algo/` with 8 strategy
+  types (MA Crossover, Mean Reversion, Breakout, VWAP, TWAP, Grid, Trailing
+  Stop, Pairs Trading). Signal generation, performance tracking
+- **Options trading** — `OptionsManager` in `src/options/` with Black-Scholes
+  pricing, full Greeks, options chains, portfolio Greeks. 9 strategy types
+- **Docker containerization** — multi-stage Dockerfile with non-root user,
+  health checks, docker-compose with resource limits
+- **CI/CD pipelines** — GitHub Actions: formatting, clippy, tests, release
+  build, Docker build on main, cross-platform release on version tags
+- **Cloud deployment configs** — AWS ECS Fargate, Google Cloud Run, Azure
+  Container Apps templates
+- **Monitoring and alerting** — `monitoring` module with health checks, metrics
+  (counters, gauges, histograms), Prometheus export, threshold-based alert rules
+- **Production deployment guide** — Docker, cloud, bare-metal systemd, security
+  checklist (`docs/guides/production-deployment.md`)
+- **8 broker integrations** — Alpaca, Interactive Brokers, Tradier, Robinhood,
+  Charles Schwab (OAuth2, sandbox), Coinbase (crypto, Advanced Trade API),
+  Kraken (crypto, HMAC-SHA512), Webull (options, fractional shares)
+- **Unified broker abstraction** — `TradingApiManager` with registration,
+  capability queries, runtime switching, `BrokerCapabilities` metadata
+- **Plugin system** — `PluginRegistry` in `src/plugins/` with 6 plugin types,
+  6 event types, event-driven lifecycle management
+- **Custom indicator framework** — `IndicatorRegistry` in `src/indicators/`
+  with 7 built-in indicators (SMA, EMA, RSI, MACD, Bollinger Bands, ATR,
+  Stochastic). Factory pattern, custom registration
+- **Mobile app support** — push notifications (APNs, FCM, Web), offline sync
+  with conflict resolution, biometric auth (FaceID, TouchID, Fingerprint, PIN)
+- **Real-time WebSocket streaming** — `StreamingServer` in `src/websocket/`
+  with broadcast pub/sub. 5 channel types (Prices, Trades, Orders, Positions,
+  Alerts). Client session management, subscription tracking
+- **BullRunnr module** — compiled as part of library (was previously orphaned)
 - **Comprehensive code audit** — 28 findings identified and 27 resolved
-  (`docs/development/code-audit-2026-03.md`)
 - **VERSION file** and `bump-version.sh` for consistent versioning
-- **`safe_cast.dart`** extension for null-safe map value access in Flutter
-- **`BullShiftError` migration** — all Rust modules now use structured error
-  types instead of `Result<T, String>`
+- **`BullShiftError` migration** — structured error types across all modules
 
 ### Changed
-- `TradingApiManager.set_default()` now returns `bool` indicating success
-- `TradingApiManager` gains `cancel_order()` forwarding (was missing)
-- `TradingApiManager.register_broker()` replaces `add_api()` (legacy kept)
-- Advanced charting widget decomposed from 2491-line god class into 7 focused
-  files: `chart_toolbar.dart`, `candlestick_painter.dart`, `volume_painter.dart`,
-  `indicator_painter.dart`, `comparison_chart.dart`, `chart_enums.dart`
-- 36 unsafe type casts across 9 Flutter files migrated to `safe_cast.dart`
-- Build script updated: removed redundant `$?` checks, `flutter packages pub run` → `dart run`
+- `TradingApiManager.set_default()` returns `bool` indicating success
+- `TradingApiManager.register_broker()` replaces `add_api()`
+- Advanced charting decomposed from 2491-line god class into 7 focused files
+- 36 unsafe type casts migrated to `safe_cast.dart`
 
 ### Fixed
-- **AES-256-GCM encryption buffer bug** — `encrypt_sensitive_data()` was pre-resizing
-  the buffer with zeroes before `seal_in_place_append_tag()`, causing 16 null bytes
-  to be appended to decrypted plaintext. Fixed by letting the seal function handle
-  buffer growth.
+- **AES-256-GCM encryption buffer bug** — pre-resize causing 16 null bytes
 - Missing `async-trait` dependency preventing compilation
 - Mutex poisoning risk in 11 database methods
 - NaN panic in float sorting (4 locations)
 - API server `serde_json::to_value().unwrap()` crash risk (3 locations)
-- Hardcoded API key placeholders in AI bridge
-- WebSocket thread leak (no shutdown mechanism)
-- Unbounded collections in logging, AI responses, and alerts
-- Nonce generation using counter+random hybrid for AES-GCM safety
+- FFI-unsafe `Option<f64>` in `TradeOrder`
+- WebSocket thread leak, unbounded collections, nonce generation
 - Excessive cloning in trading API hot path
-- AI bridge code duplication (5 providers deduplicated to 3 helpers)
-- Unmaintained `charts_flutter` replaced with `fl_chart`
-- API call in Flutter Consumer builder causing redundant network requests
-- Debug `print()` in security code replaced with debug-only assertions
-- Resource leaks in charting widget and FFI engine
-- 9 broken README documentation links
-- Missing Flutter import, unsafe FFI cast, invalid `firstWhere` with null
-- Unused `riverpod` and `ffi` dependencies removed
-- `tonic-build` moved to correct `[build-dependencies]` section
-- Tokio features narrowed from `"full"` to specific subset
+- AI bridge code duplication (5 providers → 3 helpers)
+- BullRunnr: `MarketSentiment` Default, VaderSentimentAnalyzer lifetime
+- 9 broken README links, resource leaks, unused dependencies
 
 ### Technical
-- New `trading/brokers/` submodule with `mod.rs`, `interactive_brokers.rs`,
-  `tradier.rs`, `robinhood.rs`
-- Added `#[async_trait]` to `TradingApi` trait for dyn-compatibility
-- Added `tower` dev-dependency for api_server test compilation
-- ADR-006: Broker abstraction architecture decision record
-- Added `pub mod ai_bridge` to `lib.rs` (was missing, preventing test discovery)
-- 10 new tests for API key encryption and SecureYeoman provider
+- 326 tests total, 0 failures, 0 clippy warnings
 - `api_server` expanded from 5 to 10 endpoints (trading + AI)
-- `AiBridgeService` Flutter HTTP client (`flutter/lib/services/ai_bridge_service.dart`)
 - Anthropic default model updated to `claude-sonnet-4-6`
+- No new Rust dependencies added (uses existing tokio, ring, axum)
 
 ---
 

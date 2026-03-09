@@ -33,10 +33,6 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 # HTTP API server
 axum = "0.7"
 
-# gRPC
-tonic = "0.10"
-prost = "0.12"
-
 # Logging
 log = "0.4"
 env_logger = "0.10"
@@ -47,9 +43,6 @@ rand = "0.8"
 [[bin]]
 name = "api_server"
 path = "src/bin/api_server.rs"
-
-[build-dependencies]
-tonic-build = "0.10"
 
 [dev-dependencies]
 criterion = "0.5"

@@ -1,11 +1,12 @@
 # BullShift Roadmap
 
-**Version:** 2027.9.3
+**Version:** 2026.3.9
+**Versioning:** CalVer `YYYY.M.D` (patches as `YYYY.M.D-N`)
 **Last Updated:** March 9, 2026
 
 ---
 
-## 2026.5.x - AI Enhancement (Complete)
+## 2026.3.5 - AI Enhancement (Complete)
 
 ### Focus: AI Bridge backend implementations
 
@@ -19,7 +20,7 @@
 
 ---
 
-## 2026.6.x - SecureYeoman Deep Integration (Complete)
+## 2026.3.5-1 - SecureYeoman Deep Integration (Complete)
 
 ### Focus: Remaining integration paths with SecureYeoman autonomous agent system
 
@@ -45,7 +46,7 @@
 
 ---
 
-## 2026.3.6 - Trading Extensions (Complete)
+## 2026.3.5-2 - Trading Extensions (Complete)
 
 ### Focus: Webhook notifications, spreadsheet integration, algorithmic trading, options trading
 
@@ -68,7 +69,7 @@
 
 ---
 
-## 2027.1.x - Production Ready (Complete)
+## 2026.3.5-3 - Production Ready (Complete)
 
 ### Focus: Production deployment features
 
@@ -93,7 +94,7 @@
 
 ---
 
-## 2027.2.x - Platform Extensions (Complete)
+## 2026.3.5-4 - Platform Extensions (Complete)
 
 ### Focus: Additional brokers, plugin system, indicator framework, mobile improvements
 
@@ -122,7 +123,7 @@
 
 ---
 
-## 2027.3.x - Real-time Streaming (Complete)
+## 2026.3.5-5 - Real-time Streaming (Complete)
 
 ### Focus: WebSocket streaming API for real-time data
 
@@ -136,7 +137,7 @@
 
 ---
 
-## 2027.9.3 - MCP API Endpoints & Portfolio Features (Complete)
+## 2026.3.9 - MCP API Endpoints & Portfolio Features (Complete)
 
 ### Focus: REST endpoints for MCP tool integration, multi-currency support, tax lot tracking
 
@@ -219,9 +220,7 @@ The BullShift `api_server` binary exposes REST endpoints that SecureYeoman proxi
 
 | Version | Date | Status |
 |---------|------|--------|
-| 2027.9.3 | 2026-03-09 | Released |
-| 2027.3.0 | 2026-03-05 | Released |
-| 2026.3.6 | 2026-03-05 | Released |
+| 2026.3.9 | 2026-03-09 | Released |
 | 2026.3.5 | 2026-03-05 | Released |
 | 2026.2.22 | 2026-02-22 | Released |
 | 2026.2.16 | 2026-02-16 | Released |

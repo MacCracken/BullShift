@@ -1,14 +1,14 @@
 #!/bin/bash
 # BullShift Version Bump Script
 # Usage: ./bump-version.sh <new_version>
-# Example: ./bump-version.sh 2026.3.5
+# Example: ./bump-version.sh 2026.3.9
 
 set -e
 
 if [ -z "$1" ]; then
     echo "Current version: $(cat VERSION)"
     echo "Usage: $0 <new_version>"
-    echo "Example: $0 2026.3.5"
+    echo "Example: $0 2026.3.9"
     exit 1
 fi
 

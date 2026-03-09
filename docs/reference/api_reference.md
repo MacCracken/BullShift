@@ -949,25 +949,24 @@ const client = new BullShiftWS('your-api-token');
 ## API Versioning
 
 ### Version Format
-- **Major Version** - Breaking changes
-- **Minor Version** - New features, backward compatible
-- **Patch Version** - Bug fixes, security patches
+BullShift uses CalVer: `YYYY.M.D` (year, month, day). Same-day patches use
+`YYYY.M.D-N` suffix (e.g., `2026.3.5-1`).
 
-### Current Version: 2026.3.5
+### Current Version: 2026.3.9
 
 ### Supported Versions
 - **2026.3.x** - Current stable version
 
 ### Version Headers
 ```http
-API-Version: 2026.2.16
+API-Version: 2026.3.9
 Content-Type: application/json
 Authorization: Bearer your-token
 ```
 
 ---
 
-**API Reference Version: 2026.3.5**
-**Last Updated: March 5, 2026**
+**API Reference Version: 2026.3.9**
+**Last Updated: March 9, 2026**
 
 For additional examples and integration guides, see the [Examples](docs/examples/) directory.

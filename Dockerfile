@@ -7,8 +7,7 @@ FROM rust:1.82-bookworm AS builder
 WORKDIR /build
 
 # Cache dependencies by copying manifests first
-COPY rust/Cargo.toml rust/Cargo.lock* rust/build.rs ./
-COPY rust/proto ./proto
+COPY rust/Cargo.toml rust/Cargo.lock ./
 
 # Create a dummy main/lib so cargo fetches deps
 RUN mkdir -p src/bin && \
@@ -19,7 +18,6 @@ RUN mkdir -p src/bin && \
 
 # Copy real source and build
 COPY rust/src ./src
-COPY rust/build.rs ./build.rs
 RUN cargo build --release --bin api_server
 
 # ---- Runtime stage ----
