@@ -80,19 +80,21 @@ impl SecurityManager {
         #[cfg(target_os = "linux")]
         {
             use std::process::Command;
-            let output = Command::new("secret-tool")
+
+            // Try libsecret first, fall back to file-based storage
+            if let Ok(output) = Command::new("secret-tool")
                 .args(["lookup", "name", "BullShift_Encryption_Key"])
                 .output()
-                .map_err(|e| {
-                    BullShiftError::Keychain(format!("Failed to access libsecret: {}", e))
-                })?;
+            {
+                if output.status.success() {
+                    if let Ok(key_data) = String::from_utf8(output.stdout) {
+                        if key_data.len() >= 32 {
+                            return Ok(key_data.as_bytes()[0..32].to_vec());
+                        }
+                    }
+                }
 
-            if output.status.success() {
-                let key_data = String::from_utf8(output.stdout)
-                    .map_err(|e| BullShiftError::Security(format!("Invalid key data: {}", e)))?;
-                Ok(key_data.as_bytes()[0..32].to_vec())
-            } else {
-                // Generate and store new key
+                // secret-tool exists but no key stored yet — generate and store
                 let rng = SystemRandom::new();
                 let mut key_bytes = [0u8; 32];
                 rng.fill(&mut key_bytes).map_err(|e| {
@@ -100,7 +102,7 @@ impl SecurityManager {
                 })?;
 
                 let key_hex = hex::encode(key_bytes);
-                Command::new("secret-tool")
+                let _ = Command::new("secret-tool")
                     .args([
                         "store",
                         "--label=BullShift Encryption Key",
@@ -109,68 +111,69 @@ impl SecurityManager {
                         "password",
                         &key_hex,
                     ])
-                    .output()
-                    .map_err(|e| BullShiftError::Keychain(format!("Failed to store key: {}", e)))?;
+                    .output();
 
-                Ok(key_bytes.to_vec())
+                return Ok(key_bytes.to_vec());
             }
+
+            // secret-tool not available — fall back to file-based key storage
+            Self::derive_key_from_file()
         }
 
         #[cfg(not(any(target_os = "macos", target_os = "linux")))]
         {
-            use std::fs;
-            use std::path::PathBuf;
-
-            let home_dir = dirs::home_dir().ok_or_else(|| {
-                BullShiftError::Security("Cannot find home directory".to_string())
-            })?;
-            let key_file = home_dir.join(".bullshift").join(".encryption_key");
-
-            if key_file.exists() {
-                let key_data = fs::read(&key_file).map_err(|e| {
-                    BullShiftError::Security(format!("Failed to read key file: {}", e))
-                })?;
-
-                if key_data.len() >= 32 {
-                    return Ok(key_data[0..32].to_vec());
-                }
-            }
-
-            // Generate and store new key
-            let rng = SystemRandom::new();
-            let mut key_bytes = [0u8; 32];
-            rng.fill(&mut key_bytes).map_err(|e| {
-                BullShiftError::Encryption(format!("Failed to generate key: {}", e))
-            })?;
-
-            let key_dir = key_file.parent().unwrap();
-            if !key_dir.exists() {
-                fs::create_dir_all(key_dir).map_err(|e| {
-                    BullShiftError::Security(format!("Failed to create key directory: {}", e))
-                })?;
-            }
-
-            fs::write(&key_file, &key_bytes).map_err(|e| {
-                BullShiftError::Security(format!("Failed to write key file: {}", e))
-            })?;
-
-            // Set restrictive permissions
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let mut perms = fs::metadata(&key_file)
-                    .map_err(|e| {
-                        BullShiftError::Security(format!("Failed to get file metadata: {}", e))
-                    })?
-                    .permissions();
-                perms.set_mode(0o600); // Read/write for owner only
-                fs::set_permissions(&key_file, perms).map_err(|e| {
-                    BullShiftError::Security(format!("Failed to set file permissions: {}", e))
-                })?;
-            }
-
-            return Ok(key_bytes.to_vec());
+            Self::derive_key_from_file()
         }
+    }
+
+    fn derive_key_from_file() -> Result<Vec<u8>, BullShiftError> {
+        use std::fs;
+
+        let home_dir = dirs::home_dir()
+            .ok_or_else(|| BullShiftError::Security("Cannot find home directory".to_string()))?;
+        let key_file = home_dir.join(".bullshift").join(".encryption_key");
+
+        if key_file.exists() {
+            let key_data = fs::read(&key_file)
+                .map_err(|e| BullShiftError::Security(format!("Failed to read key file: {}", e)))?;
+
+            if key_data.len() >= 32 {
+                return Ok(key_data[0..32].to_vec());
+            }
+        }
+
+        // Generate and store new key
+        let rng = SystemRandom::new();
+        let mut key_bytes = [0u8; 32];
+        rng.fill(&mut key_bytes)
+            .map_err(|e| BullShiftError::Encryption(format!("Failed to generate key: {}", e)))?;
+
+        let key_dir = key_file.parent().unwrap();
+        if !key_dir.exists() {
+            fs::create_dir_all(key_dir).map_err(|e| {
+                BullShiftError::Security(format!("Failed to create key directory: {}", e))
+            })?;
+        }
+
+        fs::write(&key_file, key_bytes)
+            .map_err(|e| BullShiftError::Security(format!("Failed to write key file: {}", e)))?;
+
+        // Set restrictive permissions
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&key_file)
+                .map_err(|e| {
+                    BullShiftError::Security(format!("Failed to get file metadata: {}", e))
+                })?
+                .permissions();
+            perms.set_mode(0o600); // Read/write for owner only
+            fs::set_permissions(&key_file, perms).map_err(|e| {
+                BullShiftError::Security(format!("Failed to set file permissions: {}", e))
+            })?;
+        }
+
+        Ok(key_bytes.to_vec())
     }
 
     pub fn store_credentials(

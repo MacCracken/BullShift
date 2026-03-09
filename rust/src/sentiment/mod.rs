@@ -327,7 +327,7 @@ impl NewsSource for RssFeedSource {
     async fn fetch_articles(&self, client: &Client) -> Result<Vec<NewsArticle>, BullShiftError> {
         let resp = client
             .get(&self.feed_url)
-            .header("User-Agent", "BullShift/2026.3.5")
+            .header("User-Agent", "BullShift/2026.3.9")
             .send()
             .await
             .map_err(|e| BullShiftError::Network(format!("RSS fetch failed: {}", e)))?;

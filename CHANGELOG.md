@@ -2,7 +2,7 @@
 
 All notable changes to BullShift Trading Platform will be documented in this file.
 
-## [2027.9.3] - 2026-03-09
+## [2026.3.9] - 2026-03-09
 
 ### Added
 - **Market data API endpoint** — `GET /v1/market/:symbol` returns real-time quote
@@ -40,6 +40,19 @@ All notable changes to BullShift Trading Platform will be documented in this fil
   gains classification (365-day threshold), `TaxReport` annual generation with
   short/long-term gains/losses breakdown and wash sale detection (30-day window),
   `SymbolTaxSummary` per-symbol open lot reporting. 22 new tests
+- **Security audit CI job** — `cargo audit` added to GitHub Actions CI pipeline,
+  gating build and Docker jobs on security check
+- **SecurityManager fallback** — Linux key derivation now falls back to file-based
+  storage (`~/.bullshift/.encryption_key`) when `secret-tool` (libsecret) is
+  unavailable (fixes CI test failures)
+
+### Security
+- Input validation on `record_buy()` / `record_buy_with_date()` — rejects
+  non-positive/non-finite quantity, negative/non-finite price and commission
+- Symbol sanitization (`validate_symbol()`) — max 10 chars, alphanumeric + `.` + `-`
+- Query limit capping (`clamp_limit()`) — prevents DoS via unbounded queries
+- Division-by-zero guards in `ExchangeRates::convert()` and `set_rate()`
+- Deposit/withdraw validation — rejects negative and non-finite amounts
 
 ### Technical
 - 372 tests total (358 lib + 14 bin), 0 failures, 0 clippy warnings
@@ -47,10 +60,11 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 - API server expanded from 10 to 21 endpoints (trading, market data, algo,
   sentiment, alerts, AI)
 - No new Rust dependencies added
+- CalVer format corrected to YYYY.M.D (was inconsistently using wrong formats)
 
 ---
 
-## [2027.3.0] - 2026-03-05
+## [2026.3.5-5] - 2026-03-05
 
 ### Added
 - **Real-time WebSocket streaming API** — `StreamingServer` in `src/websocket/`
@@ -68,7 +82,7 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 
 ---
 
-## [2027.2.0] - 2026-03-05
+## [2026.3.5-4] - 2026-03-05
 
 ### Added
 - **Charles Schwab broker** — `SchwabApi` in `src/trading/brokers/schwab.rs` with
@@ -108,7 +122,7 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 
 ---
 
-## [2027.1.0] - 2026-03-05
+## [2026.3.5-3] - 2026-03-05
 
 ### Added
 - **Docker containerization** — multi-stage `Dockerfile` with dependency caching,
@@ -140,7 +154,7 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 
 ---
 
-## [2026.3.6] - 2026-03-05
+## [2026.3.5-2] - 2026-03-05
 
 ### Added
 - **Webhook notifications** — `WebhookManager` in `src/webhooks/` with Slack,
@@ -170,7 +184,7 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 
 ---
 
-## [2026.6.0] - 2026-03-05
+## [2026.3.5-1] - 2026-03-05
 
 ### Added
 - **SecureYeoman integration bridge** — `SecureYeomanBridge` in `src/integration/`
@@ -248,35 +262,6 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 - **`BrokerCapabilities` metadata** — each broker declares what it supports
   (fractional shares, options, crypto, short selling, extended hours, etc.)
 - **Broker integration guide** — `docs/guides/broker-integration.md`
-
-### Changed
-- `TradingApiManager.set_default()` now returns `bool` indicating success
-- `TradingApiManager` gains `cancel_order()` forwarding (was missing)
-- `TradingApiManager.register_broker()` replaces `add_api()` (legacy kept)
-
-### Fixed
-- **AES-256-GCM encryption buffer bug** — `encrypt_sensitive_data()` was pre-resizing
-  the buffer with zeroes before `seal_in_place_append_tag()`, causing 16 null bytes
-  to be appended to decrypted plaintext. Fixed by letting the seal function handle
-  buffer growth.
-
-### Technical
-- New `trading/brokers/` submodule with `mod.rs`, `interactive_brokers.rs`,
-  `tradier.rs`, `robinhood.rs`
-- Added `#[async_trait]` to `TradingApi` trait for dyn-compatibility
-- Added `tower` dev-dependency for api_server test compilation
-- ADR-006: Broker abstraction architecture decision record
-- Added `pub mod ai_bridge` to `lib.rs` (was missing, preventing test discovery)
-- 10 new tests for API key encryption and SecureYeoman provider
-- `api_server` expanded from 5 to 10 endpoints (trading + AI)
-- `AiBridgeService` Flutter HTTP client (`flutter/lib/services/ai_bridge_service.dart`)
-- Anthropic default model updated to `claude-sonnet-4-6`
-
----
-
-## [2026.3.5] - 2026-03-05
-
-### Added
 - **Comprehensive code audit** — 28 findings identified and 27 resolved
   (`docs/development/code-audit-2026-03.md`)
 - **VERSION file** and `bump-version.sh` for consistent versioning
@@ -284,7 +269,21 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 - **`BullShiftError` migration** — all Rust modules now use structured error
   types instead of `Result<T, String>`
 
+### Changed
+- `TradingApiManager.set_default()` now returns `bool` indicating success
+- `TradingApiManager` gains `cancel_order()` forwarding (was missing)
+- `TradingApiManager.register_broker()` replaces `add_api()` (legacy kept)
+- Advanced charting widget decomposed from 2491-line god class into 7 focused
+  files: `chart_toolbar.dart`, `candlestick_painter.dart`, `volume_painter.dart`,
+  `indicator_painter.dart`, `comparison_chart.dart`, `chart_enums.dart`
+- 36 unsafe type casts across 9 Flutter files migrated to `safe_cast.dart`
+- Build script updated: removed redundant `$?` checks, `flutter packages pub run` → `dart run`
+
 ### Fixed
+- **AES-256-GCM encryption buffer bug** — `encrypt_sensitive_data()` was pre-resizing
+  the buffer with zeroes before `seal_in_place_append_tag()`, causing 16 null bytes
+  to be appended to decrypted plaintext. Fixed by letting the seal function handle
+  buffer growth.
 - Missing `async-trait` dependency preventing compilation
 - Mutex poisoning risk in 11 database methods
 - NaN panic in float sorting (4 locations)
@@ -305,12 +304,17 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 - `tonic-build` moved to correct `[build-dependencies]` section
 - Tokio features narrowed from `"full"` to specific subset
 
-### Changed
-- Advanced charting widget decomposed from 2491-line god class into 7 focused
-  files: `chart_toolbar.dart`, `candlestick_painter.dart`, `volume_painter.dart`,
-  `indicator_painter.dart`, `comparison_chart.dart`, `chart_enums.dart`
-- 36 unsafe type casts across 9 Flutter files migrated to `safe_cast.dart`
-- Build script updated: removed redundant `$?` checks, `flutter packages pub run` → `dart run`
+### Technical
+- New `trading/brokers/` submodule with `mod.rs`, `interactive_brokers.rs`,
+  `tradier.rs`, `robinhood.rs`
+- Added `#[async_trait]` to `TradingApi` trait for dyn-compatibility
+- Added `tower` dev-dependency for api_server test compilation
+- ADR-006: Broker abstraction architecture decision record
+- Added `pub mod ai_bridge` to `lib.rs` (was missing, preventing test discovery)
+- 10 new tests for API key encryption and SecureYeoman provider
+- `api_server` expanded from 5 to 10 endpoints (trading + AI)
+- `AiBridgeService` Flutter HTTP client (`flutter/lib/services/ai_bridge_service.dart`)
+- Anthropic default model updated to `claude-sonnet-4-6`
 
 ---
 
@@ -361,4 +365,4 @@ Features from earlier alpha/beta releases included:
 
 For older releases, please refer to the git history.
 
-*Last Updated: March 7, 2026*
+*Last Updated: March 9, 2026*
