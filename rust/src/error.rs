@@ -120,11 +120,14 @@ mod tests {
     fn test_result_type_alias() {
         // Verify that Result<i32> works as std::result::Result<i32, BullShiftError>
         let ok_result: Result<i32> = Ok(42);
-        assert_eq!(ok_result.unwrap(), 42);
+        assert!(ok_result.is_ok());
+        assert_eq!(ok_result.as_ref().ok(), Some(&42));
 
         let err_result: Result<i32> = Err(BullShiftError::Validation("invalid".to_string()));
         assert!(err_result.is_err());
-        let err = err_result.unwrap_err();
-        assert_eq!(format!("{}", err), "Validation error: invalid");
+        assert_eq!(
+            format!("{}", err_result.as_ref().err().unwrap()),
+            "Validation error: invalid"
+        );
     }
 }

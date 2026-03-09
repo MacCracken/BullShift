@@ -20,7 +20,7 @@ pub struct CoinbaseApi {
     client: Client,
     base_url: String,
     api_key: String,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // needed for authenticated account-scoped requests
     account_id: String,
 }
 
@@ -79,7 +79,10 @@ impl CoinbaseApi {
         match order_type.to_uppercase().as_str() {
             "MARKET" => "market_market_ioc",
             "LIMIT" => "limit_limit_gtc",
-            _ => "market_market_ioc",
+            other => {
+                log::warn!("Unknown order type '{}', defaulting to market", other);
+                "market_market_ioc"
+            }
         }
     }
 

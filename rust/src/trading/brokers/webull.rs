@@ -79,7 +79,10 @@ impl WebullApi {
             "LIMIT" => "LMT",
             "STOP" => "STP",
             "STOP_LIMIT" => "STP LMT",
-            _ => "MKT",
+            other => {
+                log::warn!("Unknown order type '{}', defaulting to MKT", other);
+                "MKT"
+            }
         }
     }
 
@@ -87,7 +90,10 @@ impl WebullApi {
         match tif.unwrap_or("DAY").to_uppercase().as_str() {
             "GTC" => "GTC",
             "IOC" => "IOC",
-            _ => "DAY",
+            other => {
+                log::warn!("Unknown time-in-force '{}', defaulting to DAY", other);
+                "DAY"
+            }
         }
     }
 

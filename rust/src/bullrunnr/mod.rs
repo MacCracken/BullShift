@@ -589,7 +589,7 @@ mod tests {
     #[test]
     fn test_news_category_variants() {
         // Verify all NewsCategory variants exist and can be constructed
-        let categories = vec![
+        let categories = [
             NewsCategory::Earnings,
             NewsCategory::MergersAcquisitions,
             NewsCategory::Regulatory,
@@ -718,5 +718,215 @@ mod tests {
         assert_eq!(sentiment.neutral_count, 0);
         assert_eq!(sentiment.total_articles, 0);
         assert_eq!(sentiment.fear_greed_index, 0.0);
+    }
+
+    #[test]
+    fn test_source_credibility_tiers() {
+        let runnr = BullRunnr::new();
+        assert_eq!(runnr.get_source_credibility("Reuters"), 1.0);
+        assert_eq!(runnr.get_source_credibility("Bloomberg"), 1.0);
+        assert_eq!(runnr.get_source_credibility("Associated Press"), 1.0);
+        assert_eq!(runnr.get_source_credibility("CNBC"), 0.8);
+        assert_eq!(runnr.get_source_credibility("MarketWatch"), 0.8);
+        assert_eq!(runnr.get_source_credibility("Seeking Alpha"), 0.7);
+        assert_eq!(runnr.get_source_credibility("random blog"), 0.5);
+    }
+
+    #[test]
+    fn test_relevance_score_with_symbols() {
+        let runnr = BullRunnr::new();
+        let article_with_symbols = make_test_article("1", "AAPL");
+        let score = runnr.calculate_relevance_score(&article_with_symbols);
+        assert!(score > 0.0 && score <= 1.0);
+    }
+
+    #[test]
+    fn test_relevance_score_without_symbols() {
+        let runnr = BullRunnr::new();
+        let mut article = make_test_article("1", "AAPL");
+        article.symbols.clear();
+        let score_no_sym = runnr.calculate_relevance_score(&article);
+        // Without symbols, symbol_score is 0.5 instead of 1.0
+        article.symbols.push("AAPL".to_string());
+        let score_with_sym = runnr.calculate_relevance_score(&article);
+        assert!(score_with_sym > score_no_sym);
+    }
+
+    #[test]
+    fn test_relevance_score_source_weight() {
+        let runnr = BullRunnr::new();
+        let mut reuters_article = make_test_article("1", "AAPL");
+        reuters_article.source = "Reuters".to_string();
+        let mut blog_article = make_test_article("2", "AAPL");
+        blog_article.source = "random blog".to_string();
+        // Same content and time, only source differs
+        blog_article.published_at = reuters_article.published_at;
+
+        let reuters_score = runnr.calculate_relevance_score(&reuters_article);
+        let blog_score = runnr.calculate_relevance_score(&blog_article);
+        assert!(reuters_score > blog_score);
+    }
+
+    #[test]
+    fn test_update_market_sentiment_bullish() {
+        let mut runnr = BullRunnr::new();
+        let mut articles = vec![
+            make_test_article("1", "AAPL"),
+            make_test_article("2", "TSLA"),
+            make_test_article("3", "GOOG"),
+        ];
+        // Set bullish sentiment scores
+        articles[0].sentiment.score = 0.8;
+        articles[1].sentiment.score = 0.5;
+        articles[2].sentiment.score = 0.3;
+
+        runnr.update_market_sentiment(&articles);
+
+        let ms = runnr.get_market_sentiment();
+        assert_eq!(ms.total_articles, 3);
+        assert!(ms.overall_score > 0.0);
+        assert!(ms.bullish_count > 0);
+        assert!(ms.fear_greed_index > 50.0);
+    }
+
+    #[test]
+    fn test_update_market_sentiment_bearish() {
+        let mut runnr = BullRunnr::new();
+        let mut articles = vec![
+            make_test_article("1", "AAPL"),
+            make_test_article("2", "TSLA"),
+        ];
+        articles[0].sentiment.score = -0.7;
+        articles[1].sentiment.score = -0.5;
+
+        runnr.update_market_sentiment(&articles);
+
+        let ms = runnr.get_market_sentiment();
+        assert!(ms.overall_score < 0.0);
+        assert_eq!(ms.bearish_count, 2);
+        assert!(ms.fear_greed_index < 50.0);
+    }
+
+    #[test]
+    fn test_update_market_sentiment_empty() {
+        let mut runnr = BullRunnr::new();
+        runnr.update_market_sentiment(&[]);
+
+        let ms = runnr.get_market_sentiment();
+        assert_eq!(ms.total_articles, 0);
+        assert_eq!(ms.overall_score, 0.0);
+        assert_eq!(ms.fear_greed_index, 50.0);
+    }
+
+    #[test]
+    fn test_calculate_sentiment_trend_improving() {
+        let runnr = BullRunnr::new();
+        let scores = vec![-0.5, -0.3, -0.1, 0.2, 0.5, 0.8];
+        let trend = runnr.calculate_sentiment_trend(&scores);
+        assert!(matches!(trend, SentimentTrend::Improving));
+    }
+
+    #[test]
+    fn test_calculate_sentiment_trend_declining() {
+        let runnr = BullRunnr::new();
+        let scores = vec![0.8, 0.6, 0.4, -0.1, -0.3, -0.5];
+        let trend = runnr.calculate_sentiment_trend(&scores);
+        assert!(matches!(trend, SentimentTrend::Declining));
+    }
+
+    #[test]
+    fn test_calculate_sentiment_trend_stable() {
+        let runnr = BullRunnr::new();
+        let scores = vec![0.1, 0.15, 0.12, 0.11, 0.13, 0.14];
+        let trend = runnr.calculate_sentiment_trend(&scores);
+        assert!(matches!(trend, SentimentTrend::Stable));
+    }
+
+    #[test]
+    fn test_calculate_sentiment_trend_few_scores() {
+        let runnr = BullRunnr::new();
+        // Fewer than 3 scores should return Stable
+        let trend = runnr.calculate_sentiment_trend(&[0.5, -0.5]);
+        assert!(matches!(trend, SentimentTrend::Stable));
+        let trend = runnr.calculate_sentiment_trend(&[]);
+        assert!(matches!(trend, SentimentTrend::Stable));
+    }
+
+    #[test]
+    fn test_get_top_sentiment_movers() {
+        let mut runnr = BullRunnr::new();
+        let mut articles = Vec::new();
+        // AAPL: 5 articles (buzz = 0.5), TSLA: 1 article (buzz = 0.1)
+        for i in 0..5 {
+            articles.push(make_test_article(&format!("a{}", i), "AAPL"));
+        }
+        articles.push(make_test_article("t1", "TSLA"));
+
+        runnr.update_symbol_sentiment(&articles);
+
+        let movers = runnr.get_top_sentiment_movers(10);
+        assert_eq!(movers.len(), 2);
+        // AAPL should be first (higher buzz score)
+        assert_eq!(movers[0].symbol, "AAPL");
+        assert_eq!(movers[1].symbol, "TSLA");
+        assert!(movers[0].buzz_score > movers[1].buzz_score);
+    }
+
+    #[test]
+    fn test_get_top_sentiment_movers_with_limit() {
+        let mut runnr = BullRunnr::new();
+        let articles = vec![
+            make_test_article("1", "AAPL"),
+            make_test_article("2", "TSLA"),
+            make_test_article("3", "GOOG"),
+        ];
+        runnr.update_symbol_sentiment(&articles);
+
+        let movers = runnr.get_top_sentiment_movers(1);
+        assert_eq!(movers.len(), 1);
+    }
+
+    #[test]
+    fn test_article_cache_eviction() {
+        let mut runnr = BullRunnr::new();
+        // Add > 1100 articles to trigger eviction
+        let mut articles = Vec::new();
+        for i in 0..1200 {
+            let mut article = make_test_article(&format!("art-{}", i), "TEST");
+            // Stagger timestamps so oldest gets evicted
+            article.published_at = Utc::now() - chrono::Duration::hours(1200 - i as i64);
+            articles.push(article);
+        }
+        runnr.update_article_cache(&articles);
+        // Should have been trimmed to 1000
+        assert!(runnr.article_cache.len() <= 1000);
+    }
+
+    #[test]
+    fn test_vader_mixed_sentiment() {
+        let analyzer = VaderSentimentAnalyzer::new();
+        // "great" (+1) and "crash" (-1) should cancel out
+        let result = analyzer.analyze("great stock but market crash");
+        assert!(result.score.abs() < 0.5);
+    }
+
+    #[test]
+    fn test_vader_empty_text() {
+        let analyzer = VaderSentimentAnalyzer::new();
+        let result = analyzer.analyze("");
+        assert_eq!(result.score, 0.0);
+    }
+
+    #[test]
+    fn test_symbol_sentiment_buzz_score_capped() {
+        let mut runnr = BullRunnr::new();
+        // 20 articles for one symbol — buzz = min(20/10, 1.0) = 1.0
+        let mut articles = Vec::new();
+        for i in 0..20 {
+            articles.push(make_test_article(&format!("x{}", i), "MEGA"));
+        }
+        runnr.update_symbol_sentiment(&articles);
+        let sentiment = runnr.get_symbol_sentiment("MEGA").unwrap();
+        assert!((sentiment.buzz_score - 1.0).abs() < f64::EPSILON);
     }
 }

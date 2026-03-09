@@ -901,7 +901,7 @@ mod tests {
         }
         assert!(rsi.is_ready());
         let val = rsi.value().unwrap();
-        assert!(val >= 0.0 && val <= 100.0);
+        assert!((0.0..=100.0).contains(&val));
     }
 
     #[test]
@@ -994,8 +994,8 @@ mod tests {
         assert!(stoch.is_ready());
         let k = stoch.k_value().unwrap();
         let d = stoch.d_value().unwrap();
-        assert!(k >= 0.0 && k <= 100.0, "%K out of range: {k}");
-        assert!(d >= 0.0 && d <= 100.0, "%D out of range: {d}");
+        assert!((0.0..=100.0).contains(&k), "%K out of range: {k}");
+        assert!((0.0..=100.0).contains(&d), "%D out of range: {d}");
     }
 
     #[test]

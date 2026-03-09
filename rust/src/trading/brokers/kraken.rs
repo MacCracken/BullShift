@@ -75,7 +75,10 @@ impl KrakenApi {
         match order_type.to_uppercase().as_str() {
             "MARKET" => "market",
             "LIMIT" => "limit",
-            _ => "market",
+            other => {
+                log::warn!("Unknown order type '{}', defaulting to market", other);
+                "market"
+            }
         }
     }
 
@@ -83,7 +86,10 @@ impl KrakenApi {
         match side.to_uppercase().as_str() {
             "BUY" => "buy",
             "SELL" => "sell",
-            _ => "buy",
+            other => {
+                log::warn!("Unknown side '{}', defaulting to buy", other);
+                "buy"
+            }
         }
     }
 

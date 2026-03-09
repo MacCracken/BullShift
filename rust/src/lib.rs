@@ -184,9 +184,8 @@ pub extern "C" fn submit_order(order: TradeOrder) -> bool {
 
 #[no_mangle]
 pub extern "C" fn get_positions() -> *mut Position {
-    // Return current positions - properly allocate memory
-    // Note: In production, this would return actual positions
-    // For now, return null to indicate no positions
+    // TODO: Wire to TradingApiManager once FFI bridge is implemented.
+    // Returns null to indicate no positions.
     std::ptr::null_mut()
 }
 
@@ -210,7 +209,8 @@ pub unsafe extern "C" fn connect_market_data(symbol: *const c_char) -> bool {
 
 #[no_mangle]
 pub extern "C" fn get_account_balance() -> f64 {
-    // Return account balance
+    // TODO: Wire to TradingApiManager once FFI bridge is implemented.
+    // Returns hardcoded stub value.
     10000.0
 }
 

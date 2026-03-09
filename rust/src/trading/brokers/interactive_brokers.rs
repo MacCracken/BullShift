@@ -80,7 +80,10 @@ impl InteractiveBrokersApi {
             "LIMIT" => "LMT",
             "STOP" => "STP",
             "STOP_LIMIT" => "STP LMT",
-            _ => "MKT",
+            other => {
+                log::warn!("Unknown order type '{}', defaulting to MKT", other);
+                "MKT"
+            }
         }
     }
 
@@ -88,7 +91,10 @@ impl InteractiveBrokersApi {
         match side.to_uppercase().as_str() {
             "BUY" => "BUY",
             "SELL" => "SELL",
-            _ => "BUY",
+            other => {
+                log::warn!("Unknown side '{}', defaulting to BUY", other);
+                "BUY"
+            }
         }
     }
 }

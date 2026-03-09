@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub struct ExecutionEngine {
-    #[allow(dead_code)]
+    #[allow(dead_code)] // retained for live execution wiring
     positions: Arc<Mutex<HashMap<String, Position>>>,
 }
 

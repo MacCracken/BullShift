@@ -525,4 +525,127 @@ mod tests {
         let result = bridge.validate_agent_order("AAPL", "BUY", f64::INFINITY, "MARKET", None);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_validate_all_order_types() {
+        let bridge = SecureYeomanBridge::new(IntegrationConfig::default());
+
+        let market = bridge
+            .validate_agent_order("AAPL", "BUY", 10.0, "MARKET", None)
+            .unwrap();
+        assert_eq!(market.order_type, crate::trading::OrderType::Market);
+
+        let limit = bridge
+            .validate_agent_order("AAPL", "SELL", 10.0, "LIMIT", Some(150.0))
+            .unwrap();
+        assert_eq!(limit.order_type, crate::trading::OrderType::Limit);
+
+        let stop = bridge
+            .validate_agent_order("TSLA", "SELL", 5.0, "STOP", Some(200.0))
+            .unwrap();
+        assert_eq!(stop.order_type, crate::trading::OrderType::Stop);
+
+        let stop_limit = bridge
+            .validate_agent_order("GOOG", "BUY", 3.0, "STOP_LIMIT", Some(100.0))
+            .unwrap();
+        assert_eq!(stop_limit.order_type, crate::trading::OrderType::StopLimit);
+    }
+
+    #[test]
+    fn test_validate_invalid_order_type() {
+        let bridge = SecureYeomanBridge::new(IntegrationConfig::default());
+        let result = bridge.validate_agent_order("AAPL", "BUY", 10.0, "TRAILING_STOP", None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_case_insensitive_side() {
+        let bridge = SecureYeomanBridge::new(IntegrationConfig::default());
+        let buy = bridge
+            .validate_agent_order("AAPL", "buy", 10.0, "market", None)
+            .unwrap();
+        assert_eq!(buy.side, OrderSide::Buy);
+
+        let sell = bridge
+            .validate_agent_order("AAPL", "Sell", 10.0, "Market", None)
+            .unwrap();
+        assert_eq!(sell.side, OrderSide::Sell);
+    }
+
+    #[test]
+    fn test_validate_order_has_pending_status() {
+        let bridge = SecureYeomanBridge::new(IntegrationConfig::default());
+        let order = bridge
+            .validate_agent_order("AAPL", "BUY", 100.0, "MARKET", None)
+            .unwrap();
+        assert_eq!(order.status, OrderStatus::Pending);
+    }
+
+    #[tokio::test]
+    async fn test_emit_event_broadcasts_to_subscriber() {
+        let mut bridge = SecureYeomanBridge::new(IntegrationConfig {
+            auto_emit_events: false,
+            ..Default::default()
+        });
+        let mut rx = bridge.subscribe();
+
+        let event = make_test_event("AAPL", TradeEventType::OrderFilled);
+        bridge.emit_event(event).await.unwrap();
+
+        let received = rx.recv().await.unwrap();
+        assert_eq!(received.symbol, "AAPL");
+        assert!(matches!(received.event_type, TradeEventType::OrderFilled));
+    }
+
+    #[test]
+    fn test_trade_event_type_display_all_variants() {
+        assert_eq!(TradeEventType::OrderSubmitted.to_string(), "order.submitted");
+        assert_eq!(TradeEventType::OrderFilled.to_string(), "order.filled");
+        assert_eq!(
+            TradeEventType::OrderPartiallyFilled.to_string(),
+            "order.partially_filled"
+        );
+        assert_eq!(TradeEventType::OrderCancelled.to_string(), "order.cancelled");
+        assert_eq!(TradeEventType::OrderRejected.to_string(), "order.rejected");
+        assert_eq!(TradeEventType::PositionOpened.to_string(), "position.opened");
+        assert_eq!(TradeEventType::PositionClosed.to_string(), "position.closed");
+        assert_eq!(
+            TradeEventType::PositionUpdated.to_string(),
+            "position.updated"
+        );
+        assert_eq!(
+            TradeEventType::StopLossTriggered.to_string(),
+            "stop_loss.triggered"
+        );
+        assert_eq!(
+            TradeEventType::TakeProfitTriggered.to_string(),
+            "take_profit.triggered"
+        );
+    }
+
+    #[test]
+    fn test_bridge_not_connected_by_default() {
+        let bridge = SecureYeomanBridge::new(IntegrationConfig::default());
+        assert!(!bridge.is_connected());
+    }
+
+    #[tokio::test]
+    async fn test_recent_events_limit() {
+        let mut bridge = SecureYeomanBridge::new(IntegrationConfig {
+            auto_emit_events: false,
+            ..Default::default()
+        });
+
+        for _ in 0..10 {
+            bridge
+                .emit_event(make_test_event("X", TradeEventType::OrderSubmitted))
+                .await
+                .unwrap();
+        }
+
+        let recent_3 = bridge.recent_events(3);
+        assert_eq!(recent_3.len(), 3);
+        let recent_all = bridge.recent_events(100);
+        assert_eq!(recent_all.len(), 10);
+    }
 }

@@ -535,4 +535,213 @@ mod tests {
         assert_eq!(TradingApiManager::display_name("robinhood"), "Robinhood");
         assert_eq!(TradingApiManager::display_name("custom"), "custom");
     }
+
+    #[test]
+    fn test_alpaca_api_sandbox_url() {
+        let creds = TradingCredentials {
+            api_key: "pk_test".to_string(),
+            api_secret: "sk_test".to_string(),
+            sandbox: true,
+        };
+        let api = AlpacaApi::new(creds);
+        assert_eq!(api.base_url, "https://paper-api.alpaca.markets");
+    }
+
+    #[test]
+    fn test_alpaca_api_production_url() {
+        let creds = TradingCredentials {
+            api_key: "pk_live".to_string(),
+            api_secret: "sk_live".to_string(),
+            sandbox: false,
+        };
+        let api = AlpacaApi::new(creds);
+        assert_eq!(api.base_url, "https://api.alpaca.markets");
+    }
+
+    #[test]
+    fn test_alpaca_data_url() {
+        let creds = TradingCredentials {
+            api_key: "k".to_string(),
+            api_secret: "s".to_string(),
+            sandbox: true,
+        };
+        let api = AlpacaApi::new(creds);
+        assert_eq!(api.data_url(), "https://data.alpaca.markets");
+    }
+
+    #[test]
+    fn test_alpaca_capabilities() {
+        let caps = AlpacaApi::capabilities();
+        assert_eq!(caps.name, "alpaca");
+        assert!(caps.supports_market_orders);
+        assert!(caps.supports_limit_orders);
+        assert!(caps.supports_stop_orders);
+        assert!(caps.supports_stop_limit_orders);
+        assert!(caps.supports_fractional_shares);
+        assert!(caps.supports_short_selling);
+        assert!(!caps.supports_options);
+        assert!(caps.supports_crypto);
+        assert!(caps.supports_extended_hours);
+        assert!(caps.sandbox_available);
+    }
+
+    #[test]
+    fn test_manager_default_active_broker() {
+        let mgr = TradingApiManager::new();
+        assert_eq!(mgr.active_broker(), "alpaca");
+    }
+
+    #[test]
+    fn test_manager_empty_list_brokers() {
+        let mgr = TradingApiManager::new();
+        assert!(mgr.list_brokers().is_empty());
+    }
+
+    #[test]
+    fn test_manager_no_capabilities_for_unknown() {
+        let mgr = TradingApiManager::new();
+        assert!(mgr.get_capabilities("nonexistent").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_manager_submit_order_no_api() {
+        let mgr = TradingApiManager::new();
+        let order = ApiOrderRequest {
+            symbol: "AAPL".to_string(),
+            side: "buy".to_string(),
+            quantity: 10.0,
+            order_type: "market".to_string(),
+            price: None,
+            time_in_force: None,
+        };
+        let result = mgr.submit_order(order).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_manager_get_positions_no_api() {
+        let mgr = TradingApiManager::new();
+        assert!(mgr.get_positions().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_manager_get_account_no_api() {
+        let mgr = TradingApiManager::new();
+        assert!(mgr.get_account().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_manager_cancel_order_no_api() {
+        let mgr = TradingApiManager::new();
+        assert!(mgr.cancel_order("o-1".to_string()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_manager_submit_order_to_unknown_broker() {
+        let mgr = TradingApiManager::new();
+        let order = ApiOrderRequest {
+            symbol: "TSLA".to_string(),
+            side: "sell".to_string(),
+            quantity: 5.0,
+            order_type: "limit".to_string(),
+            price: Some(250.0),
+            time_in_force: None,
+        };
+        let result = mgr.submit_order_to("fake_broker", order).await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_manager_add_api_legacy() {
+        let mut mgr = TradingApiManager::new();
+        let creds = TradingCredentials {
+            api_key: "k".to_string(),
+            api_secret: "s".to_string(),
+            sandbox: true,
+        };
+        mgr.add_api("legacy_broker".to_string(), Box::new(AlpacaApi::new(creds)));
+        assert!(mgr.list_brokers().contains(&"legacy_broker".to_string()));
+        // No capabilities registered via add_api
+        assert!(mgr.get_capabilities("legacy_broker").is_none());
+    }
+
+    #[test]
+    fn test_manager_multiple_brokers() {
+        let mut mgr = TradingApiManager::new();
+        for name in &["alpaca", "tradier", "schwab"] {
+            let creds = TradingCredentials {
+                api_key: format!("{}_key", name),
+                api_secret: format!("{}_secret", name),
+                sandbox: true,
+            };
+            mgr.register_broker(name, Box::new(AlpacaApi::new(creds)), AlpacaApi::capabilities());
+        }
+        assert_eq!(mgr.list_brokers().len(), 3);
+        let info = mgr.get_broker_info();
+        assert_eq!(info.len(), 3);
+    }
+
+    #[test]
+    fn test_manager_default_capabilities_unknown() {
+        let caps = TradingApiManager::default_capabilities("unknown");
+        assert_eq!(caps.name, "unknown");
+        assert!(caps.supports_market_orders);
+        assert!(caps.supports_limit_orders);
+        assert!(!caps.supports_stop_orders);
+        assert!(!caps.supports_fractional_shares);
+        assert!(!caps.supports_crypto);
+    }
+
+    #[test]
+    fn test_display_names_all_brokers() {
+        assert_eq!(TradingApiManager::display_name("schwab"), "Charles Schwab");
+        assert_eq!(TradingApiManager::display_name("coinbase"), "Coinbase");
+        assert_eq!(TradingApiManager::display_name("kraken"), "Kraken");
+        assert_eq!(TradingApiManager::display_name("webull"), "Webull");
+    }
+
+    #[test]
+    fn test_broker_info_status() {
+        let mut mgr = TradingApiManager::new();
+        let creds1 = TradingCredentials {
+            api_key: "k".to_string(),
+            api_secret: "s".to_string(),
+            sandbox: true,
+        };
+        let creds2 = TradingCredentials {
+            api_key: "k2".to_string(),
+            api_secret: "s2".to_string(),
+            sandbox: true,
+        };
+        mgr.register_broker("alpaca", Box::new(AlpacaApi::new(creds1)), AlpacaApi::capabilities());
+        mgr.register_broker("tradier", Box::new(AlpacaApi::new(creds2)), AlpacaApi::capabilities());
+        mgr.set_default("alpaca".to_string());
+
+        let info = mgr.get_broker_info();
+        let alpaca_info = info.iter().find(|i| i.name == "alpaca").unwrap();
+        let tradier_info = info.iter().find(|i| i.name == "tradier").unwrap();
+        assert_eq!(alpaca_info.status, BrokerStatus::Connected);
+        assert_eq!(tradier_info.status, BrokerStatus::Disconnected);
+    }
+
+    #[test]
+    fn test_api_quote_struct() {
+        let quote = ApiQuote {
+            symbol: "AAPL".to_string(),
+            last_price: 150.25,
+            bid: 150.20,
+            ask: 150.30,
+            volume: 50_000_000,
+            high: 152.00,
+            low: 149.00,
+            open: 150.00,
+            prev_close: 149.50,
+            change: 0.75,
+            change_pct: 0.5,
+            timestamp: "2026-03-09T14:30:00Z".to_string(),
+        };
+        assert_eq!(quote.symbol, "AAPL");
+        assert!((quote.change - 0.75).abs() < f64::EPSILON);
+        assert!((quote.change_pct - 0.5).abs() < f64::EPSILON);
+    }
 }

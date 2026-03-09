@@ -81,7 +81,10 @@ impl SchwabApi {
             "LIMIT" => "LIMIT",
             "STOP" => "STOP",
             "STOP_LIMIT" => "STOP_LIMIT",
-            _ => "MARKET",
+            other => {
+                log::warn!("Unknown order type '{}', defaulting to MARKET", other);
+                "MARKET"
+            }
         }
     }
 
@@ -89,7 +92,10 @@ impl SchwabApi {
         match tif.unwrap_or("DAY").to_uppercase().as_str() {
             "GTC" => "GOOD_TILL_CANCEL",
             "IOC" => "IMMEDIATE_OR_CANCEL",
-            _ => "DAY",
+            other => {
+                log::warn!("Unknown time-in-force '{}', defaulting to DAY", other);
+                "DAY"
+            }
         }
     }
 

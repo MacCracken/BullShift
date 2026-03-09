@@ -81,7 +81,10 @@ impl TradierApi {
             "LIMIT" => "limit",
             "STOP" => "stop",
             "STOP_LIMIT" => "stop_limit",
-            _ => "market",
+            other => {
+                log::warn!("Unknown order type '{}', defaulting to market", other);
+                "market"
+            }
         }
     }
 
@@ -89,7 +92,10 @@ impl TradierApi {
         match tif.unwrap_or("DAY").to_uppercase().as_str() {
             "GTC" => "gtc",
             "IOC" => "ioc",
-            _ => "day",
+            other => {
+                log::warn!("Unknown time-in-force '{}', defaulting to day", other);
+                "day"
+            }
         }
     }
 }

@@ -7,6 +7,13 @@ pub struct Database {
 }
 
 impl Database {
+    fn lock_conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.conn.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Database mutex was poisoned, recovering");
+            poisoned.into_inner()
+        })
+    }
+
     pub fn new(data_dir: PathBuf) -> Result<Self> {
         std::fs::create_dir_all(&data_dir).ok();
         let db_path = data_dir.join("bullshift.db");
@@ -20,7 +27,7 @@ impl Database {
     }
 
     fn init_schema(&self) -> Result<()> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS portfolios (
@@ -89,7 +96,7 @@ impl Database {
         total_value: f64,
         available_margin: f64,
     ) -> Result<i64> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -108,7 +115,7 @@ impl Database {
         total_value: f64,
         available_margin: f64,
     ) -> Result<()> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -120,7 +127,7 @@ impl Database {
     }
 
     pub fn get_portfolio(&self) -> Result<Option<(i64, f64, f64, f64)>> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
 
         let mut stmt = conn.prepare(
             "SELECT id, cash_balance, total_value, available_margin FROM portfolios ORDER BY id DESC LIMIT 1"
@@ -148,7 +155,7 @@ impl Database {
         unrealized_pnl: f64,
         realized_pnl: f64,
     ) -> Result<i64> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -169,7 +176,7 @@ impl Database {
         unrealized_pnl: f64,
         realized_pnl: f64,
     ) -> Result<()> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -181,7 +188,7 @@ impl Database {
     }
 
     pub fn get_positions(&self, portfolio_id: i64) -> Result<Vec<Position>> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
 
         let mut stmt = conn.prepare(
             "SELECT id, symbol, quantity, entry_price, current_price, unrealized_pnl, realized_pnl FROM positions WHERE portfolio_id = ?1"
@@ -203,7 +210,7 @@ impl Database {
     }
 
     pub fn delete_position(&self, id: i64) -> Result<()> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
         conn.execute("DELETE FROM positions WHERE id = ?1", [id])?;
         Ok(())
     }
@@ -217,7 +224,7 @@ impl Database {
         price: f64,
         commission: f64,
     ) -> Result<i64> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
         let now = chrono::Utc::now().to_rfc3339();
 
         conn.execute(
@@ -230,7 +237,7 @@ impl Database {
     }
 
     pub fn get_trades(&self, symbol: Option<&str>, limit: Option<i64>) -> Result<Vec<Trade>> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
 
         let (query, params_vec): (&str, Vec<Box<dyn rusqlite::ToSql>>) = match symbol {
             Some(s) => (
@@ -265,7 +272,7 @@ impl Database {
     }
 
     pub fn get_trades_by_date_range(&self, start_date: &str, end_date: &str) -> Result<Vec<Trade>> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = self.lock_conn();
 
         let mut stmt = conn.prepare(
             "SELECT id, order_id, symbol, side, quantity, price, commission, executed_at 

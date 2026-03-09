@@ -215,6 +215,9 @@ impl Histogram {
     }
 
     pub fn observe(&mut self, value: f64) {
+        if !value.is_finite() {
+            return;
+        }
         self.count += 1;
         self.sum += value;
         if value < self.min {

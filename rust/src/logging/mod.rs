@@ -113,7 +113,7 @@ pub trait Logger {
 /// High-performance structured logger implementation
 pub struct StructuredLogger {
     /// Application name (used in debug flush output)
-    #[allow(dead_code)]
+    #[allow(dead_code)] // reserved for log output formatting
     app_name: String,
 
     /// Minimum log level to output

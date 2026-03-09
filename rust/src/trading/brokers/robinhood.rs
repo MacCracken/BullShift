@@ -143,7 +143,10 @@ impl RobinhoodApi {
         match order_type.to_uppercase().as_str() {
             "MARKET" | "STOP" => "market",
             "LIMIT" | "STOP_LIMIT" => "limit",
-            _ => "market",
+            other => {
+                log::warn!("Unknown order type '{}', defaulting to market", other);
+                "market"
+            }
         }
     }
 
