@@ -33,7 +33,7 @@ jobs:
       - name: Install build tools
         run: |
           apt-get update -y
-          apt-get install -y build-essential gcc pkg-config curl ca-certificates
+          apt-get install -y build-essential gcc pkg-config curl ca-certificates libssl-dev
           which cc && cc --version || echo "WARNING: cc not found"
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
