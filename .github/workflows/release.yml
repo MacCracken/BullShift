@@ -7,26 +7,53 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
-    name: Build & Release
+  linux:
+    name: Build Linux (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - arch: amd64
+            runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact: api_server
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact: api_server
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact: api_server
-    runs-on: ${{ matrix.os }}
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    container:
+      image: ghcr.io/maccracken/agnosticos:latest
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build
+        working-directory: rust
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp rust/target/${{ matrix.target }}/release/api_server dist/
+          tar -czf bullshift-linux-${{ matrix.arch }}.tar.gz -C dist api_server
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bullshift-linux-${{ matrix.arch }}.tar.gz
+
+  macos:
+    name: Build macOS (${{ matrix.target }})
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+          - target: aarch64-apple-darwin
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -41,9 +68,31 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          cp rust/target/${{ matrix.target }}/release/${{ matrix.artifact }} dist/
-          tar -czf bullshift-${{ matrix.target }}.tar.gz -C dist ${{ matrix.artifact }}
+          cp rust/target/${{ matrix.target }}/release/api_server dist/
+          tar -czf bullshift-${{ matrix.target }}.tar.gz -C dist api_server
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           files: bullshift-${{ matrix.target }}.tar.gz
+
+  docker:
+    name: Docker Image
+    runs-on: ubuntu-latest
+    needs: [linux]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/bullshift:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/bullshift:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
