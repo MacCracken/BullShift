@@ -4,7 +4,7 @@ import '../../bullrunnr_provider.dart';
 
 class MarketSentimentOverview extends StatelessWidget {
   final BullRunnrProvider provider;
-  
+
   const MarketSentimentOverview({
     super.key,
     required this.provider,
@@ -13,9 +13,10 @@ class MarketSentimentOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final marketSentiment = provider.marketSentiment;
-    final overallScore = marketSentiment.safeDouble('overallScore').clamp(-1.0, 1.0);
+    final overallScore =
+        marketSentiment.safeDouble('overallScore').clamp(-1.0, 1.0);
     final fearGreedIndex = marketSentiment.safeDouble('fearGreedIndex');
-    
+
     Color getSentimentColor() {
       if (overallScore > 0.3) return Colors.green;
       if (overallScore < -0.3) return Colors.red;
@@ -44,7 +45,8 @@ class MarketSentimentOverview extends StatelessWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: getSentimentColor(),
                     borderRadius: BorderRadius.circular(12),
@@ -69,7 +71,9 @@ class MarketSentimentOverview extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: FractionallySizedBox(
-                alignment: overallScore >= 0 ? Alignment.centerLeft : Alignment.centerRight,
+                alignment: overallScore >= 0
+                    ? Alignment.centerLeft
+                    : Alignment.centerRight,
                 widthFactor: overallScore.abs(),
                 child: Container(
                   decoration: BoxDecoration(
@@ -102,9 +106,12 @@ class MarketSentimentOverview extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildSentimentCount('Bullish', marketSentiment.safeInt('bullishCount'), Colors.green),
-                _buildSentimentCount('Neutral', marketSentiment.safeInt('neutralCount'), Colors.grey),
-                _buildSentimentCount('Bearish', marketSentiment.safeInt('bearishCount'), Colors.red),
+                _buildSentimentCount('Bullish',
+                    marketSentiment.safeInt('bullishCount'), Colors.green),
+                _buildSentimentCount('Neutral',
+                    marketSentiment.safeInt('neutralCount'), Colors.grey),
+                _buildSentimentCount('Bearish',
+                    marketSentiment.safeInt('bearishCount'), Colors.red),
               ],
             ),
           ],

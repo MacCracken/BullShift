@@ -12,7 +12,8 @@ class ConfigureProviderDialog extends StatefulWidget {
   });
 
   @override
-  State<ConfigureProviderDialog> createState() => _ConfigureProviderDialogState();
+  State<ConfigureProviderDialog> createState() =>
+      _ConfigureProviderDialogState();
 }
 
 class _ConfigureProviderDialogState extends State<ConfigureProviderDialog> {
@@ -46,7 +47,8 @@ class _ConfigureProviderDialogState extends State<ConfigureProviderDialog> {
                 hintText: 'Enter your API key',
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscureApiKey ? Icons.visibility_off : Icons.visibility),
+                  icon: Icon(
+                      _obscureApiKey ? Icons.visibility_off : Icons.visibility),
                   onPressed: () {
                     setState(() {
                       _obscureApiKey = !_obscureApiKey;
@@ -77,7 +79,8 @@ class _ConfigureProviderDialogState extends State<ConfigureProviderDialog> {
                   children: [
                     Icon(Icons.check_circle, color: Colors.green),
                     SizedBox(width: 8),
-                    Text('Provider is configured', style: TextStyle(color: Colors.green)),
+                    Text('Provider is configured',
+                        style: TextStyle(color: Colors.green)),
                   ],
                 ),
               ),

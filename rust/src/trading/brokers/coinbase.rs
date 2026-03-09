@@ -170,7 +170,9 @@ impl TradingApi for CoinbaseApi {
             let order_id = result["order_id"]
                 .as_str()
                 .filter(|s| !s.is_empty())
-                .ok_or_else(|| BullShiftError::Api("Missing order_id in Coinbase response".to_string()))?
+                .ok_or_else(|| {
+                    BullShiftError::Api("Missing order_id in Coinbase response".to_string())
+                })?
                 .to_string();
 
             Ok(ApiOrderResponse {

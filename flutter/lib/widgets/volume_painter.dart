@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' show max;
 import 'chart_enums.dart';
 
 class VolumeChartPainter extends CustomPainter {
@@ -31,9 +30,8 @@ class VolumeChartPainter extends CustomPainter {
       final barHeight = (d.volume / maxVolume) * (size.height - 25);
 
       final isGreen = d.close >= d.open;
-      final barColor = isGreen
-          ? Colors.green.withOpacity(0.7)
-          : Colors.red.withOpacity(0.7);
+      final barColor =
+          isGreen ? Colors.green.withOpacity(0.7) : Colors.red.withOpacity(0.7);
 
       final paint = Paint()
         ..color = barColor

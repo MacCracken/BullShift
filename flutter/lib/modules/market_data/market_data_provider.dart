@@ -3,15 +3,13 @@ import 'dart:math';
 import '../../services/base_provider.dart';
 
 class MarketDataProvider extends BaseProvider {
-  final dynamic _rustEngine;
-
   String _currentSymbol = '';
   List<PriceData> _priceHistory = [];
   PriceData? _latestPrice;
   Timer? _updateTimer;
   bool _isStreaming = false;
 
-  MarketDataProvider(this._rustEngine);
+  MarketDataProvider(dynamic rustEngine);
 
   String get currentSymbol => _currentSymbol;
   List<PriceData> get priceHistory => _priceHistory;

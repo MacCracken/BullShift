@@ -5,7 +5,6 @@ import '../../services/base_provider.dart';
 import '../../services/rust_trading_engine.dart';
 
 class WatchlistProvider extends BaseProvider {
-  final RustTradingEngine _rustEngine;
   List<Map<String, dynamic>> _watchlist = [];
   List<Map<String, dynamic>> _searchResults = [];
   String _searchQuery = '';
@@ -14,7 +13,7 @@ class WatchlistProvider extends BaseProvider {
   Timer? _priceUpdateTimer;
   bool _realTimeUpdatesEnabled = true;
 
-  WatchlistProvider(this._rustEngine);
+  WatchlistProvider(RustTradingEngine rustEngine);
 
   // Getters
   List<Map<String, dynamic>> get watchlist => _watchlist;
@@ -367,8 +366,6 @@ class WatchlistProvider extends BaseProvider {
       // In a real implementation, this would receive data from the Rust WebSocket stream
       for (int i = 0; i < _watchlist.length; i++) {
         final item = _watchlist[i];
-        final symbol = item['symbol'] as String;
-        
         // Simulate price update
         final random = Random();
         final priceChange = (-2.0 + random.nextDouble() * 4.0); // -2% to +2%

@@ -3,7 +3,7 @@ import '../../paper_hands_provider.dart';
 
 class CreatePortfolioDialog extends StatefulWidget {
   final PaperHandsProvider provider;
-  
+
   const CreatePortfolioDialog({super.key, required this.provider});
 
   @override
@@ -13,7 +13,7 @@ class CreatePortfolioDialog extends StatefulWidget {
 class _CreatePortfolioDialogState extends State<CreatePortfolioDialog> {
   final _nameController = TextEditingController();
   final _balanceController = TextEditingController();
-  
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -52,7 +52,7 @@ class _CreatePortfolioDialogState extends State<CreatePortfolioDialog> {
           onPressed: () {
             final name = _nameController.text.trim();
             final balance = double.tryParse(_balanceController.text) ?? 10000.0;
-            
+
             if (name.isNotEmpty) {
               widget.provider.createPortfolio(name, balance);
               Navigator.of(context).pop();

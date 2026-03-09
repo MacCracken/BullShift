@@ -5,7 +5,7 @@ import '../dialogs/news_search_dialog.dart';
 
 class NewsFeedPanel extends StatelessWidget {
   final BullRunnrProvider provider;
-  
+
   const NewsFeedPanel({
     super.key,
     required this.provider,
@@ -56,10 +56,18 @@ class NewsFeedPanel extends StatelessWidget {
                     labelStyle: TextStyle(color: Colors.white),
                   ),
                   value: provider.selectedCategory,
-                  items: ['All', 'Earnings', 'M&A', 'Regulatory', 'Market Analysis', 'Breaking News'].map((category) {
+                  items: [
+                    'All',
+                    'Earnings',
+                    'M&A',
+                    'Regulatory',
+                    'Market Analysis',
+                    'Breaking News'
+                  ].map((category) {
                     return DropdownMenuItem(
                       value: category,
-                      child: Text(category, style: const TextStyle(color: Colors.white)),
+                      child: Text(category,
+                          style: const TextStyle(color: Colors.white)),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -78,10 +86,12 @@ class NewsFeedPanel extends StatelessWidget {
                     labelStyle: TextStyle(color: Colors.white),
                   ),
                   value: provider.selectedSentiment,
-                  items: ['All', 'Bullish', 'Bearish', 'Neutral'].map((sentiment) {
+                  items:
+                      ['All', 'Bullish', 'Bearish', 'Neutral'].map((sentiment) {
                     return DropdownMenuItem(
                       value: sentiment,
-                      child: Text(sentiment, style: const TextStyle(color: Colors.white)),
+                      child: Text(sentiment,
+                          style: const TextStyle(color: Colors.white)),
                     );
                   }).toList(),
                   onChanged: (value) {

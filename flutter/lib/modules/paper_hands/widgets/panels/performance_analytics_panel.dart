@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../paper_hands_provider.dart';
-import '../cards/paper_trade_card.dart';
 import 'performance_overview_card.dart';
 import 'trade_history_list.dart';
 
 class PerformanceAnalyticsPanel extends StatelessWidget {
   final PaperHandsProvider provider;
-  
+
   const PerformanceAnalyticsPanel({
     super.key,
     required this.provider,

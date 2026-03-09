@@ -159,8 +159,12 @@ mod tests {
 
         let o1 = Order::new_market_buy("AAPL".to_string(), 1.0);
         let o2 = Order::new_market_buy("MSFT".to_string(), 2.0);
-        history.record_trade(&Trade::from_order(&o1, 100.0, 0.0)).unwrap();
-        history.record_trade(&Trade::from_order(&o2, 200.0, 0.0)).unwrap();
+        history
+            .record_trade(&Trade::from_order(&o1, 100.0, 0.0))
+            .unwrap();
+        history
+            .record_trade(&Trade::from_order(&o2, 200.0, 0.0))
+            .unwrap();
 
         let all = history.get_trades(None, None).unwrap();
         assert_eq!(all.len(), 2);
@@ -174,7 +178,9 @@ mod tests {
 
         for i in 0..5 {
             let o = Order::new_market_buy("AAPL".to_string(), (i + 1) as f64);
-            history.record_trade(&Trade::from_order(&o, 100.0, 0.0)).unwrap();
+            history
+                .record_trade(&Trade::from_order(&o, 100.0, 0.0))
+                .unwrap();
         }
 
         let limited = history.get_trades(None, Some(3)).unwrap();
@@ -206,9 +212,15 @@ mod tests {
         let o1 = Order::new_market_buy("AAPL".to_string(), 1.0);
         let o2 = Order::new_market_buy("MSFT".to_string(), 1.0);
         let o3 = Order::new_market_buy("AAPL".to_string(), 1.0);
-        history.record_trade(&Trade::from_order(&o1, 100.0, 0.0)).unwrap();
-        history.record_trade(&Trade::from_order(&o2, 100.0, 0.0)).unwrap();
-        history.record_trade(&Trade::from_order(&o3, 100.0, 0.0)).unwrap();
+        history
+            .record_trade(&Trade::from_order(&o1, 100.0, 0.0))
+            .unwrap();
+        history
+            .record_trade(&Trade::from_order(&o2, 100.0, 0.0))
+            .unwrap();
+        history
+            .record_trade(&Trade::from_order(&o3, 100.0, 0.0))
+            .unwrap();
 
         let aapl = history.get_trades(Some("AAPL"), None).unwrap();
         assert_eq!(aapl.len(), 2);

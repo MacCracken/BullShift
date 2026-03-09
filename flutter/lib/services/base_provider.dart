@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 /// Base provider class that provides common functionality for all providers.
-/// 
+///
 /// This eliminates code duplication across providers for:
 /// - Loading state management
 /// - Error state management

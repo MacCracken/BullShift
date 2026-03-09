@@ -3,7 +3,7 @@ import '../../../../services/safe_cast.dart';
 
 class SectorSentimentCard extends StatelessWidget {
   final Map<String, dynamic> sector;
-  
+
   const SectorSentimentCard({
     super.key,
     required this.sector,
@@ -13,7 +13,7 @@ class SectorSentimentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = sector.safeString('name');
     final sentiment = sector.safeDouble('sentiment').clamp(-1.0, 1.0);
-    
+
     Color getSentimentColor() {
       if (sentiment > 0.3) return Colors.green;
       if (sentiment < -0.3) return Colors.red;
@@ -44,7 +44,9 @@ class SectorSentimentCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: FractionallySizedBox(
-                alignment: sentiment >= 0 ? Alignment.centerLeft : Alignment.centerRight,
+                alignment: sentiment >= 0
+                    ? Alignment.centerLeft
+                    : Alignment.centerRight,
                 widthFactor: sentiment.abs(),
                 child: Container(
                   decoration: BoxDecoration(

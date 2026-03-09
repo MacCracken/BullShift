@@ -6,7 +6,7 @@ import '../dialogs/configure_provider_dialog.dart';
 
 class ProviderSetupPanel extends StatelessWidget {
   final BearlyManagedProvider provider;
-  
+
   const ProviderSetupPanel({
     super.key,
     required this.provider,
@@ -79,7 +79,8 @@ class ProviderSetupPanel extends StatelessWidget {
                       final aiProvider = provider.aiProviders[index];
                       return AIProviderCard(
                         provider: aiProvider,
-                        onConfigure: () => _showConfigureDialog(context, aiProvider),
+                        onConfigure: () =>
+                            _showConfigureDialog(context, aiProvider),
                         onTest: () => _testProvider(context, aiProvider),
                         onToggle: () => _toggleProvider(context, aiProvider),
                         onDelete: () => _deleteProvider(context, aiProvider),
@@ -99,7 +100,8 @@ class ProviderSetupPanel extends StatelessWidget {
     );
   }
 
-  void _showConfigureDialog(BuildContext context, Map<String, dynamic> aiProvider) {
+  void _showConfigureDialog(
+      BuildContext context, Map<String, dynamic> aiProvider) {
     showDialog(
       context: context,
       builder: (context) => ConfigureProviderDialog(

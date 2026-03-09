@@ -234,7 +234,10 @@ impl WebhookManager {
 
         for attempt in 0..=webhook.retry_count {
             if attempt > 0 {
-                tokio::time::sleep(std::time::Duration::from_millis(500 * 2u64.pow(attempt - 1))).await;
+                tokio::time::sleep(std::time::Duration::from_millis(
+                    500 * 2u64.pow(attempt - 1),
+                ))
+                .await;
             }
 
             match self.send_request(webhook, trigger, payload).await {
@@ -701,7 +704,10 @@ mod tests {
     #[test]
     fn test_all_trigger_display_values() {
         assert_eq!(WebhookTrigger::OrderFilled.to_string(), "order.filled");
-        assert_eq!(WebhookTrigger::OrderCancelled.to_string(), "order.cancelled");
+        assert_eq!(
+            WebhookTrigger::OrderCancelled.to_string(),
+            "order.cancelled"
+        );
         assert_eq!(WebhookTrigger::PriceAlert.to_string(), "price.alert");
         assert_eq!(
             WebhookTrigger::StopLossTriggered.to_string(),

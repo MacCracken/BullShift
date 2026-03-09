@@ -3,7 +3,7 @@ import '../../../../services/safe_cast.dart';
 
 class SentimentMoverCard extends StatelessWidget {
   final Map<String, dynamic> mover;
-  
+
   const SentimentMoverCard({
     super.key,
     required this.mover,
@@ -15,7 +15,7 @@ class SentimentMoverCard extends StatelessWidget {
     final sentimentScore = mover.safeDouble('sentimentScore').clamp(-1.0, 1.0);
     final buzzScore = mover.safeDouble('buzzScore').clamp(0.0, 1.0);
     final articleCount = mover.safeInt('articleCount');
-    
+
     Color getSentimentColor() {
       if (sentimentScore > 0.3) return Colors.green;
       if (sentimentScore < -0.3) return Colors.red;

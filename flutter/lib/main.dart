@@ -14,8 +14,6 @@ import '../modules/paper_hands/paper_hands_view.dart';
 import '../modules/watchlist/watchlist_provider.dart';
 import '../modules/market_data/market_data_provider.dart';
 import '../modules/watchlist/watchlist_view.dart';
-import '../widgets/notes_panel.dart';
-import '../widgets/advanced_charting_widget.dart';
 import '../widgets/order_dialog.dart';
 
 class BullShiftApp extends StatelessWidget {

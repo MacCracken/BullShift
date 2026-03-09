@@ -3,7 +3,7 @@ import '../../paper_hands_provider.dart';
 
 class PaperTradingSettingsDialog extends StatelessWidget {
   final PaperHandsProvider provider;
-  
+
   const PaperTradingSettingsDialog({super.key, required this.provider});
 
   @override

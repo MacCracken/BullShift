@@ -251,15 +251,6 @@ class _AdvancedChartingWidgetState extends State<AdvancedChartingWidget> {
     );
   }
 
-  void _removeComparisonSymbol(String symbol) {
-    setState(() {
-      _comparisonSymbols = _comparisonSymbols
-          .where((s) => s != symbol)
-          .toList();
-      _comparisonData.remove(symbol);
-    });
-  }
-
   Widget _buildMainChart() {
     return Container(
       decoration: BoxDecoration(

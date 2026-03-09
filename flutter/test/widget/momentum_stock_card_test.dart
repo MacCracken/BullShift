@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:bullshift/modules/watchlist/watchlist_provider.dart';
 import 'package:bullshift/modules/trendsetter/widgets/cards/momentum_stock_card.dart';
 

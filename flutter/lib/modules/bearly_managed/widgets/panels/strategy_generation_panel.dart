@@ -6,7 +6,7 @@ import '../dialogs/strategy_details_dialog.dart';
 
 class StrategyGenerationPanel extends StatelessWidget {
   final BearlyManagedProvider provider;
-  
+
   const StrategyGenerationPanel({
     super.key,
     required this.provider,

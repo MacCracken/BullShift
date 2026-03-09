@@ -4,7 +4,7 @@ import '../cards/paper_trade_card.dart';
 
 class TradeHistoryList extends StatelessWidget {
   final PaperHandsProvider provider;
-  
+
   const TradeHistoryList({
     super.key,
     required this.provider,

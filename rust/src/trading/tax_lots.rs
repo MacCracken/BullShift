@@ -247,8 +247,9 @@ impl TaxLotTracker {
         // Sort lots according to cost basis method
         self.sort_lots(symbol);
 
-        let lots = self.lots.get_mut(symbol)
-            .ok_or_else(|| BullShiftError::Trading(format!("Tax lots for {} disappeared after sort", symbol)))?;
+        let lots = self.lots.get_mut(symbol).ok_or_else(|| {
+            BullShiftError::Trading(format!("Tax lots for {} disappeared after sort", symbol))
+        })?;
         let mut remaining_to_sell = quantity;
         let commission_per_share = if quantity > 0.0 {
             commission / quantity

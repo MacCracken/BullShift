@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../modules/core_trading/trading_provider.dart';
-import '../services/rust_trading_engine.dart';
 
 class OrderDialog extends StatefulWidget {
   const OrderDialog({super.key});
@@ -57,7 +56,8 @@ class _OrderDialogState extends State<OrderDialog> {
                           DropdownMenuItem(value: 'BUY', child: Text('BUY')),
                           DropdownMenuItem(value: 'SELL', child: Text('SELL')),
                         ],
-                        onChanged: (value) => setState(() => _orderSide = value!),
+                        onChanged: (value) =>
+                            setState(() => _orderSide = value!),
                       ),
                     ),
                   ],
@@ -70,11 +70,14 @@ class _OrderDialogState extends State<OrderDialog> {
                       child: DropdownButton<String>(
                         value: _orderType,
                         items: const [
-                          DropdownMenuItem(value: 'MARKET', child: Text('Market')),
-                          DropdownMenuItem(value: 'LIMIT', child: Text('Limit')),
+                          DropdownMenuItem(
+                              value: 'MARKET', child: Text('Market')),
+                          DropdownMenuItem(
+                              value: 'LIMIT', child: Text('Limit')),
                           DropdownMenuItem(value: 'STOP', child: Text('Stop')),
                         ],
-                        onChanged: (value) => setState(() => _orderType = value!),
+                        onChanged: (value) =>
+                            setState(() => _orderType = value!),
                       ),
                     ),
                   ],
@@ -124,10 +127,11 @@ class _OrderDialogState extends State<OrderDialog> {
 
   void _submitOrder() {
     final tradingProvider = context.read<TradingProvider>();
-    
+
     tradingProvider.setSymbol(_symbolController.text);
-    tradingProvider.setQuantity(double.tryParse(_quantityController.text) ?? 0.0);
-    
+    tradingProvider
+        .setQuantity(double.tryParse(_quantityController.text) ?? 0.0);
+
     if (_orderType != 'MARKET') {
       tradingProvider.setPrice(double.tryParse(_priceController.text));
     }

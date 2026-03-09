@@ -3,13 +3,13 @@ import '../../services/rust_trading_engine.dart';
 
 class TradingProvider extends BaseProvider {
   final RustTradingEngine _rustEngine;
-  
+
   String _currentSymbol = '';
   double _currentQuantity = 0.0;
   String _orderType = 'MARKET';
   double? _limitPrice;
   List<Map<String, dynamic>> _positions = [];
-  
+
   // Notes functionality
   Map<String, List<Map<String, dynamic>>> _symbolNotes = {};
 
@@ -64,10 +64,10 @@ class TradingProvider extends BaseProvider {
           _currentSymbol = '';
           _currentQuantity = 0.0;
           _limitPrice = null;
-          
+
           // Refresh positions
           await loadPositions();
-          
+
           return success;
         } else {
           throw Exception('Order submission failed');
@@ -77,7 +77,9 @@ class TradingProvider extends BaseProvider {
   }
 
   Future<void> submitLimitOrder(String side) async {
-    if (_currentSymbol.isEmpty || _currentQuantity <= 0 || _limitPrice == null) {
+    if (_currentSymbol.isEmpty ||
+        _currentQuantity <= 0 ||
+        _limitPrice == null) {
       setError('Please enter symbol, quantity, and limit price');
       return;
     }
@@ -97,10 +99,10 @@ class TradingProvider extends BaseProvider {
           _currentSymbol = '';
           _currentQuantity = 0.0;
           _limitPrice = null;
-          
+
           // Refresh positions
           await loadPositions();
-          
+
           return success;
         } else {
           throw Exception('Order submission failed');
@@ -112,8 +114,8 @@ class TradingProvider extends BaseProvider {
   Future<void> loadPositions() async {
     await executeAsync(
       operation: () async {
-        final positionsPtr = _rustEngine.getPositions();
-        
+        _rustEngine.getPositions();
+
         // For now, create sample data
         _positions = [
           {
@@ -171,16 +173,16 @@ class TradingProvider extends BaseProvider {
       'tags': tags,
       'isPinned': isPinned,
     };
-    
+
     _symbolNotes.putIfAbsent(symbol, () => []).add(noteData);
-    
+
     // Sort notes: pinned first, then by timestamp (newest first)
     _symbolNotes[symbol]!.sort((a, b) {
       if (a['isPinned'] == true && b['isPinned'] != true) return -1;
       if (a['isPinned'] != true && b['isPinned'] == true) return 1;
       return (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime);
     });
-    
+
     safeNotifyListeners();
   }
 
@@ -242,9 +244,10 @@ class TradingProvider extends BaseProvider {
         });
       }
     }
-    
+
     // Sort by timestamp (newest first)
-    allNotes.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+    allNotes.sort((a, b) =>
+        (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
     return allNotes;
   }
 
@@ -262,13 +265,13 @@ class TradingProvider extends BaseProvider {
   List<Map<String, dynamic>> searchNotes(String query) {
     final results = <Map<String, dynamic>>[];
     final lowerQuery = query.toLowerCase();
-    
+
     for (final entry in _symbolNotes.entries) {
       for (final note in entry.value) {
         final noteText = (note['note'] as String).toLowerCase();
         final tags = (note['tags'] as List<String>?) ?? [];
-        
-        if (noteText.contains(lowerQuery) || 
+
+        if (noteText.contains(lowerQuery) ||
             tags.any((tag) => tag.toLowerCase().contains(lowerQuery))) {
           results.add({
             ...note,
@@ -277,7 +280,7 @@ class TradingProvider extends BaseProvider {
         }
       }
     }
-    
+
     return results;
   }
 }

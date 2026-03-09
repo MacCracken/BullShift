@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 
 enum DrawingToolType {
   none,
@@ -73,15 +72,15 @@ class Trendline extends DrawingObject {
 
   @override
   Map<String, dynamic> toJson() => {
-    'type': 'trendline',
-    'id': id,
-    'startPrice': startPrice,
-    'endPrice': endPrice,
-    'startTime': startTime.millisecondsSinceEpoch,
-    'endTime': endTime.millisecondsSinceEpoch,
-    'color': color.value,
-    'strokeWidth': strokeWidth,
-  };
+        'type': 'trendline',
+        'id': id,
+        'startPrice': startPrice,
+        'endPrice': endPrice,
+        'startTime': startTime.millisecondsSinceEpoch,
+        'endTime': endTime.millisecondsSinceEpoch,
+        'color': color.value,
+        'strokeWidth': strokeWidth,
+      };
 }
 
 class HorizontalLine extends DrawingObject {
@@ -108,12 +107,12 @@ class HorizontalLine extends DrawingObject {
 
   @override
   Map<String, dynamic> toJson() => {
-    'type': 'horizontalLine',
-    'id': id,
-    'price': price,
-    'color': color.value,
-    'strokeWidth': strokeWidth,
-  };
+        'type': 'horizontalLine',
+        'id': id,
+        'price': price,
+        'color': color.value,
+        'strokeWidth': strokeWidth,
+      };
 }
 
 class VerticalLine extends DrawingObject {
@@ -140,12 +139,12 @@ class VerticalLine extends DrawingObject {
 
   @override
   Map<String, dynamic> toJson() => {
-    'type': 'verticalLine',
-    'id': id,
-    'time': time.millisecondsSinceEpoch,
-    'color': color.value,
-    'strokeWidth': strokeWidth,
-  };
+        'type': 'verticalLine',
+        'id': id,
+        'time': time.millisecondsSinceEpoch,
+        'color': color.value,
+        'strokeWidth': strokeWidth,
+      };
 }
 
 class FibonacciRetracement extends DrawingObject {
@@ -207,13 +206,13 @@ class FibonacciRetracement extends DrawingObject {
 
   @override
   Map<String, dynamic> toJson() => {
-    'type': 'fibonacciRetracement',
-    'id': id,
-    'highPrice': highPrice,
-    'lowPrice': lowPrice,
-    'color': color.value,
-    'strokeWidth': strokeWidth,
-  };
+        'type': 'fibonacciRetracement',
+        'id': id,
+        'highPrice': highPrice,
+        'lowPrice': lowPrice,
+        'color': color.value,
+        'strokeWidth': strokeWidth,
+      };
 }
 
 class FibonacciExtension extends DrawingObject {
@@ -277,14 +276,14 @@ class FibonacciExtension extends DrawingObject {
 
   @override
   Map<String, dynamic> toJson() => {
-    'type': 'fibonacciExtension',
-    'id': id,
-    'lowPrice': lowPrice,
-    'highPrice': highPrice,
-    'extensionLevel': extensionLevel,
-    'color': color.value,
-    'strokeWidth': strokeWidth,
-  };
+        'type': 'fibonacciExtension',
+        'id': id,
+        'lowPrice': lowPrice,
+        'highPrice': highPrice,
+        'extensionLevel': extensionLevel,
+        'color': color.value,
+        'strokeWidth': strokeWidth,
+      };
 }
 
 class RectangleDrawing extends DrawingObject {
@@ -326,15 +325,15 @@ class RectangleDrawing extends DrawingObject {
 
   @override
   Map<String, dynamic> toJson() => {
-    'type': 'rectangle',
-    'id': id,
-    'topPrice': topPrice,
-    'bottomPrice': bottomPrice,
-    'startTime': startTime.millisecondsSinceEpoch,
-    'endTime': endTime.millisecondsSinceEpoch,
-    'color': color.value,
-    'strokeWidth': strokeWidth,
-  };
+        'type': 'rectangle',
+        'id': id,
+        'topPrice': topPrice,
+        'bottomPrice': bottomPrice,
+        'startTime': startTime.millisecondsSinceEpoch,
+        'endTime': endTime.millisecondsSinceEpoch,
+        'color': color.value,
+        'strokeWidth': strokeWidth,
+      };
 }
 
 class TextAnnotation extends DrawingObject {
@@ -371,14 +370,14 @@ class TextAnnotation extends DrawingObject {
 
   @override
   Map<String, dynamic> toJson() => {
-    'type': 'textAnnotation',
-    'id': id,
-    'price': price,
-    'time': time.millisecondsSinceEpoch,
-    'text': text,
-    'color': color.value,
-    'strokeWidth': strokeWidth,
-  };
+        'type': 'textAnnotation',
+        'id': id,
+        'price': price,
+        'time': time.millisecondsSinceEpoch,
+        'text': text,
+        'color': color.value,
+        'strokeWidth': strokeWidth,
+      };
 }
 
 class DrawingToolManager extends ChangeNotifier {
@@ -433,8 +432,8 @@ class DrawingToolManager extends ChangeNotifier {
   }
 
   Map<String, dynamic> toJson() => {
-    'drawings': _drawings.map((d) => d.toJson()).toList(),
-    'currentColor': _currentColor.value,
-    'currentStrokeWidth': _currentStrokeWidth,
-  };
+        'drawings': _drawings.map((d) => d.toJson()).toList(),
+        'currentColor': _currentColor.value,
+        'currentStrokeWidth': _currentStrokeWidth,
+      };
 }

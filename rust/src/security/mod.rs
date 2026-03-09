@@ -114,7 +114,10 @@ impl SecurityManager {
                     .output()
                 {
                     Ok(output) if !output.status.success() => {
-                        log::warn!("secret-tool store failed (exit {}), key not persisted", output.status);
+                        log::warn!(
+                            "secret-tool store failed (exit {}), key not persisted",
+                            output.status
+                        );
                     }
                     Err(e) => {
                         log::warn!("secret-tool store failed: {}, key not persisted", e);

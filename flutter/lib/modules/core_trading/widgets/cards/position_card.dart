@@ -62,10 +62,9 @@ class PositionCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child:
-                        watchlistProvider.isInWatchlist(
-                          tradingProvider.currentSymbol,
-                        )
+                    child: watchlistProvider.isInWatchlist(
+                      tradingProvider.currentSymbol,
+                    )
                         ? ElevatedButton.icon(
                             onPressed: () async {
                               await watchlistProvider.removeFromWatchlist(
@@ -92,10 +91,10 @@ class PositionCard extends StatelessWidget {
                           )
                         : ElevatedButton.icon(
                             onPressed: () async {
-                              final added = await watchlistProvider
-                                  .addToWatchlist(
-                                    tradingProvider.currentSymbol,
-                                  );
+                              final added =
+                                  await watchlistProvider.addToWatchlist(
+                                tradingProvider.currentSymbol,
+                              );
                               if (context.mounted) {
                                 if (added) {
                                   ScaffoldMessenger.of(context).showSnackBar(

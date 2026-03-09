@@ -221,7 +221,9 @@ impl TradingApi for RobinhoodApi {
             let order_id = resp_body["id"]
                 .as_str()
                 .filter(|s| !s.is_empty())
-                .ok_or_else(|| BullShiftError::Api("Missing order id in Robinhood response".to_string()))?
+                .ok_or_else(|| {
+                    BullShiftError::Api("Missing order id in Robinhood response".to_string())
+                })?
                 .to_string();
 
             Ok(ApiOrderResponse {
@@ -280,7 +282,11 @@ impl TradingApi for RobinhoodApi {
                     let symbol = match self.resolve_symbol(instrument_url).await {
                         Ok(s) => s,
                         Err(e) => {
-                            log::warn!("Failed to resolve instrument {}: {}, skipping position", instrument_url, e);
+                            log::warn!(
+                                "Failed to resolve instrument {}: {}, skipping position",
+                                instrument_url,
+                                e
+                            );
                             continue;
                         }
                     };
@@ -348,7 +354,10 @@ impl TradingApi for RobinhoodApi {
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
-        if !order_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !order_id
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             return Err(BullShiftError::Validation(format!(
                 "Invalid order_id format: {}",
                 order_id

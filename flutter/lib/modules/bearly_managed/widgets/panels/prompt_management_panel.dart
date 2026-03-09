@@ -7,7 +7,7 @@ import '../dialogs/execute_prompt_dialog.dart';
 
 class PromptManagementPanel extends StatelessWidget {
   final BearlyManagedProvider provider;
-  
+
   const PromptManagementPanel({
     super.key,
     required this.provider,

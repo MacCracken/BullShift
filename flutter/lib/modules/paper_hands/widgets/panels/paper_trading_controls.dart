@@ -4,7 +4,7 @@ import '../dialogs/paper_positions_dialog.dart';
 
 class PaperTradingControls extends StatelessWidget {
   final PaperHandsProvider provider;
-  
+
   const PaperTradingControls({
     super.key,
     required this.provider,
@@ -56,7 +56,8 @@ class PaperTradingControls extends StatelessWidget {
                   ),
                   style: const TextStyle(color: Colors.white),
                   keyboardType: TextInputType.number,
-                  onChanged: (value) => provider.setQuantity(double.tryParse(value) ?? 0.0),
+                  onChanged: (value) =>
+                      provider.setQuantity(double.tryParse(value) ?? 0.0),
                 ),
               ),
             ],
@@ -76,7 +77,8 @@ class PaperTradingControls extends StatelessWidget {
                   items: ['Market', 'Limit', 'Stop', 'StopLimit'].map((type) {
                     return DropdownMenuItem(
                       value: type,
-                      child: Text(type, style: const TextStyle(color: Colors.white)),
+                      child: Text(type,
+                          style: const TextStyle(color: Colors.white)),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -98,7 +100,8 @@ class PaperTradingControls extends StatelessWidget {
                   items: ['Buy', 'Sell'].map((side) {
                     return DropdownMenuItem(
                       value: side,
-                      child: Text(side, style: const TextStyle(color: Colors.white)),
+                      child: Text(side,
+                          style: const TextStyle(color: Colors.white)),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -112,7 +115,8 @@ class PaperTradingControls extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           // Price for limit orders
-          if (provider.selectedOrderType == 'Limit' || provider.selectedOrderType == 'StopLimit')
+          if (provider.selectedOrderType == 'Limit' ||
+              provider.selectedOrderType == 'StopLimit')
             TextField(
               decoration: const InputDecoration(
                 labelText: 'Price',
@@ -130,9 +134,13 @@ class PaperTradingControls extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: provider.canPlaceOrder ? () => _placePaperOrder(context) : null,
+                  onPressed: provider.canPlaceOrder
+                      ? () => _placePaperOrder(context)
+                      : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: provider.selectedSide == 'Buy' ? Colors.green : Colors.red,
+                    backgroundColor: provider.selectedSide == 'Buy'
+                        ? Colors.green
+                        : Colors.red,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: Text(
@@ -160,7 +168,7 @@ class PaperTradingControls extends StatelessWidget {
 
   void _placePaperOrder(BuildContext context) {
     provider.placePaperOrder();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Paper ${provider.selectedSide} order placed'),

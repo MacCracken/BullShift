@@ -1,10 +1,10 @@
-use tungstenite::{connect, Message};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use tokio::sync::mpsc;
-use std::thread;
 use crate::error::BullShiftError;
 use crate::security::SecurityManager;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::thread;
+use tokio::sync::mpsc;
+use tungstenite::{connect, Message};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketTick {
@@ -44,17 +44,21 @@ impl ApiCredentials {
             api_secret: secret,
         }
     }
-    
+
     /// Validate that credentials are properly configured
     pub fn validate(&self) -> Result<(), BullShiftError> {
         if self.api_key.is_empty() {
             return Err(BullShiftError::Validation("API key is empty".to_string()));
         }
         if self.api_secret.is_empty() {
-            return Err(BullShiftError::Validation("API secret is empty".to_string()));
+            return Err(BullShiftError::Validation(
+                "API secret is empty".to_string(),
+            ));
         }
         if self.api_key.len() < 10 {
-            return Err(BullShiftError::Validation("API key appears to be invalid (too short)".to_string()));
+            return Err(BullShiftError::Validation(
+                "API key appears to be invalid (too short)".to_string(),
+            ));
         }
         Ok(())
     }
@@ -63,7 +67,11 @@ impl ApiCredentials {
 pub trait MarketDataStream {
     fn connect(&mut self, symbols: Vec<String>) -> Result<(), BullShiftError>;
     fn subscribe_ticks(&mut self, symbols: Vec<String>) -> Result<(), BullShiftError>;
-    fn subscribe_bars(&mut self, symbols: Vec<String>, timeframe: String) -> Result<(), BullShiftError>;
+    fn subscribe_bars(
+        &mut self,
+        symbols: Vec<String>,
+        timeframe: String,
+    ) -> Result<(), BullShiftError>;
     fn get_tick_receiver(&self) -> mpsc::UnboundedReceiver<MarketTick>;
     fn get_bar_receiver(&self) -> mpsc::UnboundedReceiver<MarketBar>;
 }
@@ -87,7 +95,7 @@ impl AlpacaStream {
     pub fn new() -> Self {
         let (tick_sender, _) = mpsc::unbounded_channel();
         let (bar_sender, _) = mpsc::unbounded_channel();
-        
+
         Self {
             tick_sender,
             bar_sender,
@@ -97,12 +105,12 @@ impl AlpacaStream {
             shutdown_tx: None,
         }
     }
-    
+
     /// Set credentials for authentication
     pub fn set_credentials(&mut self, credentials: ApiCredentials) {
         self.credentials = Some(credentials);
     }
-    
+
     /// Load credentials from secure storage using the security manager
     /// This retrieves encrypted credentials for the "alpaca" broker
     pub fn load_credentials(&mut self) -> Result<(), BullShiftError> {
@@ -120,9 +128,13 @@ impl AlpacaStream {
         log::info!("Successfully loaded Alpaca credentials from secure storage");
         Ok(())
     }
-    
+
     /// Store credentials securely using the security manager
-    pub fn store_credentials_securely(&self, api_key: String, api_secret: String) -> Result<(), BullShiftError> {
+    pub fn store_credentials_securely(
+        &self,
+        api_key: String,
+        api_secret: String,
+    ) -> Result<(), BullShiftError> {
         let mut security_manager = SecurityManager::new()?;
         security_manager.store_credentials("alpaca".to_string(), api_key, api_secret)?;
         log::info!("Successfully stored Alpaca credentials in secure storage");
@@ -214,8 +226,11 @@ impl Drop for AlpacaStream {
 impl MarketDataStream for AlpacaStream {
     fn connect(&mut self, symbols: Vec<String>) -> Result<(), BullShiftError> {
         // Validate credentials are set
-        let credentials = self.credentials.as_ref()
-            .ok_or_else(|| BullShiftError::Configuration("No credentials configured. Call set_credentials() first.".to_string()))?;
+        let credentials = self.credentials.as_ref().ok_or_else(|| {
+            BullShiftError::Configuration(
+                "No credentials configured. Call set_credentials() first.".to_string(),
+            )
+        })?;
 
         // Validate credentials
         credentials.validate()?;
@@ -225,23 +240,26 @@ impl MarketDataStream for AlpacaStream {
         match connect(url) {
             Ok((mut ws_stream, _)) => {
                 self.connected = true;
-                
+
                 // Send authentication with securely loaded credentials
                 // NOTE: The credentials are sent over WSS (WebSocket Secure)
-                // which provides TLS encryption. The plaintext here is 
+                // which provides TLS encryption. The plaintext here is
                 // encrypted in transit by the TLS layer.
                 let auth_msg = serde_json::json!({
                     "action": "auth",
                     "key": credentials.api_key,
                     "secret": credentials.api_secret
                 });
-                
+
                 if let Err(e) = ws_stream.send(Message::Text(auth_msg.to_string())) {
-                    return Err(BullShiftError::DataStream(format!("Failed to send auth: {}", e)));
+                    return Err(BullShiftError::DataStream(format!(
+                        "Failed to send auth: {}",
+                        e
+                    )));
                 }
-                
+
                 log::info!("WebSocket authentication sent (credentials transmitted over TLS)");
-                
+
                 // Subscribe to symbols
                 for symbol in symbols {
                     let sub_msg = serde_json::json!({
@@ -250,14 +268,17 @@ impl MarketDataStream for AlpacaStream {
                         "quotes": [symbol],
                         "bars": [symbol]
                     });
-                    
+
                     if let Err(e) = ws_stream.send(Message::Text(sub_msg.to_string())) {
-                        return Err(BullShiftError::DataStream(format!("Failed to subscribe to {}: {}", symbol, e)));
+                        return Err(BullShiftError::DataStream(format!(
+                            "Failed to subscribe to {}: {}",
+                            symbol, e
+                        )));
                     }
-                    
+
                     self.subscriptions.insert(symbol, "active".to_string());
                 }
-                
+
                 // Start message processing loop with shutdown signal
                 let _tick_sender = self.tick_sender.clone();
                 let _bar_sender = self.bar_sender.clone();
@@ -293,10 +314,13 @@ impl MarketDataStream for AlpacaStream {
                         }
                     }
                 });
-                
+
                 Ok(())
             }
-            Err(e) => Err(BullShiftError::DataStream(format!("Failed to connect: {}", e)))
+            Err(e) => Err(BullShiftError::DataStream(format!(
+                "Failed to connect: {}",
+                e
+            ))),
         }
     }
 
@@ -307,7 +331,11 @@ impl MarketDataStream for AlpacaStream {
         Ok(())
     }
 
-    fn subscribe_bars(&mut self, symbols: Vec<String>, timeframe: String) -> Result<(), BullShiftError> {
+    fn subscribe_bars(
+        &mut self,
+        symbols: Vec<String>,
+        timeframe: String,
+    ) -> Result<(), BullShiftError> {
         for symbol in symbols {
             self.subscriptions.insert(symbol, timeframe.clone());
         }
@@ -376,20 +404,16 @@ mod tests {
     fn test_api_credentials_validation() {
         let valid_creds = ApiCredentials::from_secure_storage(
             "PK_VALID_API_KEY_123".to_string(),
-            "valid_secret_key_here".to_string()
+            "valid_secret_key_here".to_string(),
         );
         assert!(valid_creds.validate().is_ok());
 
-        let empty_key = ApiCredentials::from_secure_storage(
-            "".to_string(),
-            "valid_secret".to_string()
-        );
+        let empty_key =
+            ApiCredentials::from_secure_storage("".to_string(), "valid_secret".to_string());
         assert!(empty_key.validate().is_err());
 
-        let short_key = ApiCredentials::from_secure_storage(
-            "short".to_string(),
-            "valid_secret".to_string()
-        );
+        let short_key =
+            ApiCredentials::from_secure_storage("short".to_string(), "valid_secret".to_string());
         assert!(short_key.validate().is_err());
     }
 
@@ -403,7 +427,7 @@ mod tests {
         // Set credentials
         let creds = ApiCredentials::from_secure_storage(
             "PK_TEST_API_KEY_123".to_string(),
-            "test_secret_key".to_string()
+            "test_secret_key".to_string(),
         );
         stream.set_credentials(creds);
 
@@ -556,7 +580,9 @@ mod tests {
     #[test]
     fn test_subscribe_ticks() {
         let mut stream = AlpacaStream::new();
-        stream.subscribe_ticks(vec!["AAPL".to_string(), "GOOG".to_string()]).unwrap();
+        stream
+            .subscribe_ticks(vec!["AAPL".to_string(), "GOOG".to_string()])
+            .unwrap();
         assert_eq!(stream.subscriptions.len(), 2);
         assert_eq!(stream.subscriptions.get("AAPL"), Some(&"ticks".to_string()));
     }
@@ -564,7 +590,9 @@ mod tests {
     #[test]
     fn test_subscribe_bars() {
         let mut stream = AlpacaStream::new();
-        stream.subscribe_bars(vec!["AAPL".to_string()], "5m".to_string()).unwrap();
+        stream
+            .subscribe_bars(vec!["AAPL".to_string()], "5m".to_string())
+            .unwrap();
         assert_eq!(stream.subscriptions.get("AAPL"), Some(&"5m".to_string()));
     }
 

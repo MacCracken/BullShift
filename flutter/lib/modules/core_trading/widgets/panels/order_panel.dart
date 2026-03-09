@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../trading_provider.dart';
 import '../../../watchlist/watchlist_provider.dart';
 
@@ -39,8 +38,7 @@ class OrderPanel extends StatelessWidget {
               labelText: 'Symbol',
               hintText: 'e.g. AAPL',
               border: const OutlineInputBorder(),
-              suffixIcon:
-                  tradingProvider.currentSymbol.isNotEmpty &&
+              suffixIcon: tradingProvider.currentSymbol.isNotEmpty &&
                       watchlistProvider.isInWatchlist(
                         tradingProvider.currentSymbol,
                       )

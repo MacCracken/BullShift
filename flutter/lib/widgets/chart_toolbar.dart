@@ -232,50 +232,49 @@ class ChartToolbar extends StatelessWidget {
             tooltip: 'Line Color',
             icon: Icon(Icons.palette, color: currentDrawingColor, size: 20),
             onSelected: onDrawingColorChanged,
-            itemBuilder: (context) =>
-                [
-                      Colors.yellow,
-                      Colors.red,
-                      Colors.blue,
-                      Colors.green,
-                      Colors.orange,
-                      Colors.purple,
-                      Colors.white,
-                    ]
-                    .map(
-                      (color) => PopupMenuItem(
-                        value: color,
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              color == Colors.yellow
-                                  ? 'Yellow'
-                                  : color == Colors.red
+            itemBuilder: (context) => [
+              Colors.yellow,
+              Colors.red,
+              Colors.blue,
+              Colors.green,
+              Colors.orange,
+              Colors.purple,
+              Colors.white,
+            ]
+                .map(
+                  (color) => PopupMenuItem(
+                    value: color,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          color == Colors.yellow
+                              ? 'Yellow'
+                              : color == Colors.red
                                   ? 'Red'
                                   : color == Colors.blue
-                                  ? 'Blue'
-                                  : color == Colors.green
-                                  ? 'Green'
-                                  : color == Colors.orange
-                                  ? 'Orange'
-                                  : color == Colors.purple
-                                  ? 'Purple'
-                                  : 'White',
-                            ),
-                          ],
+                                      ? 'Blue'
+                                      : color == Colors.green
+                                          ? 'Green'
+                                          : color == Colors.orange
+                                              ? 'Orange'
+                                              : color == Colors.purple
+                                                  ? 'Purple'
+                                                  : 'White',
                         ),
-                      ),
-                    )
-                    .toList(),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ],
       ],

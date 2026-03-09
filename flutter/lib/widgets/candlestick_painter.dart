@@ -161,9 +161,8 @@ class ChartPainter extends CustomPainter {
   List<double> _normalizeComparisonData(List<PriceData> compData) {
     if (compData.isEmpty) return [];
 
-    // Get the first and last close prices for normalization
+    // Get the first close price for normalization
     final firstClose = compData.first.close;
-    final lastClose = compData.last.close;
 
     if (firstClose == 0) return [];
 
@@ -182,12 +181,10 @@ class ChartPainter extends CustomPainter {
     final priceRange = maxPrice - minPrice;
     if (priceRange == 0) return;
 
-    final firstTime = data.isNotEmpty
-        ? data.first.timestamp.millisecondsSinceEpoch
-        : 0;
-    final lastTime = data.isNotEmpty
-        ? data.last.timestamp.millisecondsSinceEpoch
-        : 1;
+    final firstTime =
+        data.isNotEmpty ? data.first.timestamp.millisecondsSinceEpoch : 0;
+    final lastTime =
+        data.isNotEmpty ? data.last.timestamp.millisecondsSinceEpoch : 1;
     final timeRange = lastTime - firstTime;
 
     for (final drawing in drawings) {
@@ -259,16 +256,15 @@ class ChartPainter extends CustomPainter {
 
     final startX = timeRange > 0
         ? ((line.startTime.millisecondsSinceEpoch - firstTime) / timeRange) *
-                  (size.width - 50) +
-              50
+                (size.width - 50) +
+            50
         : 50;
     final endX = timeRange > 0
         ? ((line.endTime.millisecondsSinceEpoch - firstTime) / timeRange) *
-                  (size.width - 50) +
-              50
+                (size.width - 50) +
+            50
         : size.width;
-    final startY =
-        ((priceRange - (line.startPrice - minPrice)) / priceRange) *
+    final startY = ((priceRange - (line.startPrice - minPrice)) / priceRange) *
         size.height;
     final endY =
         ((priceRange - (line.endPrice - minPrice)) / priceRange) * size.height;
@@ -313,8 +309,8 @@ class ChartPainter extends CustomPainter {
 
     final x = timeRange > 0
         ? ((line.time.millisecondsSinceEpoch - firstTime) / timeRange) *
-                  (size.width - 50) +
-              50
+                (size.width - 50) +
+            50
         : 50;
     canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
   }
@@ -381,16 +377,16 @@ class ChartPainter extends CustomPainter {
         ((priceRange - (rect.topPrice - minPrice)) / priceRange) * size.height;
     final bottomY =
         ((priceRange - (rect.bottomPrice - minPrice)) / priceRange) *
-        size.height;
+            size.height;
     final startX = timeRange > 0
         ? ((rect.startTime.millisecondsSinceEpoch - firstTime) / timeRange) *
-                  (size.width - 50) +
-              50
+                (size.width - 50) +
+            50
         : 50;
     final endX = timeRange > 0
         ? ((rect.endTime.millisecondsSinceEpoch - firstTime) / timeRange) *
-                  (size.width - 50) +
-              50
+                (size.width - 50) +
+            50
         : size.width;
 
     final rectToDraw = Rect.fromLTRB(startX, topY, endX, bottomY);
@@ -418,8 +414,8 @@ class ChartPainter extends CustomPainter {
 
     final x = timeRange > 0
         ? ((ann.time.millisecondsSinceEpoch - firstTime) / timeRange) *
-                  (size.width - 50) +
-              50
+                (size.width - 50) +
+            50
         : 50;
     final y =
         ((priceRange - (ann.price - minPrice)) / priceRange) * size.height;
@@ -440,7 +436,6 @@ class ChartPainter extends CustomPainter {
     }
 
     // Vertical grid lines
-    final candleWidth = (size.width - 50) / data.length;
     for (int i = 0; i <= 10; i++) {
       final x = 50 + (size.width - 50) * i / 10;
       canvas.drawLine(Offset(x, 0), Offset(x, size.height - 20), gridPaint);
@@ -461,20 +456,16 @@ class ChartPainter extends CustomPainter {
       final x = 50 + i * spacing + spacing / 2;
 
       // Calculate y positions
-      final highY =
-          size.height -
+      final highY = size.height -
           20 -
           ((d.high - minPrice) / priceRange) * (size.height - 40);
-      final lowY =
-          size.height -
+      final lowY = size.height -
           20 -
           ((d.low - minPrice) / priceRange) * (size.height - 40);
-      final openY =
-          size.height -
+      final openY = size.height -
           20 -
           ((d.open - minPrice) / priceRange) * (size.height - 40);
-      final closeY =
-          size.height -
+      final closeY = size.height -
           20 -
           ((d.close - minPrice) / priceRange) * (size.height - 40);
 
@@ -533,8 +524,7 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < data.length; i++) {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
-      final y =
-          size.height -
+      final y = size.height -
           20 -
           ((d.close - minPrice) / priceRange) * (size.height - 40);
 
@@ -555,8 +545,7 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < data.length; i++) {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
-      final y =
-          size.height -
+      final y = size.height -
           20 -
           ((d.close - minPrice) / priceRange) * (size.height - 40);
 
@@ -587,8 +576,7 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < data.length; i++) {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
-      final y =
-          size.height -
+      final y = size.height -
           20 -
           ((d.close - minPrice) / priceRange) * (size.height - 40);
 
@@ -614,8 +602,7 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < data.length; i++) {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
-      final y =
-          size.height -
+      final y = size.height -
           20 -
           ((d.close - minPrice) / priceRange) * (size.height - 40);
 
@@ -635,20 +622,16 @@ class ChartPainter extends CustomPainter {
       final d = data[i];
       final x = 50 + i * spacing + spacing / 2;
 
-      final highY =
-          size.height -
+      final highY = size.height -
           20 -
           ((d.high - minPrice) / priceRange) * (size.height - 40);
-      final lowY =
-          size.height -
+      final lowY = size.height -
           20 -
           ((d.low - minPrice) / priceRange) * (size.height - 40);
-      final openY =
-          size.height -
+      final openY = size.height -
           20 -
           ((d.open - minPrice) / priceRange) * (size.height - 40);
-      final closeY =
-          size.height -
+      final closeY = size.height -
           20 -
           ((d.close - minPrice) / priceRange) * (size.height - 40);
 
@@ -734,8 +717,7 @@ class ChartPainter extends CustomPainter {
       final sma = sum / period;
 
       final x = 50 + i * spacing + spacing / 2;
-      final y =
-          size.height -
+      final y = size.height -
           20 -
           ((sma - minPrice) / priceRange) * (size.height - 40);
 
@@ -751,7 +733,7 @@ class ChartPainter extends CustomPainter {
   }
 
   void _drawAxes(Canvas canvas, Size size, double minPrice, double maxPrice) {
-    final textPaint = Paint()..color = Colors.grey;
+
 
     // Y-axis labels (price)
     for (int i = 0; i <= 5; i++) {
@@ -844,20 +826,16 @@ class ChartPainter extends CustomPainter {
       final d = haData[i];
       final x = 50 + i * spacing + spacing / 2;
 
-      final highY =
-          size.height -
+      final highY = size.height -
           20 -
           ((d.high - minPrice) / priceRange) * (size.height - 40);
-      final lowY =
-          size.height -
+      final lowY = size.height -
           20 -
           ((d.low - minPrice) / priceRange) * (size.height - 40);
-      final openY =
-          size.height -
+      final openY = size.height -
           20 -
           ((d.open - minPrice) / priceRange) * (size.height - 40);
-      final closeY =
-          size.height -
+      final closeY = size.height -
           20 -
           ((d.close - minPrice) / priceRange) * (size.height - 40);
 
@@ -911,8 +889,7 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < renkoData.length; i++) {
       final brick = renkoData[i];
       final x = 50 + i * brickSize;
-      final y =
-          size.height -
+      final y = size.height -
           20 -
           ((brick.price - minPrice) / priceRange) * (size.height - 40);
 
@@ -943,8 +920,7 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < pnfData.length; i++) {
       final point = pnfData[i];
       final x = 50 + point.column * cellWidth;
-      final y =
-          size.height -
+      final y = size.height -
           20 -
           ((point.price - minPrice) / priceRange) * (size.height - 40);
 
@@ -982,8 +958,7 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < kagiData.length; i++) {
       final point = kagiData[i];
       final x = 50 + i * spacing;
-      final y =
-          size.height -
+      final y = size.height -
           20 -
           ((point.price - minPrice) / priceRange) * (size.height - 40);
 
@@ -993,7 +968,6 @@ class ChartPainter extends CustomPainter {
       } else {
         if (point.isVertical) {
           // Vertical line
-          final lastPoint = kagiData[i - 1];
           final lastX = 50 + (i - 1) * spacing;
           kagiPath.lineTo(lastX, y);
         } else {

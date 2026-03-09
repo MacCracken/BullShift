@@ -647,7 +647,10 @@ mod tests {
             orders: Vec::new(),
         });
         portfolio.update_position("AAPL", -5.0);
-        assert_eq!(portfolio.positions.get("AAPL").unwrap().current_price, 150.0);
+        assert_eq!(
+            portfolio.positions.get("AAPL").unwrap().current_price,
+            150.0
+        );
     }
 
     #[test]
@@ -664,7 +667,10 @@ mod tests {
             orders: Vec::new(),
         });
         portfolio.update_position("AAPL", f64::NAN);
-        assert_eq!(portfolio.positions.get("AAPL").unwrap().current_price, 150.0);
+        assert_eq!(
+            portfolio.positions.get("AAPL").unwrap().current_price,
+            150.0
+        );
     }
 
     #[test]

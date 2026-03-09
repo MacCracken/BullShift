@@ -4,7 +4,7 @@ import '../../bullrunnr_provider.dart';
 
 class FearGreedGauge extends StatelessWidget {
   final BullRunnrProvider provider;
-  
+
   const FearGreedGauge({
     super.key,
     required this.provider,
@@ -12,8 +12,9 @@ class FearGreedGauge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fearGreedIndex = provider.marketSentiment.safeDouble('fearGreedIndex');
-    
+    final fearGreedIndex =
+        provider.marketSentiment.safeDouble('fearGreedIndex');
+
     String getFearGreedLabel() {
       if (fearGreedIndex >= 75) return 'Extreme Greed';
       if (fearGreedIndex >= 55) return 'Greed';
@@ -48,7 +49,12 @@ class FearGreedGauge extends StatelessWidget {
               height: 30,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Colors.red, Colors.orange, Colors.grey, Colors.green],
+                  colors: [
+                    Colors.red,
+                    Colors.orange,
+                    Colors.grey,
+                    Colors.green
+                  ],
                   stops: [0.0, 0.25, 0.5, 1.0],
                 ),
                 borderRadius: BorderRadius.circular(15),

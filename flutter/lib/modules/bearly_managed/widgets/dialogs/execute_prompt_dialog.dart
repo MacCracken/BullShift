@@ -165,7 +165,8 @@ class _ExecutePromptDialogState extends State<ExecutePromptDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton.icon(
-          onPressed: (activeProviders.isEmpty || _isExecuting) ? null : _executePrompt,
+          onPressed:
+              (activeProviders.isEmpty || _isExecuting) ? null : _executePrompt,
           icon: _isExecuting
               ? const SizedBox(
                   width: 16,

@@ -41,10 +41,10 @@ class TrendSetterProvider extends BaseProvider {
       operation: () async {
         // Simulate API call delay
         await Future.delayed(const Duration(seconds: 1));
-        
+
         // Generate fresh sample data
         _generateSampleData();
-        
+
         // Clear expired alerts
         _clearExpiredAlerts();
       },
@@ -55,16 +55,92 @@ class TrendSetterProvider extends BaseProvider {
   void _generateSampleData() {
     final random = Random();
     final symbols = [
-      'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD',
-      'NFLX', 'DIS', 'BA', 'JPM', 'V', 'WMT', 'PG', 'JNJ', 'UNH',
-      'HD', 'MA', 'PYPL', 'INTC', 'CSCO', 'CMCSA', 'PEP', 'COST',
-      'ADBE', 'CRM', 'XOM', 'CVX', 'LLY', 'ABBV', 'DHR', 'MDT',
-      'ABT', 'T', 'VZ', 'KO', 'NKE', 'MRK', 'HON', 'TXN', 'NEE',
-      'AMGN', 'UPS', 'LIN', 'PLD', 'EL', 'LMT', 'CAT', 'GS', 'RTX',
-      'BLK', 'GE', 'MMM', 'DE', 'CI', 'TMO', 'SNY', 'AZN', 'QCOM',
-      'TM', 'HMC', 'BABA', 'PDD', 'BIDU', 'NIO', 'XPEV', 'LI', 'RIVN',
-      'LCID', 'RBLX', 'SNAP', 'TWTR', 'SPOT', 'ROKU', 'ZM', 'DOCU',
-      'SQ', 'SHOP', 'MELI', 'SE', 'BNGO', 'GME', 'AMC', 'BB', 'NOK'
+      'AAPL',
+      'GOOGL',
+      'MSFT',
+      'AMZN',
+      'TSLA',
+      'META',
+      'NVDA',
+      'AMD',
+      'NFLX',
+      'DIS',
+      'BA',
+      'JPM',
+      'V',
+      'WMT',
+      'PG',
+      'JNJ',
+      'UNH',
+      'HD',
+      'MA',
+      'PYPL',
+      'INTC',
+      'CSCO',
+      'CMCSA',
+      'PEP',
+      'COST',
+      'ADBE',
+      'CRM',
+      'XOM',
+      'CVX',
+      'LLY',
+      'ABBV',
+      'DHR',
+      'MDT',
+      'ABT',
+      'T',
+      'VZ',
+      'KO',
+      'NKE',
+      'MRK',
+      'HON',
+      'TXN',
+      'NEE',
+      'AMGN',
+      'UPS',
+      'LIN',
+      'PLD',
+      'EL',
+      'LMT',
+      'CAT',
+      'GS',
+      'RTX',
+      'BLK',
+      'GE',
+      'MMM',
+      'DE',
+      'CI',
+      'TMO',
+      'SNY',
+      'AZN',
+      'QCOM',
+      'TM',
+      'HMC',
+      'BABA',
+      'PDD',
+      'BIDU',
+      'NIO',
+      'XPEV',
+      'LI',
+      'RIVN',
+      'LCID',
+      'RBLX',
+      'SNAP',
+      'TWTR',
+      'SPOT',
+      'ROKU',
+      'ZM',
+      'DOCU',
+      'SQ',
+      'SHOP',
+      'MELI',
+      'SE',
+      'BNGO',
+      'GME',
+      'AMC',
+      'BB',
+      'NOK'
     ];
 
     // Generate momentum stocks
@@ -73,9 +149,9 @@ class TrendSetterProvider extends BaseProvider {
       final volumeSpike = 0.5 + random.nextDouble() * 4.5; // 0.5x to 5x
       final priceMomentum = -1.0 + random.nextDouble() * 2.0; // -1 to 1
       final socialSentiment = -1.0 + random.nextDouble() * 2.0; // -1 to 1
-      
+
       final trendStrength = _getTrendStrength(score);
-      
+
       return {
         'symbol': symbol,
         'score': score,
@@ -83,12 +159,14 @@ class TrendSetterProvider extends BaseProvider {
         'priceMomentum': priceMomentum,
         'socialSentiment': socialSentiment,
         'trendStrength': trendStrength,
-        'timestamp': DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
+        'timestamp':
+            DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
       };
     }).toList();
 
     // Sort by score (highest first)
-    _momentumStocks.sort((a, b) => b.safeDouble('score').compareTo(a.safeDouble('score')));
+    _momentumStocks
+        .sort((a, b) => b.safeDouble('score').compareTo(a.safeDouble('score')));
 
     // Generate heat map data (subset of stocks)
     _heatMapData = _momentumStocks.take(15).map((stock) {
@@ -127,9 +205,11 @@ class TrendSetterProvider extends BaseProvider {
         _activeAlerts.add({
           'symbol': symbol,
           'type': 'VolumeSpike',
-          'message': 'Unusual volume spike detected: ${volumeSpike.toStringAsFixed(1)}x average',
+          'message':
+              'Unusual volume spike detected: ${volumeSpike.toStringAsFixed(1)}x average',
           'confidence': 0.8 + random.nextDouble() * 0.2,
-          'timestamp': DateTime.now().subtract(Duration(minutes: random.nextInt(30))),
+          'timestamp':
+              DateTime.now().subtract(Duration(minutes: random.nextInt(30))),
         });
       }
 
@@ -140,7 +220,8 @@ class TrendSetterProvider extends BaseProvider {
           'type': 'MomentumShift',
           'message': 'Strong momentum detected: ${(score * 100).toInt()}%',
           'confidence': score,
-          'timestamp': DateTime.now().subtract(Duration(minutes: random.nextInt(45))),
+          'timestamp':
+              DateTime.now().subtract(Duration(minutes: random.nextInt(45))),
         });
       }
 
@@ -149,9 +230,11 @@ class TrendSetterProvider extends BaseProvider {
         _activeAlerts.add({
           'symbol': symbol,
           'type': 'SocialBuzz',
-          'message': 'High social sentiment: ${(socialSentiment * 100).toInt()}%',
+          'message':
+              'High social sentiment: ${(socialSentiment * 100).toInt()}%',
           'confidence': 0.7 + random.nextDouble() * 0.3,
-          'timestamp': DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
+          'timestamp':
+              DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
         });
       }
 
@@ -162,13 +245,15 @@ class TrendSetterProvider extends BaseProvider {
           'type': 'PriceBreakout',
           'message': 'Price breakout detected',
           'confidence': 0.6 + random.nextDouble() * 0.4,
-          'timestamp': DateTime.now().subtract(Duration(minutes: random.nextInt(20))),
+          'timestamp':
+              DateTime.now().subtract(Duration(minutes: random.nextInt(20))),
         });
       }
     }
 
     // Sort alerts by timestamp (newest first)
-    _activeAlerts.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+    _activeAlerts.sort((a, b) =>
+        (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
 
     // Limit to 20 most recent alerts
     _activeAlerts = _activeAlerts.take(20).toList();
@@ -196,7 +281,8 @@ class TrendSetterProvider extends BaseProvider {
     final now = DateTime.now();
     _activeAlerts = _activeAlerts.where((alert) {
       final timestamp = alert['timestamp'] as DateTime;
-      return now.difference(timestamp).inHours < 4; // Keep alerts less than 4 hours old
+      return now.difference(timestamp).inHours <
+          4; // Keep alerts less than 4 hours old
     }).toList();
   }
 
@@ -213,7 +299,7 @@ class TrendSetterProvider extends BaseProvider {
   // Search stocks by symbol
   List<Map<String, dynamic>> searchStocks(String query) {
     if (query.isEmpty) return _momentumStocks;
-    
+
     return _momentumStocks.where((stock) {
       final symbol = stock.safeString('symbol');
       return symbol.toLowerCase().contains(query.toLowerCase());
@@ -233,8 +319,9 @@ class TrendSetterProvider extends BaseProvider {
 
     final totalStocks = _momentumStocks.length;
     final avgScore = _momentumStocks
-        .map((stock) => stock.safeDouble('score'))
-        .reduce((a, b) => a + b) / totalStocks;
+            .map((stock) => stock.safeDouble('score'))
+            .reduce((a, b) => a + b) /
+        totalStocks;
     final topStocks = _momentumStocks
         .where((stock) => stock.safeDouble('score') > 0.7)
         .length;

@@ -25,15 +25,22 @@ class AIProviderCard extends StatelessWidget {
     final isConfigured = provider.safeBool('isConfigured');
     final isActive = provider.safeBool('isActive');
     final lastUsed = provider['lastUsed'] as String?;
-    
+
     Color getProviderColor() {
       switch (providerType.toLowerCase()) {
-        case 'openai': return Colors.green;
-        case 'anthropic': return Colors.purple;
-        case 'ollama': return Colors.orange;
-        case 'secureyeoman': return Colors.teal;
-        case 'local': case 'local llm': return Colors.blue;
-        default: return Colors.grey;
+        case 'openai':
+          return Colors.green;
+        case 'anthropic':
+          return Colors.purple;
+        case 'ollama':
+          return Colors.orange;
+        case 'secureyeoman':
+          return Colors.teal;
+        case 'local':
+        case 'local llm':
+          return Colors.blue;
+        default:
+          return Colors.grey;
       }
     }
 
@@ -48,7 +55,8 @@ class AIProviderCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: getProviderColor(),
                     borderRadius: BorderRadius.circular(12),

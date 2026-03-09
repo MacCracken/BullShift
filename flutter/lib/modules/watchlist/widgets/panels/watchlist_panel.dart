@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../watchlist_provider.dart';
 import '../cards/watchlist_card.dart';
 import '../dialogs/add_symbol_dialog.dart';
@@ -92,37 +91,40 @@ class WatchlistPanel extends StatelessWidget {
                     child: CircularProgressIndicator(color: Colors.white),
                   )
                 : provider.watchlist.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.star_border, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'Your watchlist is empty',
-                          style: TextStyle(color: Colors.grey, fontSize: 18),
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.star_border,
+                                size: 64, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text(
+                              'Your watchlist is empty',
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 18),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Click the search icon to add symbols',
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+                          ],
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Click the search icon to add symbols',
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: provider.watchlist.length,
-                    itemBuilder: (context, index) {
-                      final item = provider.watchlist[index];
-                      return WatchlistCard(
-                        item: item,
-                        onRemove: () =>
-                            provider.removeFromWatchlist(item['symbol']),
-                        onTrade: () => _showTradeDialog(context, item),
-                        onChart: () => _showChartDialog(context, item),
-                      );
-                    },
-                  ),
+                      )
+                    : ListView.builder(
+                        itemCount: provider.watchlist.length,
+                        itemBuilder: (context, index) {
+                          final item = provider.watchlist[index];
+                          return WatchlistCard(
+                            item: item,
+                            onRemove: () =>
+                                provider.removeFromWatchlist(item['symbol']),
+                            onTrade: () => _showTradeDialog(context, item),
+                            onChart: () => _showChartDialog(context, item),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
@@ -150,8 +152,8 @@ class WatchlistPanel extends StatelessWidget {
       avatar: isSelected && !provider.sortAscending
           ? const Icon(Icons.arrow_downward, size: 16, color: Colors.black)
           : isSelected && provider.sortAscending
-          ? const Icon(Icons.arrow_upward, size: 16, color: Colors.black)
-          : null,
+              ? const Icon(Icons.arrow_upward, size: 16, color: Colors.black)
+              : null,
     );
   }
 

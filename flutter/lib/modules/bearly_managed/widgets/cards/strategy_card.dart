@@ -22,24 +22,34 @@ class StrategyCard extends StatelessWidget {
     final riskLevel = strategy['riskLevel'] as String;
     final isActive = strategy['isActive'] as bool;
     final winRate = (strategy['winRate'] as double?) ?? 0.0;
-    
+
     Color getStrategyColor() {
       switch (strategyType.toLowerCase()) {
-        case 'momentum': return Colors.blue;
-        case 'meanreversion': return Colors.green;
-        case 'breakout': return Colors.orange;
-        case 'sentiment': return Colors.purple;
-        default: return Colors.grey;
+        case 'momentum':
+          return Colors.blue;
+        case 'meanreversion':
+          return Colors.green;
+        case 'breakout':
+          return Colors.orange;
+        case 'sentiment':
+          return Colors.purple;
+        default:
+          return Colors.grey;
       }
     }
 
     Color getRiskColor() {
       switch (riskLevel.toLowerCase()) {
-        case 'conservative': return Colors.green;
-        case 'moderate': return Colors.yellow;
-        case 'aggressive': return Colors.orange;
-        case 'veryaggressive': return Colors.red;
-        default: return Colors.grey;
+        case 'conservative':
+          return Colors.green;
+        case 'moderate':
+          return Colors.yellow;
+        case 'aggressive':
+          return Colors.orange;
+        case 'veryaggressive':
+          return Colors.red;
+        default:
+          return Colors.grey;
       }
     }
 
@@ -54,7 +64,8 @@ class StrategyCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: getStrategyColor(),
                     borderRadius: BorderRadius.circular(12),
@@ -100,7 +111,8 @@ class StrategyCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: getRiskColor().withOpacity(0.3),
                     borderRadius: BorderRadius.circular(8),
@@ -128,7 +140,8 @@ class StrategyCard extends StatelessWidget {
                 ],
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.info_outline, color: Colors.white, size: 16),
+                  icon: const Icon(Icons.info_outline,
+                      color: Colors.white, size: 16),
                   onPressed: onView,
                   tooltip: 'View Details',
                 ),

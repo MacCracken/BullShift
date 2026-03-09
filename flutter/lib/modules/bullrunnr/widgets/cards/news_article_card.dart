@@ -4,7 +4,7 @@ import '../dialogs/news_analysis_dialog.dart';
 
 class NewsArticleCard extends StatelessWidget {
   final Map<String, dynamic> article;
-  
+
   const NewsArticleCard({
     super.key,
     required this.article,
@@ -19,7 +19,7 @@ class NewsArticleCard extends StatelessWidget {
     final score = article.safeDouble('sentimentScore').clamp(-1.0, 1.0);
     final symbols = (article['symbols'] as List<String>?) ?? [];
     final category = article.safeString('category');
-    
+
     Color getSentimentColor() {
       switch (sentiment.toLowerCase()) {
         case 'verybullish':
@@ -45,7 +45,8 @@ class NewsArticleCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: getSentimentColor(),
                     borderRadius: BorderRadius.circular(12),
@@ -94,7 +95,8 @@ class NewsArticleCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(8),
@@ -113,7 +115,9 @@ class NewsArticleCard extends StatelessWidget {
                 Expanded(
                   child: Wrap(
                     spacing: 4,
-                    children: symbols.map((symbol) => _buildSymbolChip(symbol)).toList(),
+                    children: symbols
+                        .map((symbol) => _buildSymbolChip(symbol))
+                        .toList(),
                   ),
                 ),
               ],
@@ -134,7 +138,9 @@ class NewsArticleCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(3),
                     ),
                     child: FractionallySizedBox(
-                      alignment: score >= 0 ? Alignment.centerLeft : Alignment.centerRight,
+                      alignment: score >= 0
+                          ? Alignment.centerLeft
+                          : Alignment.centerRight,
                       widthFactor: score.abs(),
                       child: Container(
                         decoration: BoxDecoration(
@@ -211,7 +217,7 @@ class NewsArticleCard extends StatelessWidget {
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inMinutes < 1) {
       return 'Just now';
     } else if (difference.inHours < 1) {

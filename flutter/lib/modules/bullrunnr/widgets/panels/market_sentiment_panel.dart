@@ -5,7 +5,7 @@ import 'fear_greed_gauge.dart';
 
 class MarketSentimentPanel extends StatelessWidget {
   final BullRunnrProvider provider;
-  
+
   const MarketSentimentPanel({
     super.key,
     required this.provider,

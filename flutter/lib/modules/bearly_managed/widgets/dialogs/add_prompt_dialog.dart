@@ -83,7 +83,8 @@ class _AddPromptDialogState extends State<AddPromptDialog> {
                 controller: _promptController,
                 decoration: const InputDecoration(
                   labelText: 'Prompt Template',
-                  hintText: 'Enter your prompt template here. Use {{symbol}} for symbol placeholders.',
+                  hintText:
+                      'Enter your prompt template here. Use {{symbol}} for symbol placeholders.',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),

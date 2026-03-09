@@ -6,7 +6,7 @@ import '../dialogs/paper_trading_settings_dialog.dart';
 
 class PaperTradingPanel extends StatelessWidget {
   final PaperHandsProvider provider;
-  
+
   const PaperTradingPanel({
     super.key,
     required this.provider,
@@ -15,7 +15,7 @@ class PaperTradingPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedPortfolio = provider.selectedPortfolio;
-    
+
     return Container(
       margin: const EdgeInsets.all(8),
       padding: const EdgeInsets.all(16),
@@ -31,7 +31,7 @@ class PaperTradingPanel extends StatelessWidget {
               const Icon(Icons.trending_up, color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Text(
-                selectedPortfolio != null 
+                selectedPortfolio != null
                     ? '📈 Paper Trading - ${selectedPortfolio['name']}'
                     : '📈 Paper Trading',
                 style: const TextStyle(
@@ -61,7 +61,9 @@ class PaperTradingPanel extends StatelessWidget {
             Expanded(
               flex: 2,
               child: AdvancedChartingWidget(
-                symbol: provider.currentSymbol.isEmpty ? 'AAPL' : provider.currentSymbol,
+                symbol: provider.currentSymbol.isEmpty
+                    ? 'AAPL'
+                    : provider.currentSymbol,
                 timeframe: provider.selectedTimeframe,
               ),
             ),

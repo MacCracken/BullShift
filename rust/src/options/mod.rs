@@ -837,20 +837,35 @@ mod tests {
         let mgr = OptionsManager::new();
         // Zero vol should return intrinsic value
         let call = mgr.black_scholes(&OptionType::Call, 150.0, 140.0, 0.5, 0.0);
-        assert!((call - 10.0).abs() < 0.01, "Zero vol ITM call should be ~intrinsic, got {}", call);
+        assert!(
+            (call - 10.0).abs() < 0.01,
+            "Zero vol ITM call should be ~intrinsic, got {}",
+            call
+        );
 
         let otm_call = mgr.black_scholes(&OptionType::Call, 130.0, 140.0, 0.5, 0.0);
-        assert!(otm_call.abs() < 0.01, "Zero vol OTM call should be ~0, got {}", otm_call);
+        assert!(
+            otm_call.abs() < 0.01,
+            "Zero vol OTM call should be ~0, got {}",
+            otm_call
+        );
 
         let put = mgr.black_scholes(&OptionType::Put, 130.0, 140.0, 0.5, 0.0);
-        assert!((put - 10.0).abs() < 0.01, "Zero vol ITM put should be ~intrinsic, got {}", put);
+        assert!(
+            (put - 10.0).abs() < 0.01,
+            "Zero vol ITM put should be ~intrinsic, got {}",
+            put
+        );
     }
 
     #[test]
     fn test_black_scholes_negative_volatility() {
         let mgr = OptionsManager::new();
         let price = mgr.black_scholes(&OptionType::Call, 150.0, 140.0, 0.5, -0.25);
-        assert!((price - 10.0).abs() < 0.01, "Negative vol should return intrinsic");
+        assert!(
+            (price - 10.0).abs() < 0.01,
+            "Negative vol should return intrinsic"
+        );
     }
 
     #[test]

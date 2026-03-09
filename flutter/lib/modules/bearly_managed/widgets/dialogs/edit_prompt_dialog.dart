@@ -95,7 +95,8 @@ class _EditPromptDialogState extends State<EditPromptDialog> {
                 controller: _promptController,
                 decoration: const InputDecoration(
                   labelText: 'Prompt Template',
-                  hintText: 'Enter your prompt template here. Use {{symbol}} for symbol placeholders.',
+                  hintText:
+                      'Enter your prompt template here. Use {{symbol}} for symbol placeholders.',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
@@ -194,7 +195,8 @@ class _EditPromptDialogState extends State<EditPromptDialog> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Prompt'),
-        content: Text('Are you sure you want to delete "${widget.prompt['name']}"?'),
+        content:
+            Text('Are you sure you want to delete "${widget.prompt['name']}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),

@@ -1,7 +1,7 @@
 use crate::error::BullShiftError;
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc, Duration};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,8 +106,8 @@ pub struct PerformanceMetrics {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RiskMetrics {
-    pub var_95: f64, // Value at Risk 95%
-    pub var_99: f64, // Value at Risk 99%
+    pub var_95: f64,  // Value at Risk 95%
+    pub var_99: f64,  // Value at Risk 99%
     pub cvar_95: f64, // Conditional Value at Risk 95%
     pub beta: f64,
     pub correlation_to_market: f64,
@@ -241,14 +241,18 @@ impl PaperHands {
     }
 
     // Portfolio Management
-    pub fn create_portfolio(&mut self, name: String, initial_balance: f64) -> Result<Uuid, BullShiftError> {
+    pub fn create_portfolio(
+        &mut self,
+        name: String,
+        initial_balance: f64,
+    ) -> Result<Uuid, BullShiftError> {
         if !initial_balance.is_finite() || initial_balance <= 0.0 {
             return Err(BullShiftError::Validation(
                 "Initial balance must be a positive finite number".to_string(),
             ));
         }
         let portfolio_id = Uuid::new_v4();
-        
+
         let portfolio = PaperPortfolio {
             id: portfolio_id,
             name,
@@ -263,23 +267,36 @@ impl PaperHands {
             created_at: Utc::now(),
             last_updated: Utc::now(),
         };
-        
+
         self.portfolios.insert(portfolio_id, portfolio);
         log::info!("Created paper portfolio: {:?}", portfolio_id);
         Ok(portfolio_id)
     }
 
-    pub fn execute_trade(&mut self, portfolio_id: Uuid, trade: PaperTrade) -> Result<(), BullShiftError> {
+    pub fn execute_trade(
+        &mut self,
+        portfolio_id: Uuid,
+        trade: PaperTrade,
+    ) -> Result<(), BullShiftError> {
         {
-            let portfolio = self.portfolios.get(&portfolio_id)
+            let portfolio = self
+                .portfolios
+                .get(&portfolio_id)
                 .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
             Self::validate_trade_static(portfolio, &trade)?;
         }
 
         {
-            let portfolio = self.portfolios.get_mut(&portfolio_id)
+            let portfolio = self
+                .portfolios
+                .get_mut(&portfolio_id)
                 .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
-            Self::process_trade_static(&self.simulation_settings, &self.market_data, portfolio, trade)?;
+            Self::process_trade_static(
+                &self.simulation_settings,
+                &self.market_data,
+                portfolio,
+                trade,
+            )?;
         }
 
         // Update portfolio metrics
@@ -288,17 +305,30 @@ impl PaperHands {
         Ok(())
     }
 
-    pub fn close_position(&mut self, portfolio_id: Uuid, symbol: &str, exit_price: f64) -> Result<(), BullShiftError> {
+    pub fn close_position(
+        &mut self,
+        portfolio_id: Uuid,
+        symbol: &str,
+        exit_price: f64,
+    ) -> Result<(), BullShiftError> {
         let closing_trade = {
-            let portfolio = self.portfolios.get(&portfolio_id)
+            let portfolio = self
+                .portfolios
+                .get(&portfolio_id)
                 .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
-            let position = portfolio.positions.get(symbol)
+            let position = portfolio
+                .positions
+                .get(symbol)
                 .ok_or_else(|| BullShiftError::Portfolio("Position not found".to_string()))?;
 
             PaperTrade {
                 id: Uuid::new_v4(),
                 symbol: symbol.to_string(),
-                side: if position.quantity > 0.0 { OrderSide::Sell } else { OrderSide::Buy },
+                side: if position.quantity > 0.0 {
+                    OrderSide::Sell
+                } else {
+                    OrderSide::Buy
+                },
                 order_type: OrderType::Market,
                 quantity: position.quantity.abs(),
                 entry_price: position.entry_price,
@@ -310,16 +340,27 @@ impl PaperHands {
                 exit_time: Some(Utc::now()),
                 pnl: Some(Self::calculate_pnl_static(position, exit_price)),
                 pnl_percentage: Some(Self::calculate_pnl_percentage_static(position, exit_price)),
-                fees: Self::calculate_fees_static(&self.simulation_settings, position.quantity, exit_price),
+                fees: Self::calculate_fees_static(
+                    &self.simulation_settings,
+                    position.quantity,
+                    exit_price,
+                ),
                 strategy: None,
                 notes: None,
             }
         };
 
         {
-            let portfolio = self.portfolios.get_mut(&portfolio_id)
+            let portfolio = self
+                .portfolios
+                .get_mut(&portfolio_id)
                 .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
-            Self::process_trade_static(&self.simulation_settings, &self.market_data, portfolio, closing_trade)?;
+            Self::process_trade_static(
+                &self.simulation_settings,
+                &self.market_data,
+                portfolio,
+                closing_trade,
+            )?;
             portfolio.positions.remove(symbol);
         }
 
@@ -328,58 +369,73 @@ impl PaperHands {
     }
 
     // Backtesting
-    pub fn run_backtest(&mut self, strategy_name: String, settings: SimulationSettings) -> Result<Uuid, BullShiftError> {
+    pub fn run_backtest(
+        &mut self,
+        strategy_name: String,
+        settings: SimulationSettings,
+    ) -> Result<Uuid, BullShiftError> {
         let backtest_id = Uuid::new_v4();
-        
+
         // Create portfolio for backtest
         let portfolio_id = self.create_portfolio(
             format!("Backtest: {}", strategy_name),
             settings.initial_balance,
         )?;
-        
+
         // Run simulation
         let result = self.simulate_trading(strategy_name, settings, portfolio_id)?;
-        
+
         // Store result
         self.active_simulations.insert(backtest_id, result);
-        
+
         log::info!("Completed backtest: {:?}", backtest_id);
         Ok(backtest_id)
     }
 
-    pub fn run_monte_carlo(&self, portfolio_id: Uuid, num_simulations: u32) -> Result<MonteCarloAnalysis, BullShiftError> {
-        let portfolio = self.portfolios.get(&portfolio_id)
+    pub fn run_monte_carlo(
+        &self,
+        portfolio_id: Uuid,
+        num_simulations: u32,
+    ) -> Result<MonteCarloAnalysis, BullShiftError> {
+        let portfolio = self
+            .portfolios
+            .get(&portfolio_id)
             .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
-        
+
         let mut simulations = Vec::new();
-        
+
         for _ in 0..num_simulations {
             let simulation = self.run_single_simulation(portfolio)?;
             simulations.push(simulation);
         }
-        
+
         // Calculate statistics
         let analysis = self.calculate_monte_carlo_statistics(simulations);
-        
+
         Ok(analysis)
     }
 
     // Advanced Analytics
-    pub fn calculate_correlation_matrix(&self, portfolio_id: Uuid) -> Result<HashMap<String, HashMap<String, f64>>, BullShiftError> {
-        let portfolio = self.portfolios.get(&portfolio_id)
+    pub fn calculate_correlation_matrix(
+        &self,
+        portfolio_id: Uuid,
+    ) -> Result<HashMap<String, HashMap<String, f64>>, BullShiftError> {
+        let portfolio = self
+            .portfolios
+            .get(&portfolio_id)
             .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
-        
+
         let mut correlation_matrix = HashMap::new();
         let symbols: Vec<String> = portfolio.positions.keys().cloned().collect();
-        
+
         for (i, symbol_i) in symbols.iter().enumerate() {
             let mut correlations = HashMap::with_capacity(symbols.len());
-            
+
             for symbol_j in &symbols[i..] {
                 // Calculate correlation only once for each pair
                 let correlation = self.calculate_symbol_correlation(portfolio, symbol_i, symbol_j);
                 correlations.insert(symbol_j.clone(), correlation);
-                
+
                 // Matrix is symmetric, so add reverse entry too (if not diagonal)
                 if symbol_i != symbol_j {
                     correlation_matrix
@@ -388,54 +444,66 @@ impl PaperHands {
                         .insert(symbol_i.clone(), correlation);
                 }
             }
-            
+
             correlation_matrix.insert(symbol_i.clone(), correlations);
         }
-        
+
         Ok(correlation_matrix)
     }
 
-    pub fn calculate_optimal_position_sizes(&self, portfolio_id: Uuid) -> Result<HashMap<String, f64>, BullShiftError> {
-        let portfolio = self.portfolios.get(&portfolio_id)
+    pub fn calculate_optimal_position_sizes(
+        &self,
+        portfolio_id: Uuid,
+    ) -> Result<HashMap<String, f64>, BullShiftError> {
+        let portfolio = self
+            .portfolios
+            .get(&portfolio_id)
             .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
-        
+
         let mut optimal_sizes = HashMap::new();
-        
+
         // Cache metrics to avoid repeated field access
         let win_rate = portfolio.performance_metrics.win_rate;
         let avg_win = portfolio.performance_metrics.average_win;
         let avg_loss = portfolio.performance_metrics.average_loss;
         let current_balance = portfolio.current_balance;
-        
+
         // Pre-calculate Kelly percentage
         let kelly_percentage = if avg_loss != 0.0 {
             (win_rate * avg_win - (1.0 - win_rate) * avg_loss.abs()) / avg_loss.abs()
         } else {
             0.0
         };
-        
+
         // Apply position sizing limits
         let max_position = current_balance * 0.25; // Max 25% per position
         let optimal_size = (kelly_percentage * current_balance).min(max_position);
-        
+
         for symbol in portfolio.positions.keys() {
             optimal_sizes.insert(symbol.clone(), optimal_size);
         }
-        
+
         Ok(optimal_sizes)
     }
 
     // Helper methods
-    fn validate_trade_static(portfolio: &PaperPortfolio, trade: &PaperTrade) -> Result<(), BullShiftError> {
+    fn validate_trade_static(
+        portfolio: &PaperPortfolio,
+        trade: &PaperTrade,
+    ) -> Result<(), BullShiftError> {
         let required_balance = trade.quantity * trade.entry_price;
 
         if required_balance > portfolio.available_balance {
-            return Err(BullShiftError::Trading("Insufficient balance for trade".to_string()));
+            return Err(BullShiftError::Trading(
+                "Insufficient balance for trade".to_string(),
+            ));
         }
 
         let max_position_size = portfolio.current_balance * 0.5;
         if required_balance > max_position_size {
-            return Err(BullShiftError::Trading("Trade exceeds maximum position size".to_string()));
+            return Err(BullShiftError::Trading(
+                "Trade exceeds maximum position size".to_string(),
+            ));
         }
 
         Ok(())
@@ -478,7 +546,8 @@ impl PaperHands {
         let old_avg_price = position.average_entry_price;
 
         let new_quantity = old_quantity + trade.quantity;
-        let new_avg_price = (old_quantity * old_avg_price + trade.quantity * trade.entry_price) / new_quantity;
+        let new_avg_price =
+            (old_quantity * old_avg_price + trade.quantity * trade.entry_price) / new_quantity;
 
         position.quantity = new_quantity;
         position.average_entry_price = new_avg_price;
@@ -490,7 +559,11 @@ impl PaperHands {
                 position.current_price = latest.close;
                 position.unrealized_pnl = (latest.close - position.entry_price) * position.quantity;
                 let cost = position.quantity * position.average_entry_price;
-                position.unrealized_pnl_percentage = if cost != 0.0 { position.unrealized_pnl / cost } else { 0.0 };
+                position.unrealized_pnl_percentage = if cost != 0.0 {
+                    position.unrealized_pnl / cost
+                } else {
+                    0.0
+                };
             }
         }
     }
@@ -527,7 +600,9 @@ impl PaperHands {
 
     fn calculate_pnl_percentage_static(position: &PaperPosition, exit_price: f64) -> f64 {
         let total_cost = position.entry_price * position.quantity;
-        if total_cost == 0.0 { return 0.0; }
+        if total_cost == 0.0 {
+            return 0.0;
+        }
         ((exit_price - position.entry_price) * position.quantity) / total_cost
     }
 
@@ -554,59 +629,83 @@ impl PaperHands {
     fn calculate_performance_metrics_static(portfolio: &PaperPortfolio) -> PerformanceMetrics {
         let total_return = portfolio.current_balance - portfolio.initial_balance;
         let total_return_percentage = total_return / portfolio.initial_balance;
-        
-        let closed_trades: Vec<_> = portfolio.trades.iter()
+
+        let closed_trades: Vec<_> = portfolio
+            .trades
+            .iter()
             .filter(|t| t.status == TradeStatus::Closed)
             .collect();
-        
-        let winning_trades = closed_trades.iter()
+
+        let winning_trades = closed_trades
+            .iter()
             .filter(|t| t.pnl.unwrap_or(0.0) > 0.0)
             .count();
-        
-        let losing_trades = closed_trades.iter()
+
+        let losing_trades = closed_trades
+            .iter()
             .filter(|t| t.pnl.unwrap_or(0.0) < 0.0)
             .count();
-        
+
         let win_rate = if closed_trades.is_empty() {
             0.0
         } else {
             winning_trades as f64 / closed_trades.len() as f64
         };
-        
-        let total_wins: f64 = closed_trades.iter()
+
+        let total_wins: f64 = closed_trades
+            .iter()
             .filter(|t| t.pnl.unwrap_or(0.0) > 0.0)
             .map(|t| t.pnl.unwrap_or(0.0))
             .sum();
-        
-        let total_losses: f64 = closed_trades.iter()
+
+        let total_losses: f64 = closed_trades
+            .iter()
             .filter(|t| t.pnl.unwrap_or(0.0) < 0.0)
             .map(|t| t.pnl.unwrap_or(0.0).abs())
             .sum();
-        
+
         let profit_factor = if total_losses == 0.0 {
-            if total_wins > 0.0 { f64::INFINITY } else { 0.0 }
+            if total_wins > 0.0 {
+                f64::INFINITY
+            } else {
+                0.0
+            }
         } else {
             total_wins / total_losses
         };
-        
+
         PerformanceMetrics {
             total_return,
             total_return_percentage,
             annualized_return: 0.0, // Would calculate based on time period
             win_rate,
             profit_factor,
-            sharpe_ratio: 0.0, // Would calculate using risk-free rate
+            sharpe_ratio: 0.0,  // Would calculate using risk-free rate
             sortino_ratio: 0.0, // Would calculate using downside deviation
-            max_drawdown: 0.0, // Would calculate from equity curve
+            max_drawdown: 0.0,  // Would calculate from equity curve
             max_drawdown_percentage: 0.0,
             calmar_ratio: 0.0, // Would calculate using max drawdown
             total_trades: closed_trades.len() as u32,
             winning_trades: winning_trades as u32,
             losing_trades: losing_trades as u32,
-            average_win: if winning_trades > 0 { total_wins / winning_trades as f64 } else { 0.0 },
-            average_loss: if losing_trades > 0 { total_losses / losing_trades as f64 } else { 0.0 },
-            largest_win: closed_trades.iter().map(|t| t.pnl.unwrap_or(0.0)).fold(0.0, f64::max),
-            largest_loss: closed_trades.iter().map(|t| t.pnl.unwrap_or(0.0)).fold(0.0, f64::min),
+            average_win: if winning_trades > 0 {
+                total_wins / winning_trades as f64
+            } else {
+                0.0
+            },
+            average_loss: if losing_trades > 0 {
+                total_losses / losing_trades as f64
+            } else {
+                0.0
+            },
+            largest_win: closed_trades
+                .iter()
+                .map(|t| t.pnl.unwrap_or(0.0))
+                .fold(0.0, f64::max),
+            largest_loss: closed_trades
+                .iter()
+                .map(|t| t.pnl.unwrap_or(0.0))
+                .fold(0.0, f64::min),
             average_trade_duration: Duration::zero(), // Would calculate from trade durations
             best_trade_duration: Duration::zero(),
             worst_trade_duration: Duration::zero(),
@@ -631,27 +730,34 @@ impl PaperHands {
         }
     }
 
-    fn simulate_trading(&mut self, strategy_name: String, settings: SimulationSettings, portfolio_id: Uuid) -> Result<BacktestResult, BullShiftError> {
-        let portfolio = self.portfolios.get(&portfolio_id)
+    fn simulate_trading(
+        &mut self,
+        strategy_name: String,
+        settings: SimulationSettings,
+        portfolio_id: Uuid,
+    ) -> Result<BacktestResult, BullShiftError> {
+        let portfolio = self
+            .portfolios
+            .get(&portfolio_id)
             .ok_or_else(|| BullShiftError::Portfolio("Portfolio not found".to_string()))?;
-        
+
         // Generate equity curve based on simulated trades
         let mut equity_curve = Vec::new();
         let mut portfolio_value: f64 = settings.initial_balance;
         let mut max_portfolio_value: f64 = portfolio_value;
         let mut max_drawdown: f64 = 0.0;
-        
+
         let duration = settings.end_date.signed_duration_since(settings.start_date);
         let days = duration.num_days().max(1);
-        
+
         // Generate daily equity points
         for day in 0..=days {
             let timestamp = settings.start_date + Duration::days(day);
-            
+
             // Simulate daily returns using random walk with drift
             let daily_return = self.generate_daily_return(&strategy_name, day);
             portfolio_value *= 1.0 + daily_return;
-            
+
             // Calculate drawdown
             if portfolio_value > max_portfolio_value {
                 max_portfolio_value = portfolio_value;
@@ -663,7 +769,7 @@ impl PaperHands {
                 0.0
             };
             max_drawdown = max_drawdown.max(drawdown);
-            
+
             equity_curve.push(EquityPoint {
                 timestamp,
                 portfolio_value,
@@ -673,16 +779,16 @@ impl PaperHands {
                 drawdown_percentage: drawdown_pct,
             });
         }
-        
+
         // Generate simulated trade analysis
         let trade_analysis = self.generate_trade_analysis(&equity_curve, &settings);
-        
+
         // Generate benchmark comparison
         let benchmark_comparison = self.generate_benchmark_comparison(&equity_curve, &settings);
-        
+
         // Run Monte Carlo analysis
         let monte_carlo_analysis = self.run_monte_carlo_simulation(&equity_curve, 1000)?;
-        
+
         Ok(BacktestResult {
             id: Uuid::new_v4(),
             strategy_name,
@@ -695,29 +801,33 @@ impl PaperHands {
             created_at: Utc::now(),
         })
     }
-    
+
     fn generate_daily_return(&self, strategy_name: &str, day: i64) -> f64 {
         // Different strategies have different return characteristics
         let base_return = match strategy_name {
-            "Momentum" => 0.0005,      // 0.05% daily
+            "Momentum" => 0.0005, // 0.05% daily
             "Mean Reversion" => 0.0003,
             "Trend Following" => 0.0004,
             "Breakout" => 0.0006,
             _ => 0.0002,
         };
-        
+
         // Add some randomness and cyclical patterns
         let random_component = (day as f64 * 0.1).sin() * 0.002;
         let noise = ((day * 17) % 100) as f64 / 10000.0 - 0.005;
-        
+
         base_return + random_component + noise
     }
-    
-    fn generate_trade_analysis(&self, equity_curve: &[EquityPoint], settings: &SimulationSettings) -> TradeAnalysis {
+
+    fn generate_trade_analysis(
+        &self,
+        equity_curve: &[EquityPoint],
+        settings: &SimulationSettings,
+    ) -> TradeAnalysis {
         let total_days = equity_curve.len() as u32;
         let trades_per_day = 2; // Assume 2 trades per day
         let total_trades = total_days * trades_per_day;
-        
+
         // Calculate returns from equity curve
         let mut returns = Vec::new();
         for i in 1..equity_curve.len() {
@@ -725,32 +835,47 @@ impl PaperHands {
             let curr = equity_curve[i].portfolio_value;
             returns.push((curr - prev) / prev);
         }
-        
+
         // Simulate win rate and trade distribution
         let win_rate = 0.55; // 55% win rate
         let winning_trades = (total_trades as f64 * win_rate) as u32;
         let losing_trades = total_trades - winning_trades;
-        
-        let total_return = equity_curve.last().map(|e| e.portfolio_value).unwrap_or(settings.initial_balance) - settings.initial_balance;
-        let avg_win = if winning_trades > 0 { total_return * 0.8 / winning_trades as f64 } else { 0.0 };
-        let avg_loss = if losing_trades > 0 { -total_return * 0.2 / losing_trades as f64 } else { 0.0 };
-        
+
+        let total_return = equity_curve
+            .last()
+            .map(|e| e.portfolio_value)
+            .unwrap_or(settings.initial_balance)
+            - settings.initial_balance;
+        let avg_win = if winning_trades > 0 {
+            total_return * 0.8 / winning_trades as f64
+        } else {
+            0.0
+        };
+        let avg_loss = if losing_trades > 0 {
+            -total_return * 0.2 / losing_trades as f64
+        } else {
+            0.0
+        };
+
         let profit_factor = if avg_loss.abs() > 0.0 {
             (winning_trades as f64 * avg_win) / (losing_trades as f64 * avg_loss.abs())
         } else {
             0.0
         };
-        
+
         // Generate monthly returns
         let mut monthly_returns = HashMap::new();
         for (i, point) in equity_curve.iter().enumerate().step_by(30) {
             let month_key = point.timestamp.format("%Y-%m").to_string();
             let start_idx = i.saturating_sub(30);
-            let start_value = equity_curve.get(start_idx).map(|e| e.portfolio_value).unwrap_or(settings.initial_balance);
+            let start_value = equity_curve
+                .get(start_idx)
+                .map(|e| e.portfolio_value)
+                .unwrap_or(settings.initial_balance);
             let monthly_return = (point.portfolio_value - start_value) / start_value;
             monthly_returns.insert(month_key, monthly_return);
         }
-        
+
         TradeAnalysis {
             total_trades,
             winning_trades,
@@ -770,13 +895,18 @@ impl PaperHands {
             rolling_returns: Vec::new(),
         }
     }
-    
-    fn generate_benchmark_comparison(&self, equity_curve: &[EquityPoint], _settings: &SimulationSettings) -> BenchmarkComparison {
+
+    fn generate_benchmark_comparison(
+        &self,
+        equity_curve: &[EquityPoint],
+        _settings: &SimulationSettings,
+    ) -> BenchmarkComparison {
         let mut benchmark_returns = Vec::new();
         let mut portfolio_returns = Vec::new();
 
         for i in 1..equity_curve.len() {
-            let portfolio_return = (equity_curve[i].portfolio_value - equity_curve[i - 1].portfolio_value)
+            let portfolio_return = (equity_curve[i].portfolio_value
+                - equity_curve[i - 1].portfolio_value)
                 / equity_curve[i - 1].portfolio_value;
             let benchmark_return = portfolio_return * 0.8 + 0.0002;
             portfolio_returns.push(portfolio_return);
@@ -812,14 +942,17 @@ impl PaperHands {
         }
     }
 
-    fn run_single_simulation(&self, portfolio: &PaperPortfolio) -> Result<SimulationResult, BullShiftError> {
+    fn run_single_simulation(
+        &self,
+        portfolio: &PaperPortfolio,
+    ) -> Result<SimulationResult, BullShiftError> {
         // Monte Carlo simulation using geometric Brownian motion
         let initial_value = portfolio.current_balance;
         let days = 252; // Trading days in a year
-        
+
         // Calculate historical returns and volatility from portfolio trades
         let (mean_return, volatility) = self.calculate_return_statistics(portfolio);
-        
+
         // Run simulation
         let mut current_value = initial_value;
         let mut max_value = initial_value;
@@ -831,21 +964,21 @@ impl PaperHands {
             let u1 = rand::random::<f64>();
             let u2 = rand::random::<f64>();
             let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
-            
+
             // Apply geometric Brownian motion
             let daily_return = mean_return / days as f64 + volatility * z / (days as f64).sqrt();
             current_value *= 1.0 + daily_return;
-            
+
             // Track max drawdown
             if current_value > max_value {
                 max_value = current_value;
             }
             let drawdown = (max_value - current_value) / max_value;
             max_drawdown = max_drawdown.max(drawdown);
-            
+
             total_return = (current_value - initial_value) / initial_value;
         }
-        
+
         // Calculate Sharpe ratio (simplified, assuming risk-free rate of 2%)
         let risk_free_rate = 0.02;
         let excess_return = total_return - risk_free_rate;
@@ -854,10 +987,10 @@ impl PaperHands {
         } else {
             0.0
         };
-        
+
         // Estimate win rate based on return distribution
         let win_rate = if total_return > 0.0 { 0.55 } else { 0.45 };
-        
+
         Ok(SimulationResult {
             final_value: current_value,
             total_return: current_value - initial_value,
@@ -866,41 +999,42 @@ impl PaperHands {
             win_rate,
         })
     }
-    
+
     fn calculate_return_statistics(&self, portfolio: &PaperPortfolio) -> (f64, f64) {
         let trades = &portfolio.trades;
         if trades.is_empty() {
             return (0.08, 0.15); // Default: 8% annual return, 15% volatility
         }
-        
+
         // Calculate returns from trades
-        let returns: Vec<f64> = trades.iter()
-            .filter_map(|t| t.pnl_percentage)
-            .collect();
-        
+        let returns: Vec<f64> = trades.iter().filter_map(|t| t.pnl_percentage).collect();
+
         if returns.is_empty() {
             return (0.08, 0.15);
         }
-        
+
         // Calculate mean
         let mean = returns.iter().sum::<f64>() / returns.len() as f64;
-        
+
         // Calculate standard deviation
-        let variance = returns.iter()
-            .map(|r| (r - mean).powi(2))
-            .sum::<f64>() / returns.len() as f64;
+        let variance =
+            returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / returns.len() as f64;
         let std_dev = variance.sqrt();
-        
+
         (mean, std_dev)
     }
 
-    fn calculate_monte_carlo_statistics(&self, simulations: Vec<SimulationResult>) -> MonteCarloAnalysis {
+    fn calculate_monte_carlo_statistics(
+        &self,
+        simulations: Vec<SimulationResult>,
+    ) -> MonteCarloAnalysis {
         if simulations.is_empty() {
             return MonteCarloAnalysis::default();
         }
-        
+
         // Extract final values for percentile calculations, filtering NaN/Inf
-        let mut final_values: Vec<f64> = simulations.iter()
+        let mut final_values: Vec<f64> = simulations
+            .iter()
             .map(|s| s.final_value)
             .filter(|v| v.is_finite())
             .collect();
@@ -916,25 +1050,25 @@ impl PaperHands {
             let index = ((percentile as f64 / 100.0) * max_idx as f64) as usize;
             percentiles.insert(percentile, final_values[index.min(max_idx)]);
         }
-        
+
         // Calculate probability of profit
         let initial_value = simulations.first().map(|s| s.final_value).unwrap_or(1.0);
-        let profitable_simulations = simulations.iter()
+        let profitable_simulations = simulations
+            .iter()
             .filter(|s| s.final_value > initial_value)
             .count();
         let probability_of_profit = profitable_simulations as f64 / simulations.len() as f64;
-        
+
         // Calculate VaR (Value at Risk)
         let var_95_index = (0.05 * final_values.len() as f64) as usize;
         let var_99_index = (0.01 * final_values.len() as f64) as usize;
         let var_95 = final_values.get(var_95_index).copied().unwrap_or(0.0);
         let var_99 = final_values.get(var_99_index).copied().unwrap_or(0.0);
-        
+
         // Calculate Expected Shortfall (CVaR)
-        let expected_shortfall = final_values.iter()
-            .take(var_95_index)
-            .sum::<f64>() / var_95_index.max(1) as f64;
-        
+        let expected_shortfall =
+            final_values.iter().take(var_95_index).sum::<f64>() / var_95_index.max(1) as f64;
+
         MonteCarloAnalysis {
             simulations,
             percentiles,
@@ -944,30 +1078,38 @@ impl PaperHands {
             var_99,
         }
     }
-    
-    fn run_monte_carlo_simulation(&self, equity_curve: &[EquityPoint], num_simulations: u32) -> Result<MonteCarloAnalysis, BullShiftError> {
+
+    fn run_monte_carlo_simulation(
+        &self,
+        equity_curve: &[EquityPoint],
+        num_simulations: u32,
+    ) -> Result<MonteCarloAnalysis, BullShiftError> {
         let mut simulations = Vec::new();
-        
+
         // Calculate historical returns and volatility from equity curve
-        let returns: Vec<f64> = equity_curve.windows(2)
+        let returns: Vec<f64> = equity_curve
+            .windows(2)
             .map(|w| (w[1].portfolio_value - w[0].portfolio_value) / w[0].portfolio_value)
             .collect();
-        
+
         if returns.is_empty() {
             return Ok(MonteCarloAnalysis::default());
         }
-        
+
         let mean_return = returns.iter().sum::<f64>() / returns.len() as f64;
-        let variance = returns.iter()
+        let variance = returns
+            .iter()
             .map(|r| (r - mean_return).powi(2))
-            .sum::<f64>() / returns.len() as f64;
+            .sum::<f64>()
+            / returns.len() as f64;
         let volatility = variance.sqrt();
-        
+
         // Get initial value
-        let initial_value = equity_curve.first()
+        let initial_value = equity_curve
+            .first()
             .map(|e| e.portfolio_value)
             .unwrap_or(100000.0);
-        
+
         // Run multiple simulations
         for _ in 0..num_simulations {
             let mut current_value = initial_value;
@@ -980,7 +1122,7 @@ impl PaperHands {
                 let random_shock = self.generate_random_shock();
                 let daily_return = mean_return + volatility * random_shock;
                 current_value *= 1.0 + daily_return;
-                
+
                 // Update max drawdown
                 if current_value > max_value {
                     max_value = current_value;
@@ -988,7 +1130,7 @@ impl PaperHands {
                 let drawdown = (max_value - current_value) / max_value;
                 max_drawdown = max_drawdown.max(drawdown);
             }
-            
+
             // Calculate metrics
             let total_return = current_value - initial_value;
             let risk_free_rate = 0.02;
@@ -1000,7 +1142,7 @@ impl PaperHands {
             } else {
                 0.0
             };
-            
+
             simulations.push(SimulationResult {
                 final_value: current_value,
                 total_return,
@@ -1009,10 +1151,10 @@ impl PaperHands {
                 win_rate: if total_return > 0.0 { 0.55 } else { 0.45 },
             });
         }
-        
+
         Ok(self.calculate_monte_carlo_statistics(simulations))
     }
-    
+
     fn generate_random_shock(&self) -> f64 {
         // Box-Muller transform for normal distribution
         let u1 = rand::random::<f64>();
@@ -1020,7 +1162,12 @@ impl PaperHands {
         (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()
     }
 
-    fn calculate_symbol_correlation(&self, portfolio: &PaperPortfolio, symbol1: &str, symbol2: &str) -> f64 {
+    fn calculate_symbol_correlation(
+        &self,
+        portfolio: &PaperPortfolio,
+        symbol1: &str,
+        symbol2: &str,
+    ) -> f64 {
         // Get positions for both symbols
         let pos1 = match portfolio.positions.get(symbol1) {
             Some(p) => p,
@@ -1032,11 +1179,13 @@ impl PaperHands {
         };
 
         // Get trades for both symbols
-        let trades1: Vec<&PaperTrade> = portfolio.trades
+        let trades1: Vec<&PaperTrade> = portfolio
+            .trades
             .iter()
             .filter(|t| t.symbol == symbol1 && t.status == TradeStatus::Closed)
             .collect();
-        let trades2: Vec<&PaperTrade> = portfolio.trades
+        let trades2: Vec<&PaperTrade> = portfolio
+            .trades
             .iter()
             .filter(|t| t.symbol == symbol2 && t.status == TradeStatus::Closed)
             .collect();
@@ -1050,12 +1199,8 @@ impl PaperHands {
         }
 
         // Calculate returns from trades
-        let returns1: Vec<f64> = trades1.iter()
-            .filter_map(|t| t.pnl_percentage)
-            .collect();
-        let returns2: Vec<f64> = trades2.iter()
-            .filter_map(|t| t.pnl_percentage)
-            .collect();
+        let returns1: Vec<f64> = trades1.iter().filter_map(|t| t.pnl_percentage).collect();
+        let returns2: Vec<f64> = trades2.iter().filter_map(|t| t.pnl_percentage).collect();
 
         // Need at least 2 data points for correlation
         if returns1.len() < 2 || returns2.len() < 2 {
@@ -1123,9 +1268,11 @@ impl PaperHands {
         let mean_x = x.iter().sum::<f64>() / n;
         let mean_y = y.iter().sum::<f64>() / n;
 
-        x.iter().zip(y.iter())
+        x.iter()
+            .zip(y.iter())
             .map(|(xi, yi)| (xi - mean_x) * (yi - mean_y))
-            .sum::<f64>() / n
+            .sum::<f64>()
+            / n
     }
 
     fn calculate_variance(&self, data: &[f64]) -> f64 {
@@ -1136,9 +1283,7 @@ impl PaperHands {
         let n = data.len() as f64;
         let mean = data.iter().sum::<f64>() / n;
 
-        data.iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f64>() / n
+        data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n
     }
 
     fn calculate_standard_deviation(&self, data: &[f64]) -> f64 {
@@ -1156,25 +1301,25 @@ impl PaperHands {
         // If no market data available, generate a realistic price based on symbol hash
         // This ensures consistent pricing for the same symbol
         let base_price = self.generate_symbol_base_price(symbol);
-        
+
         // Add some realistic variation based on time
         let time_factor = (Utc::now().timestamp() % 86400) as f64 / 86400.0;
         let variation = (time_factor - 0.5) * 0.02; // ±1% variation
-        
+
         Some(base_price * (1.0 + variation))
     }
 
     pub fn generate_symbol_base_price(&self, symbol: &str) -> f64 {
         // Generate a deterministic base price from symbol
-        let hash = symbol.bytes().fold(0u64, |acc, b| {
-            acc.wrapping_mul(31).wrapping_add(b as u64)
-        });
-        
+        let hash = symbol
+            .bytes()
+            .fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
+
         // Map hash to a price range ($10 - $500)
         let min_price = 10.0;
         let max_price = 500.0;
         let normalized = (hash % 1000) as f64 / 1000.0;
-        
+
         min_price + (max_price - min_price) * normalized
     }
 
@@ -1192,11 +1337,11 @@ impl PaperHands {
     /// Clear old market data to manage memory
     pub fn clear_old_market_data(&mut self, days_to_keep: i64) {
         let cutoff = Utc::now() - Duration::days(days_to_keep);
-        
+
         for (_, data) in self.market_data.iter_mut() {
             data.retain(|point| point.timestamp >= cutoff);
         }
-        
+
         log::info!("Cleared market data older than {} days", days_to_keep);
     }
 
@@ -1351,7 +1496,9 @@ mod tests {
     #[test]
     fn test_create_portfolio_valid() {
         let mut engine = PaperHands::new();
-        let id = engine.create_portfolio("Test".to_string(), 100_000.0).unwrap();
+        let id = engine
+            .create_portfolio("Test".to_string(), 100_000.0)
+            .unwrap();
         let portfolio = engine.get_portfolio(&id).unwrap();
         assert_eq!(portfolio.name, "Test");
         assert_eq!(portfolio.initial_balance, 100_000.0);
@@ -1377,13 +1524,17 @@ mod tests {
     #[test]
     fn test_create_portfolio_invalid_balance_nan() {
         let mut engine = PaperHands::new();
-        assert!(engine.create_portfolio("NaN".to_string(), f64::NAN).is_err());
+        assert!(engine
+            .create_portfolio("NaN".to_string(), f64::NAN)
+            .is_err());
     }
 
     #[test]
     fn test_create_portfolio_invalid_balance_infinity() {
         let mut engine = PaperHands::new();
-        assert!(engine.create_portfolio("Inf".to_string(), f64::INFINITY).is_err());
+        assert!(engine
+            .create_portfolio("Inf".to_string(), f64::INFINITY)
+            .is_err());
     }
 
     #[test]
@@ -1412,7 +1563,9 @@ mod tests {
     #[test]
     fn test_close_position_symbol_not_found() {
         let mut engine = PaperHands::new();
-        let id = engine.create_portfolio("Test".to_string(), 100_000.0).unwrap();
+        let id = engine
+            .create_portfolio("Test".to_string(), 100_000.0)
+            .unwrap();
         let result = engine.close_position(id, "NONEXISTENT", 100.0);
         assert!(result.is_err());
     }
@@ -1472,16 +1625,14 @@ mod tests {
     #[test]
     fn test_fetch_and_get_market_data() {
         let mut engine = PaperHands::new();
-        let data = vec![
-            MarketDataPoint {
-                timestamp: Utc::now(),
-                open: 100.0,
-                high: 105.0,
-                low: 99.0,
-                close: 103.0,
-                volume: 1_000_000,
-            },
-        ];
+        let data = vec![MarketDataPoint {
+            timestamp: Utc::now(),
+            open: 100.0,
+            high: 105.0,
+            low: 99.0,
+            close: 103.0,
+            volume: 1_000_000,
+        }];
         engine.fetch_market_data("AAPL", data);
         let result = engine.get_market_data("AAPL");
         assert!(result.is_some());
@@ -1500,11 +1651,19 @@ mod tests {
         let mut engine = PaperHands::new();
         let old_point = MarketDataPoint {
             timestamp: Utc::now() - Duration::days(100),
-            open: 100.0, high: 105.0, low: 99.0, close: 103.0, volume: 500,
+            open: 100.0,
+            high: 105.0,
+            low: 99.0,
+            close: 103.0,
+            volume: 500,
         };
         let new_point = MarketDataPoint {
             timestamp: Utc::now(),
-            open: 110.0, high: 115.0, low: 109.0, close: 113.0, volume: 600,
+            open: 110.0,
+            high: 115.0,
+            low: 109.0,
+            close: 113.0,
+            volume: 600,
         };
         engine.fetch_market_data("AAPL", vec![old_point, new_point]);
         engine.clear_old_market_data(30);
@@ -1621,12 +1780,14 @@ mod tests {
     #[test]
     fn test_get_current_price_from_market_data() {
         let mut engine = PaperHands::new();
-        let data = vec![
-            MarketDataPoint {
-                timestamp: Utc::now(),
-                open: 100.0, high: 105.0, low: 99.0, close: 150.0, volume: 1000,
-            },
-        ];
+        let data = vec![MarketDataPoint {
+            timestamp: Utc::now(),
+            open: 100.0,
+            high: 105.0,
+            low: 99.0,
+            close: 150.0,
+            volume: 1000,
+        }];
         engine.fetch_market_data("AAPL", data);
         let price = engine.get_current_price("AAPL");
         assert!(price.is_some());
@@ -1702,8 +1863,20 @@ mod tests {
     fn test_calculate_monte_carlo_statistics_nan_filtered() {
         let engine = PaperHands::new();
         let sims = vec![
-            SimulationResult { final_value: f64::NAN, total_return: 0.0, max_drawdown: 0.0, sharpe_ratio: 0.0, win_rate: 0.0 },
-            SimulationResult { final_value: f64::INFINITY, total_return: 0.0, max_drawdown: 0.0, sharpe_ratio: 0.0, win_rate: 0.0 },
+            SimulationResult {
+                final_value: f64::NAN,
+                total_return: 0.0,
+                max_drawdown: 0.0,
+                sharpe_ratio: 0.0,
+                win_rate: 0.0,
+            },
+            SimulationResult {
+                final_value: f64::INFINITY,
+                total_return: 0.0,
+                max_drawdown: 0.0,
+                sharpe_ratio: 0.0,
+                win_rate: 0.0,
+            },
         ];
         let analysis = engine.calculate_monte_carlo_statistics(sims);
         // All values should be filtered, returning default
@@ -1712,7 +1885,7 @@ mod tests {
 
     #[test]
     fn test_calculate_performance_metrics_no_trades() {
-        let engine = PaperHands::new();
+        let _engine = PaperHands::new();
         let portfolio = PaperPortfolio {
             id: Uuid::new_v4(),
             name: "Empty".to_string(),
@@ -1799,7 +1972,9 @@ mod tests {
     #[test]
     fn test_correlation_matrix_empty_portfolio() {
         let mut engine = PaperHands::new();
-        let id = engine.create_portfolio("Test".to_string(), 100_000.0).unwrap();
+        let id = engine
+            .create_portfolio("Test".to_string(), 100_000.0)
+            .unwrap();
         let matrix = engine.calculate_correlation_matrix(id).unwrap();
         assert!(matrix.is_empty());
     }
@@ -1807,7 +1982,9 @@ mod tests {
     #[test]
     fn test_optimal_position_sizes_empty() {
         let mut engine = PaperHands::new();
-        let id = engine.create_portfolio("Test".to_string(), 100_000.0).unwrap();
+        let id = engine
+            .create_portfolio("Test".to_string(), 100_000.0)
+            .unwrap();
         let sizes = engine.calculate_optimal_position_sizes(id).unwrap();
         assert!(sizes.is_empty());
     }

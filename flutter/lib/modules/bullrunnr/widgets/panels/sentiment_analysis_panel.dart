@@ -5,7 +5,7 @@ import 'market_sentiment_overview.dart';
 
 class SentimentAnalysisPanel extends StatelessWidget {
   final BullRunnrProvider provider;
-  
+
   const SentimentAnalysisPanel({
     super.key,
     required this.provider,

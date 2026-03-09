@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class PortfolioDetailsDialog extends StatelessWidget {
   final Map<String, dynamic> portfolio;
-  
+
   const PortfolioDetailsDialog({super.key, required this.portfolio});
 
   @override

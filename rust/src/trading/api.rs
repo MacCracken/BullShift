@@ -134,7 +134,10 @@ impl AlpacaApi {
 
         let latest_trade_price = data["latestTrade"]["p"].as_f64().unwrap_or(0.0);
         if latest_trade_price == 0.0 {
-            log::warn!("Alpaca returned zero last_trade_price for {}; snapshot may be stale or missing", symbol);
+            log::warn!(
+                "Alpaca returned zero last_trade_price for {}; snapshot may be stale or missing",
+                symbol
+            );
         }
         let latest_quote_bid = data["latestQuote"]["bp"].as_f64().unwrap_or(0.0);
         let latest_quote_ask = data["latestQuote"]["ap"].as_f64().unwrap_or(0.0);
@@ -240,7 +243,10 @@ impl TradingApi for AlpacaApi {
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
-        if !order_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !order_id
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             return Err(BullShiftError::Validation(format!(
                 "Invalid order_id format: {}",
                 order_id
@@ -687,7 +693,11 @@ mod tests {
                 api_secret: format!("{}_secret", name),
                 sandbox: true,
             };
-            mgr.register_broker(name, Box::new(AlpacaApi::new(creds)), AlpacaApi::capabilities());
+            mgr.register_broker(
+                name,
+                Box::new(AlpacaApi::new(creds)),
+                AlpacaApi::capabilities(),
+            );
         }
         assert_eq!(mgr.list_brokers().len(), 3);
         let info = mgr.get_broker_info();
@@ -726,8 +736,16 @@ mod tests {
             api_secret: "s2".to_string(),
             sandbox: true,
         };
-        mgr.register_broker("alpaca", Box::new(AlpacaApi::new(creds1)), AlpacaApi::capabilities());
-        mgr.register_broker("tradier", Box::new(AlpacaApi::new(creds2)), AlpacaApi::capabilities());
+        mgr.register_broker(
+            "alpaca",
+            Box::new(AlpacaApi::new(creds1)),
+            AlpacaApi::capabilities(),
+        );
+        mgr.register_broker(
+            "tradier",
+            Box::new(AlpacaApi::new(creds2)),
+            AlpacaApi::capabilities(),
+        );
         mgr.set_default("alpaca".to_string());
 
         let info = mgr.get_broker_info();

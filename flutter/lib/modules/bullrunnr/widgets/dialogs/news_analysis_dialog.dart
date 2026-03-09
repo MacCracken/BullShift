@@ -3,7 +3,7 @@ import '../../../../services/safe_cast.dart';
 
 class NewsAnalysisDialog extends StatelessWidget {
   final Map<String, dynamic> article;
-  
+
   const NewsAnalysisDialog({
     super.key,
     required this.article,
@@ -33,15 +33,17 @@ class NewsAnalysisDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _buildAnalysisRow('Overall Sentiment', sentiment, score),
-            _buildAnalysisRow('Confidence', '${(confidence * 100).toInt()}%', confidence),
+            _buildAnalysisRow(
+                'Confidence', '${(confidence * 100).toInt()}%', confidence),
             const SizedBox(height: 12),
             const Text(
               'Aspect Analysis:',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            ...aspects.entries.map((entry) => 
-              _buildAspectRow(entry.key, entry.value as Map<String, dynamic>),
+            ...aspects.entries.map(
+              (entry) => _buildAspectRow(
+                  entry.key, entry.value as Map<String, dynamic>),
             ),
           ],
         ),
@@ -88,7 +90,7 @@ class NewsAnalysisDialog extends StatelessWidget {
   Widget _buildAspectRow(String aspect, Map<String, dynamic> data) {
     final sentiment = data.safeString('sentiment');
     final score = data.safeDouble('score').clamp(-1.0, 1.0);
-    
+
     Color getColor() {
       if (score > 0.3) return Colors.green;
       if (score < -0.3) return Colors.red;

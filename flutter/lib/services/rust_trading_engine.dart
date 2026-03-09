@@ -45,16 +45,22 @@ class RustTradingEngine {
   late GetAccountBalance _getAccountBalance;
 
   RustTradingEngine() {
-    final libPath = Platform.isLinux 
+    final libPath = Platform.isLinux
         ? './rust/target/release/libbullshift_core.so'
         : './rust/target/release/libbullshift_core.dylib';
-    
+
     _lib = DynamicLibrary.open(libPath);
-    
-    _submitOrder = _lib.lookupFunction<SubmitOrderFunc, SubmitOrder>('submit_order');
-    _getPositions = _lib.lookupFunction<GetPositionsFunc, GetPositions>('get_positions');
-    _connectMarketData = _lib.lookupFunction<ConnectMarketDataFunc, ConnectMarketData>('connect_market_data');
-    _getAccountBalance = _lib.lookupFunction<GetAccountBalanceFunc, GetAccountBalance>('get_account_balance');
+
+    _submitOrder =
+        _lib.lookupFunction<SubmitOrderFunc, SubmitOrder>('submit_order');
+    _getPositions =
+        _lib.lookupFunction<GetPositionsFunc, GetPositions>('get_positions');
+    _connectMarketData =
+        _lib.lookupFunction<ConnectMarketDataFunc, ConnectMarketData>(
+            'connect_market_data');
+    _getAccountBalance =
+        _lib.lookupFunction<GetAccountBalanceFunc, GetAccountBalance>(
+            'get_account_balance');
   }
 
   bool submitOrder({
@@ -69,12 +75,12 @@ class RustTradingEngine {
     final sidePtr = side.toNativeUtf8();
     final orderTypePtr = orderType.toNativeUtf8();
     Pointer<Double>? pricePtr;
-    
+
     order.ref.symbol = symbolPtr;
     order.ref.side = sidePtr;
     order.ref.quantity = quantity;
     order.ref.orderType = orderTypePtr;
-    
+
     if (price != null) {
       pricePtr = calloc<Double>();
       pricePtr.value = price;
@@ -82,7 +88,7 @@ class RustTradingEngine {
     }
 
     final result = _submitOrder(order);
-    
+
     // Free all allocated memory
     calloc.free(symbolPtr);
     calloc.free(sidePtr);

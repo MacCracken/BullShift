@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class PerformanceOverviewCard extends StatelessWidget {
   final Map<String, dynamic> portfolio;
-  
+
   const PerformanceOverviewCard({
     super.key,
     required this.portfolio,
@@ -16,7 +16,7 @@ class PerformanceOverviewCard extends StatelessWidget {
     final sharpeRatio = (portfolio['sharpeRatio'] as double?) ?? 0.0;
     final maxDrawdown = (portfolio['maxDrawdown'] as double?) ?? 0.0;
     final totalTrades = portfolio['totalTrades'] as int;
-    
+
     return Card(
       color: const Color(0xFF37474F),
       child: Padding(
@@ -25,27 +25,30 @@ class PerformanceOverviewCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                _buildMetricCard('Total Return', '${totalReturnPercentage.toStringAsFixed(2)}%', 
-                  totalReturn >= 0 ? Colors.green : Colors.red),
+                _buildMetricCard(
+                    'Total Return',
+                    '${totalReturnPercentage.toStringAsFixed(2)}%',
+                    totalReturn >= 0 ? Colors.green : Colors.red),
                 const SizedBox(width: 8),
-                _buildMetricCard('Win Rate', '${(winRate * 100).toInt()}%', 
-                  winRate > 0.5 ? Colors.green : Colors.orange),
+                _buildMetricCard('Win Rate', '${(winRate * 100).toInt()}%',
+                    winRate > 0.5 ? Colors.green : Colors.orange),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                _buildMetricCard('Sharpe Ratio', sharpeRatio.toStringAsFixed(2), 
-                  sharpeRatio > 1.0 ? Colors.green : Colors.grey),
+                _buildMetricCard('Sharpe Ratio', sharpeRatio.toStringAsFixed(2),
+                    sharpeRatio > 1.0 ? Colors.green : Colors.grey),
                 const SizedBox(width: 8),
-                _buildMetricCard('Max Drawdown', '${maxDrawdown.toStringAsFixed(2)}%', 
-                  Colors.red),
+                _buildMetricCard('Max Drawdown',
+                    '${maxDrawdown.toStringAsFixed(2)}%', Colors.red),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                _buildMetricCard('Total Trades', totalTrades.toString(), Colors.blue),
+                _buildMetricCard(
+                    'Total Trades', totalTrades.toString(), Colors.blue),
                 const SizedBox(width: 8),
                 _buildMetricCard('Active Days', '45', Colors.purple),
               ],

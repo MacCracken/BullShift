@@ -4,7 +4,7 @@ import '../core_trading/trading_provider.dart';
 
 class NotesPanel extends StatefulWidget {
   final String symbol;
-  
+
   const NotesPanel({
     super.key,
     required this.symbol,
@@ -30,7 +30,7 @@ class _NotesPanelState extends State<NotesPanel> {
     return Consumer<TradingProvider>(
       builder: (context, tradingProvider, child) {
         final notes = tradingProvider.getNotesForSymbol(widget.symbol);
-        
+
         return Container(
           margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.all(16),
@@ -55,7 +55,8 @@ class _NotesPanelState extends State<NotesPanel> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.clear_all, color: Colors.white, size: 16),
+                    icon: const Icon(Icons.clear_all,
+                        color: Colors.white, size: 16),
                     onPressed: () => _clearAllNotes(tradingProvider),
                     tooltip: 'Clear all notes',
                   ),
@@ -72,7 +73,8 @@ class _NotesPanelState extends State<NotesPanel> {
                         hintText: 'Add trading note...',
                         hintStyle: TextStyle(color: Colors.grey),
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       style: const TextStyle(color: Colors.white),
                       maxLines: 2,
@@ -84,7 +86,8 @@ class _NotesPanelState extends State<NotesPanel> {
                     onPressed: () => _addNote(tradingProvider),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                     ),
                     child: const Text('Add'),
                   ),
@@ -97,7 +100,8 @@ class _NotesPanelState extends State<NotesPanel> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    _buildQuickNote('Earnings beat expectations', tradingProvider),
+                    _buildQuickNote(
+                        'Earnings beat expectations', tradingProvider),
                     _buildQuickNote('Technical breakout', tradingProvider),
                     _buildQuickNote('Volume spike detected', tradingProvider),
                     _buildQuickNote('News catalyst', tradingProvider),
@@ -122,7 +126,8 @@ class _NotesPanelState extends State<NotesPanel> {
                           final note = notes[index];
                           return NoteCard(
                             note: note,
-                            onDelete: () => _deleteNote(tradingProvider, note['id']),
+                            onDelete: () =>
+                                _deleteNote(tradingProvider, note['id']),
                             onEdit: () => _editNote(tradingProvider, note),
                           );
                         },
@@ -181,7 +186,8 @@ class _NotesPanelState extends State<NotesPanel> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear All Notes'),
-        content: const Text('Are you sure you want to delete all notes for this symbol?'),
+        content: const Text(
+            'Are you sure you want to delete all notes for this symbol?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -202,14 +208,23 @@ class _NotesPanelState extends State<NotesPanel> {
 
   List<String> _extractTags(String note) {
     final tags = <String>[];
-    final tagPatterns = ['#earnings', '#technical', '#fundamental', '#news', '#risk', '#breakout', '#support', '#resistance'];
-    
+    final tagPatterns = [
+      '#earnings',
+      '#technical',
+      '#fundamental',
+      '#news',
+      '#risk',
+      '#breakout',
+      '#support',
+      '#resistance'
+    ];
+
     for (final pattern in tagPatterns) {
       if (note.toLowerCase().contains(pattern)) {
         tags.add(pattern);
       }
     }
-    
+
     return tags;
   }
 
@@ -243,7 +258,7 @@ class NoteCard extends StatelessWidget {
     final noteText = note['note'] as String;
     final timestamp = note['timestamp'] as DateTime;
     final tags = (note['tags'] as List<String>?) ?? [];
-    
+
     return Card(
       color: const Color(0xFF37474F),
       margin: const EdgeInsets.only(bottom: 8),
@@ -264,7 +279,8 @@ class NoteCard extends StatelessWidget {
                   ),
                 ),
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.white, size: 16),
+                  icon: const Icon(Icons.more_vert,
+                      color: Colors.white, size: 16),
                   itemBuilder: (context) => [
                     const PopupMenuItem(
                       value: 'edit',
@@ -357,7 +373,7 @@ class NoteCard extends StatelessWidget {
       default:
         tagColor = Colors.grey;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -379,7 +395,7 @@ class NoteCard extends StatelessWidget {
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inMinutes < 1) {
       return 'Just now';
     } else if (difference.inHours < 1) {

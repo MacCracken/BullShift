@@ -254,7 +254,10 @@ impl TradingApi for SchwabApi {
     }
 
     async fn cancel_order(&self, order_id: String) -> Result<bool, BullShiftError> {
-        if !order_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !order_id
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             return Err(BullShiftError::Validation(format!(
                 "Invalid order_id format: {}",
                 order_id

@@ -3,7 +3,7 @@ import '../../bullrunnr_provider.dart';
 
 class NewsSearchDialog extends StatefulWidget {
   final BullRunnrProvider provider;
-  
+
   const NewsSearchDialog({
     super.key,
     required this.provider,
@@ -57,7 +57,7 @@ class _NewsSearchDialogState extends State<NewsSearchDialog> {
                 .map((s) => s.trim().toUpperCase())
                 .where((s) => s.isNotEmpty)
                 .toList();
-            
+
             widget.provider.searchNews(keywords, symbols);
             Navigator.of(context).pop();
           },

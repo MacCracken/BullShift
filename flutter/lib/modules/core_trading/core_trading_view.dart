@@ -26,7 +26,8 @@ class _CoreTradingViewState extends State<CoreTradingView> {
         ? 'AAPL'
         : tradingProvider.currentSymbol;
 
-    if (marketDataProvider.currentSymbol != symbol && _lastLoadedSymbol != symbol) {
+    if (marketDataProvider.currentSymbol != symbol &&
+        _lastLoadedSymbol != symbol) {
       _lastLoadedSymbol = symbol;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         marketDataProvider.loadSymbolData(symbol);
@@ -37,69 +38,68 @@ class _CoreTradingViewState extends State<CoreTradingView> {
   @override
   Widget build(BuildContext context) {
     return Consumer3<TradingProvider, WatchlistProvider, MarketDataProvider>(
-      builder:
-          (
-            context,
-            tradingProvider,
-            watchlistProvider,
-            marketDataProvider,
-            child,
-          ) {
-            final symbol = tradingProvider.currentSymbol.isEmpty
-                ? 'AAPL'
-                : tradingProvider.currentSymbol;
+      builder: (
+        context,
+        tradingProvider,
+        watchlistProvider,
+        marketDataProvider,
+        child,
+      ) {
+        final symbol = tradingProvider.currentSymbol.isEmpty
+            ? 'AAPL'
+            : tradingProvider.currentSymbol;
 
-            return Row(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: OrderPanel(
-                          tradingProvider: tradingProvider,
-                          watchlistProvider: watchlistProvider,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        flex: 2,
-                        child: AdvancedChartingWidget(
-                          symbol: symbol,
-                          timeframe: '1D',
-                          priceData: marketDataProvider.priceHistory,
-                          useRealtimeData: true,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        flex: 1,
-                        child: NotesPanel(
-                          symbol: tradingProvider.currentSymbol.isEmpty
-                              ? 'GENERAL'
-                              : tradingProvider.currentSymbol,
-                        ),
-                      ),
-                    ],
+        return Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: Column(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: OrderPanel(
+                      tradingProvider: tradingProvider,
+                      watchlistProvider: watchlistProvider,
+                    ),
                   ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: AdvancedChartingWidget(
-                    symbol: symbol,
-                    timeframe: '1D',
-                    priceData: marketDataProvider.priceHistory,
-                    useRealtimeData: true,
+                  const SizedBox(height: 8),
+                  Expanded(
+                    flex: 2,
+                    child: AdvancedChartingWidget(
+                      symbol: symbol,
+                      timeframe: '1D',
+                      priceData: marketDataProvider.priceHistory,
+                      useRealtimeData: true,
+                    ),
                   ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: PositionsPanel(tradingProvider: tradingProvider),
-                ),
-              ],
-            );
-          },
+                  const SizedBox(height: 8),
+                  Expanded(
+                    flex: 1,
+                    child: NotesPanel(
+                      symbol: tradingProvider.currentSymbol.isEmpty
+                          ? 'GENERAL'
+                          : tradingProvider.currentSymbol,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: AdvancedChartingWidget(
+                symbol: symbol,
+                timeframe: '1D',
+                priceData: marketDataProvider.priceHistory,
+                useRealtimeData: true,
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: PositionsPanel(tradingProvider: tradingProvider),
+            ),
+          ],
+        );
+      },
     );
   }
 }

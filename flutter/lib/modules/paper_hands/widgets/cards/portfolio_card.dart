@@ -19,11 +19,11 @@ class PortfolioCard extends StatelessWidget {
     final name = portfolio['name'] as String;
     final initialBalance = portfolio['initialBalance'] as double;
     final currentBalance = portfolio['currentBalance'] as double;
-    final totalReturn = portfolio['totalReturn'] as double;
     final winRate = (portfolio['winRate'] as double?) ?? 0.0;
     final isActive = portfolio['isActive'] as bool;
-    
-    final returnPercentage = ((currentBalance - initialBalance) / initialBalance * 100);
+
+    final returnPercentage =
+        ((currentBalance - initialBalance) / initialBalance * 100);
     final returnColor = returnPercentage >= 0 ? Colors.green : Colors.red;
 
     return Card(
@@ -48,7 +48,8 @@ class PortfolioCard extends StatelessWidget {
                 ),
                 if (isActive)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(8),

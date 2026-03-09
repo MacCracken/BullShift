@@ -6,7 +6,7 @@ class PaperHandsProvider extends BaseProvider {
   Map<String, dynamic>? _selectedPortfolio;
   List<Map<String, dynamic>> _recentTrades = [];
   List<Map<String, dynamic>> _backtestResults = [];
-  
+
   // Trading state
   String _currentSymbol = '';
   String _selectedTimeframe = '1D';
@@ -26,7 +26,10 @@ class PaperHandsProvider extends BaseProvider {
   String get selectedSide => _selectedSide;
   double get currentQuantity => _currentQuantity;
   double get currentPrice => _currentPrice;
-  bool get canPlaceOrder => _currentSymbol.isNotEmpty && _currentQuantity > 0 && _selectedPortfolio != null;
+  bool get canPlaceOrder =>
+      _currentSymbol.isNotEmpty &&
+      _currentQuantity > 0 &&
+      _selectedPortfolio != null;
 
   // Setters
   void setSymbol(String symbol) {
@@ -99,27 +102,28 @@ class PaperHandsProvider extends BaseProvider {
   }
 
   void selectPortfolio(String portfolioId) {
-    _selectedPortfolio = _paperPortfolios.firstWhere((p) => p['id'] == portfolioId);
-    
+    _selectedPortfolio =
+        _paperPortfolios.firstWhere((p) => p['id'] == portfolioId);
+
     // Mark as active and deactivate others
     for (final portfolio in _paperPortfolios) {
       portfolio['isActive'] = portfolio['id'] == portfolioId;
     }
-    
+
     // Load portfolio trades
     _loadPortfolioTrades();
-    
+
     safeNotifyListeners();
   }
 
   void deletePortfolio(String portfolioId) {
     _paperPortfolios.removeWhere((p) => p['id'] == portfolioId);
-    
+
     if (_selectedPortfolio?['id'] == portfolioId) {
       _selectedPortfolio = null;
       _recentTrades.clear();
     }
-    
+
     safeNotifyListeners();
   }
 
@@ -133,36 +137,38 @@ class PaperHandsProvider extends BaseProvider {
     await executeAsync(
       operation: () async {
         final portfolio = _selectedPortfolio!;
-      
-      // Simulate order execution
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Create trade record
-      final trade = {
-        'id': _generateId(),
-        'portfolioId': portfolio['id'],
-        'symbol': _currentSymbol,
-        'side': _selectedSide,
-        'orderType': _selectedOrderType,
-        'quantity': _currentQuantity,
-        'entryPrice': _currentPrice > 0 ? _currentPrice : _getCurrentPrice(_currentSymbol),
-        'exitPrice': null,
-        'status': 'Open',
-        'pnl': null,
-        'pnlPercentage': null,
-        'fees': _calculateFees(_currentQuantity, _currentPrice),
-        'timestamp': DateTime.now(),
-        'notes': null,
-      };
 
-      // Update portfolio
-      _updatePortfolioAfterTrade(portfolio, trade);
-      
-      // Add to recent trades
-      _recentTrades.insert(0, trade);
-      if (_recentTrades.length > 50) {
-        _recentTrades.removeLast();
-      }
+        // Simulate order execution
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Create trade record
+        final trade = {
+          'id': _generateId(),
+          'portfolioId': portfolio['id'],
+          'symbol': _currentSymbol,
+          'side': _selectedSide,
+          'orderType': _selectedOrderType,
+          'quantity': _currentQuantity,
+          'entryPrice': _currentPrice > 0
+              ? _currentPrice
+              : _getCurrentPrice(_currentSymbol),
+          'exitPrice': null,
+          'status': 'Open',
+          'pnl': null,
+          'pnlPercentage': null,
+          'fees': _calculateFees(_currentQuantity, _currentPrice),
+          'timestamp': DateTime.now(),
+          'notes': null,
+        };
+
+        // Update portfolio
+        _updatePortfolioAfterTrade(portfolio, trade);
+
+        // Add to recent trades
+        _recentTrades.insert(0, trade);
+        if (_recentTrades.length > 50) {
+          _recentTrades.removeLast();
+        }
 
         safeNotifyListeners();
       },
@@ -176,7 +182,7 @@ class PaperHandsProvider extends BaseProvider {
     await executeAsync(
       operation: () async {
         final portfolio = _selectedPortfolio!;
-        
+
         // Find open position
         final positions = portfolio['positions'] as List;
         final positionIndex = positions.indexWhere(
@@ -208,7 +214,7 @@ class PaperHandsProvider extends BaseProvider {
 
         // Update portfolio
         _updatePortfolioAfterClose(portfolio, position, closingTrade);
-        
+
         // Add to recent trades
         _recentTrades.insert(0, closingTrade);
         if (_recentTrades.length > 50) {
@@ -239,38 +245,42 @@ class PaperHandsProvider extends BaseProvider {
           'id': _generateId(),
           'strategyName': strategyName,
           'symbol': symbol,
-        'timeframe': timeframe,
-        'startDate': startDate,
-        'endDate': endDate,
-        'initialBalance': initialBalance,
-        'finalBalance': initialBalance * (0.9 + Random().nextDouble() * 0.3), // -10% to +20% return
-        'totalReturn': 0.0,
-        'totalReturnPercentage': 0.0,
-        'winRate': 0.45 + Random().nextDouble() * 0.3, // 45-75%
-        'sharpeRatio': -0.5 + Random().nextDouble() * 2.0, // -0.5 to 1.5
-        'maxDrawdown': -0.05 - Random().nextDouble() * 0.15, // -5% to -20%
-        'totalTrades': 50 + Random().nextInt(200),
-        'winningTrades': 0,
-        'losingTrades': 0,
-        'averageWin': 0.0,
-        'averageLoss': 0.0,
-        'profitFactor': 0.0,
-        'equityCurve': <Map<String, dynamic>>[],
-        'createdAt': DateTime.now(),
-      };
+          'timeframe': timeframe,
+          'startDate': startDate,
+          'endDate': endDate,
+          'initialBalance': initialBalance,
+          'finalBalance': initialBalance *
+              (0.9 + Random().nextDouble() * 0.3), // -10% to +20% return
+          'totalReturn': 0.0,
+          'totalReturnPercentage': 0.0,
+          'winRate': 0.45 + Random().nextDouble() * 0.3, // 45-75%
+          'sharpeRatio': -0.5 + Random().nextDouble() * 2.0, // -0.5 to 1.5
+          'maxDrawdown': -0.05 - Random().nextDouble() * 0.15, // -5% to -20%
+          'totalTrades': 50 + Random().nextInt(200),
+          'winningTrades': 0,
+          'losingTrades': 0,
+          'averageWin': 0.0,
+          'averageLoss': 0.0,
+          'profitFactor': 0.0,
+          'equityCurve': <Map<String, dynamic>>[],
+          'createdAt': DateTime.now(),
+        };
 
-      // Calculate derived metrics
-      final totalReturn = backtestResult['finalBalance'] - initialBalance;
-      backtestResult['totalReturn'] = totalReturn;
-      backtestResult['totalReturnPercentage'] = (totalReturn / initialBalance) * 100;
-      
-      final totalTrades = backtestResult['totalTrades'] as int;
-      final winRate = backtestResult['winRate'] as double;
-      backtestResult['winningTrades'] = (totalTrades * winRate).round();
-      backtestResult['losingTrades'] = totalTrades - backtestResult['winningTrades'];
+        // Calculate derived metrics
+        final totalReturn = backtestResult['finalBalance'] - initialBalance;
+        backtestResult['totalReturn'] = totalReturn;
+        backtestResult['totalReturnPercentage'] =
+            (totalReturn / initialBalance) * 100;
 
-      // Generate equity curve
-      backtestResult['equityCurve'] = _generateEquityCurve(initialBalance, backtestResult['finalBalance'], startDate, endDate);
+        final totalTrades = backtestResult['totalTrades'] as int;
+        final winRate = backtestResult['winRate'] as double;
+        backtestResult['winningTrades'] = (totalTrades * winRate).round();
+        backtestResult['losingTrades'] =
+            totalTrades - backtestResult['winningTrades'];
+
+        // Generate equity curve
+        backtestResult['equityCurve'] = _generateEquityCurve(
+            initialBalance, backtestResult['finalBalance'], startDate, endDate);
 
         _backtestResults.add(backtestResult);
         safeNotifyListeners();
@@ -294,8 +304,6 @@ class PaperHandsProvider extends BaseProvider {
 
   // Helper methods
   void _generateSampleData() {
-    final random = Random();
-
     // Generate sample portfolios
     _paperPortfolios = [
       {
@@ -397,9 +405,18 @@ class PaperHandsProvider extends BaseProvider {
 
   void _generateSampleTrades() {
     final random = Random();
-    final symbols = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'NVDA', 'META', 'AMD'];
+    final symbols = [
+      'AAPL',
+      'GOOGL',
+      'MSFT',
+      'TSLA',
+      'AMZN',
+      'NVDA',
+      'META',
+      'AMD'
+    ];
     final sides = ['Buy', 'Sell'];
-    
+
     for (final portfolio in _paperPortfolios) {
       for (int i = 0; i < 20; i++) {
         final symbol = symbols[random.nextInt(symbols.length)];
@@ -408,7 +425,7 @@ class PaperHandsProvider extends BaseProvider {
         final entryPrice = 50.0 + random.nextDouble() * 200.0;
         final exitPrice = entryPrice * (0.95 + random.nextDouble() * 0.1);
         final isClosed = random.nextBool();
-        
+
         final trade = {
           'id': _generateId(),
           'portfolioId': portfolio['id'],
@@ -419,23 +436,29 @@ class PaperHandsProvider extends BaseProvider {
           'entryPrice': entryPrice,
           'exitPrice': isClosed ? exitPrice : null,
           'status': isClosed ? 'Closed' : 'Open',
-          'pnl': isClosed ? _calculateSimplePnl(side, quantity, entryPrice, exitPrice) : null,
-          'pnlPercentage': isClosed ? _calculateSimplePnlPercentage(side, entryPrice, exitPrice) : null,
+          'pnl': isClosed
+              ? _calculateSimplePnl(side, quantity, entryPrice, exitPrice)
+              : null,
+          'pnlPercentage': isClosed
+              ? _calculateSimplePnlPercentage(side, entryPrice, exitPrice)
+              : null,
           'fees': 5.0 + quantity * 0.005,
-          'timestamp': DateTime.now().subtract(Duration(hours: random.nextInt(168))),
+          'timestamp':
+              DateTime.now().subtract(Duration(hours: random.nextInt(168))),
           'notes': null,
         };
-        
+
         portfolio['trades'].add(trade);
-        
+
         if (isClosed) {
           _recentTrades.add(trade);
         }
       }
     }
-    
+
     // Sort recent trades
-    _recentTrades.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+    _recentTrades.sort((a, b) =>
+        (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
     if (_recentTrades.length > 50) {
       _recentTrades = _recentTrades.take(50).toList();
     }
@@ -443,14 +466,19 @@ class PaperHandsProvider extends BaseProvider {
 
   void _generateSampleBacktestResults() {
     final random = Random();
-    final strategies = ['Momentum Strategy', 'Mean Reversion', 'Breakout Scanner', 'RSI Strategy'];
+    final strategies = [
+      'Momentum Strategy',
+      'Mean Reversion',
+      'Breakout Scanner',
+      'RSI Strategy'
+    ];
     final symbols = ['AAPL', 'SPY', 'QQQ', 'IWM'];
-    
+
     for (int i = 0; i < 5; i++) {
       final strategyName = strategies[random.nextInt(strategies.length)];
       final symbol = symbols[random.nextInt(symbols.length)];
       final initialBalance = 10000.0 + random.nextInt(40000).toDouble();
-      
+
       final backtest = {
         'id': _generateId(),
         'strategyName': strategyName,
@@ -472,91 +500,106 @@ class PaperHandsProvider extends BaseProvider {
         'averageLoss': 0.0,
         'profitFactor': 0.0,
         'equityCurve': <Map<String, dynamic>>[],
-        'createdAt': DateTime.now().subtract(Duration(days: random.nextInt(30))),
+        'createdAt':
+            DateTime.now().subtract(Duration(days: random.nextInt(30))),
       };
-      
+
       // Calculate derived metrics
       final totalReturn = backtest['finalBalance'] - initialBalance;
       backtest['totalReturn'] = totalReturn;
       backtest['totalReturnPercentage'] = (totalReturn / initialBalance) * 100;
-      
+
       final totalTrades = backtest['totalTrades'] as int;
       final winRate = backtest['winRate'] as double;
       backtest['winningTrades'] = (totalTrades * winRate).round();
       backtest['losingTrades'] = totalTrades - backtest['winningTrades'];
-      
+
       _backtestResults.add(backtest);
     }
-    
+
     // Sort by creation date
-    _backtestResults.sort((a, b) => (b['createdAt'] as DateTime).compareTo(a['createdAt'] as DateTime));
+    _backtestResults.sort((a, b) =>
+        (b['createdAt'] as DateTime).compareTo(a['createdAt'] as DateTime));
   }
 
   void _loadPortfolioTrades() {
     if (_selectedPortfolio != null) {
-      _recentTrades = _selectedPortfolio!['trades'].where((t) => t['status'] == 'Closed').toList();
-      _recentTrades.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+      _recentTrades = _selectedPortfolio!['trades']
+          .where((t) => t['status'] == 'Closed')
+          .toList();
+      _recentTrades.sort((a, b) =>
+          (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
     }
   }
 
-  void _updatePortfolioAfterTrade(Map<String, dynamic> portfolio, Map<String, dynamic> trade) {
+  void _updatePortfolioAfterTrade(
+      Map<String, dynamic> portfolio, Map<String, dynamic> trade) {
     // Update balances
     final tradeCost = trade['quantity'] * trade['entryPrice'] + trade['fees'];
     portfolio['currentBalance'] = portfolio['currentBalance'] - tradeCost;
     portfolio['allocatedBalance'] += tradeCost;
-    portfolio['availableBalance'] = portfolio['currentBalance'] - portfolio['allocatedBalance'];
-    
+    portfolio['availableBalance'] =
+        portfolio['currentBalance'] - portfolio['allocatedBalance'];
+
     // Add position
     portfolio['positions'].add(trade);
     portfolio['trades'].add(trade);
     portfolio['totalTrades'] = portfolio['totalTrades'] + 1;
     portfolio['lastUpdated'] = DateTime.now();
-    
+
     // Update metrics
     _updatePortfolioMetrics(portfolio);
   }
 
-  void _updatePortfolioAfterClose(Map<String, dynamic> portfolio, Map<String, dynamic> position, Map<String, dynamic> closingTrade) {
+  void _updatePortfolioAfterClose(Map<String, dynamic> portfolio,
+      Map<String, dynamic> position, Map<String, dynamic> closingTrade) {
     // Update position
     position['status'] = 'Closed';
     position['exitPrice'] = closingTrade['exitPrice'];
     position['pnl'] = closingTrade['pnl'];
     position['pnlPercentage'] = closingTrade['pnlPercentage'];
-    
+
     // Update portfolio balance
     final exitValue = position['quantity'] * closingTrade['exitPrice'];
     final fees = closingTrade['fees'];
     portfolio['currentBalance'] += exitValue - fees;
-    portfolio['allocatedBalance'] -= position['quantity'] * position['entryPrice'];
-    portfolio['availableBalance'] = portfolio['currentBalance'] - portfolio['allocatedBalance'];
-    
+    portfolio['allocatedBalance'] -=
+        position['quantity'] * position['entryPrice'];
+    portfolio['availableBalance'] =
+        portfolio['currentBalance'] - portfolio['allocatedBalance'];
+
     // Remove from active positions
     portfolio['positions'].removeWhere((p) => p['id'] == position['id']);
-    
+
     // Add closing trade
     portfolio['trades'].add(closingTrade);
-    
+
     // Update metrics
     _updatePortfolioMetrics(portfolio);
   }
 
   void _updatePortfolioMetrics(Map<String, dynamic> portfolio) {
-    final closedTrades = portfolio['trades'].where((t) => t['status'] == 'Closed').toList();
-    
+    final closedTrades =
+        portfolio['trades'].where((t) => t['status'] == 'Closed').toList();
+
     if (closedTrades.isNotEmpty) {
       // Calculate win rate
-      final winningTrades = closedTrades.where((t) => (t['pnl'] ?? 0.0) > 0.0).length;
+      final winningTrades =
+          closedTrades.where((t) => (t['pnl'] ?? 0.0) > 0.0).length;
       portfolio['winRate'] = winningTrades / closedTrades.length;
       portfolio['winningTrades'] = winningTrades;
       portfolio['losingTrades'] = closedTrades.length - winningTrades;
-      
+
       // Calculate total return
-      portfolio['totalReturn'] = portfolio['currentBalance'] - portfolio['initialBalance'];
-      portfolio['totalReturnPercentage'] = (portfolio['totalReturn'] / portfolio['initialBalance']) * 100;
-      
+      portfolio['totalReturn'] =
+          portfolio['currentBalance'] - portfolio['initialBalance'];
+      portfolio['totalReturnPercentage'] =
+          (portfolio['totalReturn'] / portfolio['initialBalance']) * 100;
+
       // Calculate other metrics (simplified)
       portfolio['sharpeRatio'] = 0.5 + Random().nextDouble(); // Placeholder
-      portfolio['maxDrawdown'] = -0.05 - Random().nextDouble() * 0.1; // Placeholder
+      portfolio['maxDrawdown'] =
+          -0.05 - Random().nextDouble() * 0.1; // Placeholder
     }
   }
 
@@ -573,50 +616,56 @@ class PaperHandsProvider extends BaseProvider {
     final side = position['side'] as String;
     final quantity = position['quantity'] as double;
     final entryPrice = position['entryPrice'] as double;
-    
+
     return _calculateSimplePnl(side, quantity, entryPrice, exitPrice);
   }
 
-  double _calculatePnlPercentage(Map<String, dynamic> position, double exitPrice) {
+  double _calculatePnlPercentage(
+      Map<String, dynamic> position, double exitPrice) {
     final side = position['side'] as String;
     final entryPrice = position['entryPrice'] as double;
-    
+
     return _calculateSimplePnlPercentage(side, entryPrice, exitPrice);
   }
 
-  double _calculateSimplePnl(String side, double quantity, double entryPrice, double exitPrice) {
+  double _calculateSimplePnl(
+      String side, double quantity, double entryPrice, double exitPrice) {
     final priceDiff = exitPrice - entryPrice;
     return side == 'Buy' ? (quantity * priceDiff) : (-quantity * priceDiff);
   }
 
-  double _calculateSimplePnlPercentage(String side, double entryPrice, double exitPrice) {
+  double _calculateSimplePnlPercentage(
+      String side, double entryPrice, double exitPrice) {
     final priceDiff = exitPrice - entryPrice;
     return side == 'Buy' ? (priceDiff / entryPrice) : (-priceDiff / entryPrice);
   }
 
-  List<Map<String, dynamic>> _generateEquityCurve(double startValue, double endValue, DateTime startDate, DateTime endDate) {
+  List<Map<String, dynamic>> _generateEquityCurve(double startValue,
+      double endValue, DateTime startDate, DateTime endDate) {
     final equityCurve = <Map<String, dynamic>>[];
     final days = endDate.difference(startDate).inDays;
     final random = Random();
-    
+
     for (int i = 0; i <= days; i++) {
       final progress = i / days;
       final targetValue = startValue + (endValue - startValue) * progress;
-      final randomVariation = (random.nextDouble() - 0.5) * targetValue * 0.02; // ±2% variation
+      final randomVariation =
+          (random.nextDouble() - 0.5) * targetValue * 0.02; // ±2% variation
       final value = targetValue + randomVariation;
-      
+
       equityCurve.add({
         'date': startDate.add(Duration(days: i)),
         'value': value,
         'drawdown': 0.0, // Would calculate actual drawdown
       });
     }
-    
+
     return equityCurve;
   }
 
   String _generateId() {
-    return DateTime.now().millisecondsSinceEpoch.toString() + Random().nextInt(1000).toString();
+    return DateTime.now().millisecondsSinceEpoch.toString() +
+        Random().nextInt(1000).toString();
   }
 
   // Public interface methods

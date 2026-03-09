@@ -107,7 +107,10 @@ mod tests {
         let json = serde_json::to_string(&caps).unwrap();
         let deserialized: BrokerCapabilities = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.name, "alpaca");
-        assert_eq!(deserialized.supports_market_orders, caps.supports_market_orders);
+        assert_eq!(
+            deserialized.supports_market_orders,
+            caps.supports_market_orders
+        );
     }
 
     #[test]

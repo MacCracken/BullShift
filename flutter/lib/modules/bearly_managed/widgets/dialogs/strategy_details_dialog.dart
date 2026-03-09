@@ -19,7 +19,8 @@ class StrategyDetailsDialog extends StatelessWidget {
           children: [
             Text('Type: ${strategy['type'] ?? 'Unknown'}'),
             Text('Risk Level: ${strategy['riskLevel'] ?? 'Unknown'}'),
-            Text('Win Rate: ${((strategy['winRate'] ?? 0) * 100).toStringAsFixed(1)}%'),
+            Text(
+                'Win Rate: ${((strategy['winRate'] ?? 0) * 100).toStringAsFixed(1)}%'),
             const SizedBox(height: 16),
             Text(strategy['description'] ?? 'No description available'),
           ],

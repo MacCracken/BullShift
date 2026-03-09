@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class PaperTradeCard extends StatelessWidget {
   final Map<String, dynamic> trade;
-  
+
   const PaperTradeCard({
     super.key,
     required this.trade,
@@ -16,9 +16,6 @@ class PaperTradeCard extends StatelessWidget {
     final entryPrice = trade['entryPrice'] as double;
     final exitPrice = trade['exitPrice'] as double?;
     final pnl = trade['pnl'] as double?;
-    final status = trade['status'] as String;
-    final timestamp = trade['timestamp'] as DateTime;
-    
     final sideColor = side == 'Buy' ? Colors.green : Colors.red;
     final pnlColor = (pnl ?? 0.0) >= 0 ? Colors.green : Colors.red;
 
@@ -85,7 +82,7 @@ class PaperTradeCard extends StatelessWidget {
                       const Spacer(),
                       if (pnl != null)
                         Text(
-                          '\$${pnl!.toStringAsFixed(2)}',
+                          '\$${pnl.toStringAsFixed(2)}',
                           style: TextStyle(
                             color: pnlColor,
                             fontWeight: FontWeight.bold,

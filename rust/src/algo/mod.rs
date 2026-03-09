@@ -1278,8 +1278,10 @@ mod tests {
     #[test]
     fn test_pause_strategy() {
         let mut engine = AlgoEngine::new();
-        let mut params = AlgoParameters::default();
-        params.symbols = vec!["TEST".to_string()];
+        let params = AlgoParameters {
+            symbols: vec!["TEST".to_string()],
+            ..Default::default()
+        };
         let id = engine.add_strategy("Pauser", AlgoStrategyType::Vwap, params);
         engine.start_strategy(&id).unwrap();
         assert_eq!(engine.get_strategy(&id).unwrap().state, AlgoState::Running);
@@ -1308,8 +1310,10 @@ mod tests {
     #[test]
     fn test_remove_running_strategy_fails() {
         let mut engine = AlgoEngine::new();
-        let mut params = AlgoParameters::default();
-        params.symbols = vec!["TEST".to_string()];
+        let params = AlgoParameters {
+            symbols: vec!["TEST".to_string()],
+            ..Default::default()
+        };
         let id = engine.add_strategy("Runner", AlgoStrategyType::Grid, params);
         engine.start_strategy(&id).unwrap();
         assert!(engine.remove_strategy(&id).is_err());
@@ -1324,8 +1328,10 @@ mod tests {
     #[test]
     fn test_stop_strategy() {
         let mut engine = AlgoEngine::new();
-        let mut params = AlgoParameters::default();
-        params.symbols = vec!["TEST".to_string()];
+        let params = AlgoParameters {
+            symbols: vec!["TEST".to_string()],
+            ..Default::default()
+        };
         let id = engine.add_strategy("Stopper", AlgoStrategyType::TrailingStop, params);
         engine.start_strategy(&id).unwrap();
         engine.stop_strategy(&id).unwrap();
@@ -1334,22 +1340,40 @@ mod tests {
 
     #[test]
     fn test_strategy_type_display() {
-        assert_eq!(format!("{}", AlgoStrategyType::MovingAverageCrossover), "MA Crossover");
-        assert_eq!(format!("{}", AlgoStrategyType::MeanReversion), "Mean Reversion");
+        assert_eq!(
+            format!("{}", AlgoStrategyType::MovingAverageCrossover),
+            "MA Crossover"
+        );
+        assert_eq!(
+            format!("{}", AlgoStrategyType::MeanReversion),
+            "Mean Reversion"
+        );
         assert_eq!(format!("{}", AlgoStrategyType::Breakout), "Breakout");
         assert_eq!(format!("{}", AlgoStrategyType::Vwap), "VWAP");
         assert_eq!(format!("{}", AlgoStrategyType::Twap), "TWAP");
         assert_eq!(format!("{}", AlgoStrategyType::Grid), "Grid");
-        assert_eq!(format!("{}", AlgoStrategyType::TrailingStop), "Trailing Stop");
-        assert_eq!(format!("{}", AlgoStrategyType::PairsTrading), "Pairs Trading");
-        assert_eq!(format!("{}", AlgoStrategyType::Custom("MyAlgo".to_string())), "Custom: MyAlgo");
+        assert_eq!(
+            format!("{}", AlgoStrategyType::TrailingStop),
+            "Trailing Stop"
+        );
+        assert_eq!(
+            format!("{}", AlgoStrategyType::PairsTrading),
+            "Pairs Trading"
+        );
+        assert_eq!(
+            format!("{}", AlgoStrategyType::Custom("MyAlgo".to_string())),
+            "Custom: MyAlgo"
+        );
     }
 
     #[test]
     fn test_algo_state_equality() {
         assert_eq!(AlgoState::Idle, AlgoState::Idle);
         assert_ne!(AlgoState::Running, AlgoState::Paused);
-        assert_ne!(AlgoState::Error("a".to_string()), AlgoState::Error("b".to_string()));
+        assert_ne!(
+            AlgoState::Error("a".to_string()),
+            AlgoState::Error("b".to_string())
+        );
     }
 
     #[test]

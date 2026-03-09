@@ -600,16 +600,28 @@ mod tests {
 
     #[test]
     fn test_trade_event_type_display_all_variants() {
-        assert_eq!(TradeEventType::OrderSubmitted.to_string(), "order.submitted");
+        assert_eq!(
+            TradeEventType::OrderSubmitted.to_string(),
+            "order.submitted"
+        );
         assert_eq!(TradeEventType::OrderFilled.to_string(), "order.filled");
         assert_eq!(
             TradeEventType::OrderPartiallyFilled.to_string(),
             "order.partially_filled"
         );
-        assert_eq!(TradeEventType::OrderCancelled.to_string(), "order.cancelled");
+        assert_eq!(
+            TradeEventType::OrderCancelled.to_string(),
+            "order.cancelled"
+        );
         assert_eq!(TradeEventType::OrderRejected.to_string(), "order.rejected");
-        assert_eq!(TradeEventType::PositionOpened.to_string(), "position.opened");
-        assert_eq!(TradeEventType::PositionClosed.to_string(), "position.closed");
+        assert_eq!(
+            TradeEventType::PositionOpened.to_string(),
+            "position.opened"
+        );
+        assert_eq!(
+            TradeEventType::PositionClosed.to_string(),
+            "position.closed"
+        );
         assert_eq!(
             TradeEventType::PositionUpdated.to_string(),
             "position.updated"

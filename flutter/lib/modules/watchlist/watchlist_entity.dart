@@ -4,58 +4,58 @@ import 'package:objectbox/objectbox.dart';
 class WatchlistEntity {
   @Id()
   int id = 0;
-  
+
   @Property(unique: true)
   late String symbol;
-  
+
   @Property()
   late double currentPrice;
-  
+
   @Property()
   double dayChange = 0.0;
-  
+
   @Property()
   double dayChangePercent = 0.0;
-  
+
   @Property()
   int volume = 0;
-  
+
   @Property()
   double marketCap = 0.0;
-  
+
   @Property()
   int timestamp = 0;
-  
+
   @Property()
   double previousPrice = 0.0;
-  
+
   @Property()
   bool isActive = true; // Soft delete support
-  
+
   @Property()
   int sortOrder = 0; // Custom ordering
-  
+
   @Property()
   String? notes; // User notes for the symbol
-  
+
   @Property()
   String? category; // User-defined category
-  
+
   @Property()
   bool alertsEnabled = false;
-  
+
   @Property()
   double? alertPriceHigh;
-  
+
   @Property()
   double? alertPriceLow;
-  
+
   @Property()
   double? alertChangePercent;
-  
+
   @Property()
   DateTime createdAt = DateTime.now();
-  
+
   @Property()
   DateTime updatedAt = DateTime.now();
 
@@ -69,7 +69,8 @@ class WatchlistEntity {
     dayChangePercent = (map['dayChangePercent'] as num?)?.toDouble() ?? 0.0;
     volume = (map['volume'] as num?)?.toInt() ?? 0;
     marketCap = (map['marketCap'] as num?)?.toDouble() ?? 0.0;
-    timestamp = (map['timestamp'] as DateTime?)?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
+    timestamp = (map['timestamp'] as DateTime?)?.millisecondsSinceEpoch ??
+        DateTime.now().millisecondsSinceEpoch;
     previousPrice = (map['previousPrice'] as num?)?.toDouble() ?? currentPrice;
     isActive = (map['isActive'] as bool?) ?? true;
     sortOrder = (map['sortOrder'] as int?) ?? 0;
@@ -114,23 +115,23 @@ class WatchlistEntity {
       previousPrice = currentPrice;
       currentPrice = (map['currentPrice'] as num).toDouble();
     }
-    
+
     if (map.containsKey('dayChange')) {
       dayChange = (map['dayChange'] as num).toDouble();
     }
-    
+
     if (map.containsKey('dayChangePercent')) {
       dayChangePercent = (map['dayChangePercent'] as num).toDouble();
     }
-    
+
     if (map.containsKey('volume')) {
       volume = (map['volume'] as num).toInt();
     }
-    
+
     if (map.containsKey('marketCap')) {
       marketCap = (map['marketCap'] as num).toDouble();
     }
-    
+
     timestamp = DateTime.now().millisecondsSinceEpoch;
     updatedAt = DateTime.now();
   }
@@ -148,7 +149,8 @@ class WatchlistEntity {
     }
 
     if (alertChangePercent != null) {
-      final actualChangePercent = (currentPrice - previousPrice) / previousPrice * 100;
+      final actualChangePercent =
+          (currentPrice - previousPrice) / previousPrice * 100;
       if (actualChangePercent.abs() >= alertChangePercent!) {
         return true;
       }
@@ -170,7 +172,8 @@ class WatchlistEntity {
     }
 
     if (alertChangePercent != null) {
-      final actualChangePercent = (currentPrice - previousPrice) / previousPrice * 100;
+      final actualChangePercent =
+          (currentPrice - previousPrice) / previousPrice * 100;
       if (actualChangePercent.abs() >= alertChangePercent!) {
         final direction = actualChangePercent >= 0 ? 'increased' : 'decreased';
         return 'Price alert: $symbol $direction by ${actualChangePercent.abs().toStringAsFixed(2)}%';
@@ -222,9 +225,7 @@ extension WatchlistEntityQueries on Box<WatchlistEntity> {
 
   // Get items with alerts enabled
   List<WatchlistEntity> getWithAlertsEnabled() {
-    return query(WatchlistEntity_.alertsEnabled.equals(true))
-        .build()
-        .find();
+    return query(WatchlistEntity_.alertsEnabled.equals(true)).build().find();
   }
 
   // Soft delete by symbol
@@ -243,7 +244,8 @@ extension WatchlistEntityQueries on Box<WatchlistEntity> {
     final entities = getAll();
     for (int i = 0; i < symbolsInOrder.length; i++) {
       final symbol = symbolsInOrder[i];
-      final entity = entities.firstWhere((e) => e.symbol == symbol, orElse: () => WatchlistEntity());
+      final entity = entities.firstWhere((e) => e.symbol == symbol,
+          orElse: () => WatchlistEntity());
       if (entity.id > 0) {
         entity.sortOrder = i;
         put(entity);
@@ -254,8 +256,9 @@ extension WatchlistEntityQueries on Box<WatchlistEntity> {
   // Search symbols
   List<WatchlistEntity> searchSymbols(String query) {
     if (query.isEmpty) return getAllActive();
-    
-    return query(WatchlistEntity_.symbol.contains(query.toLowerCase(), caseSensitive: false))
+
+    return query(WatchlistEntity_.symbol
+            .contains(query.toLowerCase(), caseSensitive: false))
         .order(WatchlistEntity_.sortOrder)
         .build()
         .find();
@@ -265,7 +268,7 @@ extension WatchlistEntityQueries on Box<WatchlistEntity> {
   List<WatchlistEntity> getNeedingUpdate() {
     final now = DateTime.now().millisecondsSinceEpoch;
     final oneMinuteAgo = now - 60000; // 1 minute
-    
+
     return query(WatchlistEntity_.timestamp.lessThan(oneMinuteAgo))
         .build()
         .find();

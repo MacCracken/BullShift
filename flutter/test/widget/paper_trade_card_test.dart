@@ -11,7 +11,7 @@ void main() {
         ),
       );
     }
-    
+
     testWidgets('displays symbol name', (WidgetTester tester) async {
       final trade = {
         'symbol': 'AAPL',
@@ -23,12 +23,12 @@ void main() {
         'status': 'Open',
         'timestamp': DateTime.now(),
       };
-      
+
       await tester.pumpWidget(createTestWidget(trade));
-      
+
       expect(find.text('AAPL'), findsOneWidget);
     });
-    
+
     testWidgets('displays Buy side in green', (WidgetTester tester) async {
       final trade = {
         'symbol': 'AAPL',
@@ -40,13 +40,13 @@ void main() {
         'status': 'Open',
         'timestamp': DateTime.now(),
       };
-      
+
       await tester.pumpWidget(createTestWidget(trade));
-      
+
       final textWidget = tester.widget<Text>(find.text('Buy'));
       expect(textWidget.style?.color, Colors.green);
     });
-    
+
     testWidgets('displays Sell side in red', (WidgetTester tester) async {
       final trade = {
         'symbol': 'TSLA',
@@ -58,14 +58,15 @@ void main() {
         'status': 'Open',
         'timestamp': DateTime.now(),
       };
-      
+
       await tester.pumpWidget(createTestWidget(trade));
-      
+
       final textWidget = tester.widget<Text>(find.text('Sell'));
       expect(textWidget.style?.color, Colors.red);
     });
-    
-    testWidgets('displays quantity and entry price', (WidgetTester tester) async {
+
+    testWidgets('displays quantity and entry price',
+        (WidgetTester tester) async {
       final trade = {
         'symbol': 'MSFT',
         'side': 'Buy',
@@ -76,13 +77,14 @@ void main() {
         'status': 'Open',
         'timestamp': DateTime.now(),
       };
-      
+
       await tester.pumpWidget(createTestWidget(trade));
-      
+
       expect(find.text('75.0 @ \$300.50'), findsOneWidget);
     });
-    
-    testWidgets('displays exit price when available', (WidgetTester tester) async {
+
+    testWidgets('displays exit price when available',
+        (WidgetTester tester) async {
       final trade = {
         'symbol': 'GOOGL',
         'side': 'Buy',
@@ -93,13 +95,14 @@ void main() {
         'status': 'Closed',
         'timestamp': DateTime.now(),
       };
-      
+
       await tester.pumpWidget(createTestWidget(trade));
-      
+
       expect(find.text('→ \$2600.00'), findsOneWidget);
     });
-    
-    testWidgets('displays P&L in green for positive', (WidgetTester tester) async {
+
+    testWidgets('displays P&L in green for positive',
+        (WidgetTester tester) async {
       final trade = {
         'symbol': 'NVDA',
         'side': 'Buy',
@@ -110,15 +113,16 @@ void main() {
         'status': 'Closed',
         'timestamp': DateTime.now(),
       };
-      
+
       await tester.pumpWidget(createTestWidget(trade));
-      
+
       expect(find.text('\$1000.00'), findsOneWidget);
       final textWidget = tester.widget<Text>(find.text('\$1000.00'));
       expect(textWidget.style?.color, Colors.green);
     });
-    
-    testWidgets('displays P&L in red for negative', (WidgetTester tester) async {
+
+    testWidgets('displays P&L in red for negative',
+        (WidgetTester tester) async {
       final trade = {
         'symbol': 'AMD',
         'side': 'Buy',
@@ -129,13 +133,14 @@ void main() {
         'status': 'Closed',
         'timestamp': DateTime.now(),
       };
-      
+
       await tester.pumpWidget(createTestWidget(trade));
-      
+
       expect(find.textContaining('-\$1000.00'), findsOneWidget);
     });
-    
-    testWidgets('shows colored indicator bar on left', (WidgetTester tester) async {
+
+    testWidgets('shows colored indicator bar on left',
+        (WidgetTester tester) async {
       final trade = {
         'symbol': 'TEST',
         'side': 'Buy',
@@ -146,13 +151,13 @@ void main() {
         'status': 'Open',
         'timestamp': DateTime.now(),
       };
-      
+
       await tester.pumpWidget(createTestWidget(trade));
-      
+
       // Should have a container acting as the indicator bar
       expect(find.byType(Container), findsWidgets);
     });
-    
+
     testWidgets('has Card as container', (WidgetTester tester) async {
       final trade = {
         'symbol': 'TEST',
@@ -164,9 +169,9 @@ void main() {
         'status': 'Open',
         'timestamp': DateTime.now(),
       };
-      
+
       await tester.pumpWidget(createTestWidget(trade));
-      
+
       expect(find.byType(Card), findsOneWidget);
     });
   });

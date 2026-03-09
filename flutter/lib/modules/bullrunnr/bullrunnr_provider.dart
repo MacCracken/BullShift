@@ -43,7 +43,7 @@ class BullRunnrProvider extends BaseProvider {
       operation: () async {
         // Simulate API call delay
         await Future.delayed(const Duration(seconds: 2));
-        
+
         // Generate fresh sample data
         _generateSampleData();
       },
@@ -56,7 +56,7 @@ class BullRunnrProvider extends BaseProvider {
       operation: () async {
         // Simulate search API call
         await Future.delayed(const Duration(seconds: 1));
-        
+
         // Generate search results
         _generateSearchResults(keywords, symbols);
       },
@@ -66,13 +66,58 @@ class BullRunnrProvider extends BaseProvider {
   // Generate sample data for demonstration
   void _generateSampleData() {
     final random = Random();
-    final sources = ['Reuters', 'Bloomberg', 'CNBC', 'MarketWatch', 'Yahoo Finance', 'Seeking Alpha', 'The Wall Street Journal'];
-    final categories = ['Earnings', 'M&A', 'Regulatory', 'Market Analysis', 'Economic Data', 'Company News', 'Sector News', 'Breaking News'];
-    final sentiments = ['VeryBullish', 'Bullish', 'Neutral', 'Bearish', 'VeryBearish'];
+    final sources = [
+      'Reuters',
+      'Bloomberg',
+      'CNBC',
+      'MarketWatch',
+      'Yahoo Finance',
+      'Seeking Alpha',
+      'The Wall Street Journal'
+    ];
+    final categories = [
+      'Earnings',
+      'M&A',
+      'Regulatory',
+      'Market Analysis',
+      'Economic Data',
+      'Company News',
+      'Sector News',
+      'Breaking News'
+    ];
+    final sentiments = [
+      'VeryBullish',
+      'Bullish',
+      'Neutral',
+      'Bearish',
+      'VeryBearish'
+    ];
     final symbols = [
-      'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD',
-      'NFLX', 'DIS', 'BA', 'JPM', 'V', 'WMT', 'PG', 'JNJ', 'UNH',
-      'HD', 'MA', 'PYPL', 'INTC', 'CSCO', 'CMCSA', 'PEP', 'COST'
+      'AAPL',
+      'GOOGL',
+      'MSFT',
+      'AMZN',
+      'TSLA',
+      'META',
+      'NVDA',
+      'AMD',
+      'NFLX',
+      'DIS',
+      'BA',
+      'JPM',
+      'V',
+      'WMT',
+      'PG',
+      'JNJ',
+      'UNH',
+      'HD',
+      'MA',
+      'PYPL',
+      'INTC',
+      'CSCO',
+      'CMCSA',
+      'PEP',
+      'COST'
     ];
 
     // Generate news articles
@@ -81,24 +126,29 @@ class BullRunnrProvider extends BaseProvider {
       final category = categories[random.nextInt(categories.length)];
       final sentiment = sentiments[random.nextInt(sentiments.length)];
       final source = sources[random.nextInt(sources.length)];
-      
+
       return {
         'id': 'news_$index',
         'title': _generateHeadline(symbol, category, sentiment),
         'source': source,
-        'timestamp': DateTime.now().subtract(Duration(minutes: random.nextInt(180))),
+        'timestamp':
+            DateTime.now().subtract(Duration(minutes: random.nextInt(180))),
         'sentiment': sentiment,
         'sentimentScore': _getSentimentScore(sentiment),
         'confidence': 0.6 + random.nextDouble() * 0.4,
         'category': category,
-        'symbols': [symbol, if (random.nextBool()) symbols[random.nextInt(symbols.length)]],
+        'symbols': [
+          symbol,
+          if (random.nextBool()) symbols[random.nextInt(symbols.length)]
+        ],
         'aspects': _generateAspects(sentiment),
         'url': 'https://example.com/news/$index',
       };
     });
 
     // Sort by timestamp (newest first)
-    _newsArticles.sort((a, b) => (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+    _newsArticles.sort((a, b) =>
+        (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
 
     // Generate market sentiment
     _generateMarketSentiment();
@@ -134,10 +184,12 @@ class BullRunnrProvider extends BaseProvider {
         'Bullish': '$symbol Passes Regulatory Review with Flying Colors',
         'Neutral': '$symbol Awaits Regulatory Decision',
         'Bearish': '$symbol Faces Regulatory Scrutiny',
-        'VeryBearish': '$symbol Hit with Regulatory Fines, Investigation Launched',
+        'VeryBearish':
+            '$symbol Hit with Regulatory Fines, Investigation Launched',
       },
       'Market Analysis': {
-        'VeryBullish': 'Analysts Upgrade $symbol to Strong Buy, Price Target Raised',
+        'VeryBullish':
+            'Analysts Upgrade $symbol to Strong Buy, Price Target Raised',
         'Bullish': 'Bullish Case for $symbol Gains Momentum',
         'Neutral': '$symbol Trading in Range, Analysts Cautious',
         'Bearish': 'Analysts Cut $symbol Price Targets on Concerns',
@@ -167,28 +219,42 @@ class BullRunnrProvider extends BaseProvider {
     };
 
     final categoryHeadlines = headlines[category] ?? {};
-    final sentimentHeadlines = categoryHeadlines[sentiment] ?? '$symbol Market Update';
-    
+    final sentimentHeadlines =
+        categoryHeadlines[sentiment] ?? '$symbol Market Update';
+
     return sentimentHeadlines;
   }
 
   double _getSentimentScore(String sentiment) {
     switch (sentiment) {
-      case 'VeryBullish': return 0.8 + Random().nextDouble() * 0.2;
-      case 'Bullish': return 0.3 + Random().nextDouble() * 0.5;
-      case 'Neutral': return -0.2 + Random().nextDouble() * 0.4;
-      case 'Bearish': return -0.8 + Random().nextDouble() * 0.5;
-      case 'VeryBearish': return -1.0 + Random().nextDouble() * 0.2;
-      default: return 0.0;
+      case 'VeryBullish':
+        return 0.8 + Random().nextDouble() * 0.2;
+      case 'Bullish':
+        return 0.3 + Random().nextDouble() * 0.5;
+      case 'Neutral':
+        return -0.2 + Random().nextDouble() * 0.4;
+      case 'Bearish':
+        return -0.8 + Random().nextDouble() * 0.5;
+      case 'VeryBearish':
+        return -1.0 + Random().nextDouble() * 0.2;
+      default:
+        return 0.0;
     }
   }
 
   Map<String, dynamic> _generateAspects(String overallSentiment) {
     final random = Random();
     final aspects = <String, Map<String, dynamic>>{};
-    
-    final aspectTypes = ['Revenue', 'Earnings', 'Growth', 'Risk', 'Innovation', 'Market Position'];
-    
+
+    final aspectTypes = [
+      'Revenue',
+      'Earnings',
+      'Growth',
+      'Risk',
+      'Innovation',
+      'Market Position'
+    ];
+
     for (final aspect in aspectTypes) {
       final aspectSentiment = _getRandomAspectSentiment(overallSentiment);
       aspects[aspect] = {
@@ -197,21 +263,28 @@ class BullRunnrProvider extends BaseProvider {
         'confidence': 0.5 + random.nextDouble() * 0.5,
       };
     }
-    
+
     return aspects;
   }
 
   String _getRandomAspectSentiment(String overallSentiment) {
     final random = Random();
-    final sentiments = ['VeryBullish', 'Bullish', 'Neutral', 'Bearish', 'VeryBearish'];
-    
+    final sentiments = [
+      'VeryBullish',
+      'Bullish',
+      'Neutral',
+      'Bearish',
+      'VeryBearish'
+    ];
+
     // Bias towards overall sentiment but allow variation
     if (overallSentiment.contains('Bullish') && random.nextDouble() > 0.3) {
       return ['VeryBullish', 'Bullish'][random.nextInt(2)];
-    } else if (overallSentiment.contains('Bearish') && random.nextDouble() > 0.3) {
+    } else if (overallSentiment.contains('Bearish') &&
+        random.nextDouble() > 0.3) {
       return ['VeryBearish', 'Bearish'][random.nextInt(2)];
     }
-    
+
     return sentiments[random.nextInt(sentiments.length)];
   }
 
@@ -221,10 +294,11 @@ class BullRunnrProvider extends BaseProvider {
     final bearishCount = 10 + random.nextInt(15);
     final neutralCount = 5 + random.nextInt(10);
     final totalArticles = bullishCount + bearishCount + neutralCount;
-    
-    final overallScore = ((bullishCount - bearishCount) / totalArticles).clamp(-1.0, 1.0);
+
+    final overallScore =
+        ((bullishCount - bearishCount) / totalArticles).clamp(-1.0, 1.0);
     final fearGreedIndex = ((overallScore + 1.0) * 50.0).clamp(0.0, 100.0);
-    
+
     _marketSentiment = {
       'overallScore': overallScore,
       'bullishCount': bullishCount,
@@ -237,13 +311,22 @@ class BullRunnrProvider extends BaseProvider {
 
   void _generateTopSentimentMovers() {
     final random = Random();
-    final symbols = ['AAPL', 'TSLA', 'NVDA', 'AMD', 'META', 'GOOGL', 'MSFT', 'AMZN'];
-    
+    final symbols = [
+      'AAPL',
+      'TSLA',
+      'NVDA',
+      'AMD',
+      'META',
+      'GOOGL',
+      'MSFT',
+      'AMZN'
+    ];
+
     _topSentimentMovers = symbols.map((symbol) {
       final sentimentScore = -0.8 + random.nextDouble() * 1.6;
       final buzzScore = random.nextDouble();
       final articleCount = 1 + random.nextInt(15);
-      
+
       return {
         'symbol': symbol,
         'sentimentScore': sentimentScore,
@@ -252,9 +335,10 @@ class BullRunnrProvider extends BaseProvider {
         'sentimentTrend': _getSentimentTrend(sentimentScore),
       };
     }).toList();
-    
+
     // Sort by buzz score
-    _topSentimentMovers.sort((a, b) => b.safeDouble('buzzScore').compareTo(a.safeDouble('buzzScore')));
+    _topSentimentMovers.sort((a, b) =>
+        b.safeDouble('buzzScore').compareTo(a.safeDouble('buzzScore')));
   }
 
   String _getSentimentTrend(double score) {
@@ -266,13 +350,21 @@ class BullRunnrProvider extends BaseProvider {
   void _generateSectorSentiment() {
     final random = Random();
     final sectors = [
-      'Technology', 'Healthcare', 'Finance', 'Energy', 'Consumer',
-      'Industrial', 'Real Estate', 'Materials', 'Utilities', 'Communication'
+      'Technology',
+      'Healthcare',
+      'Finance',
+      'Energy',
+      'Consumer',
+      'Industrial',
+      'Real Estate',
+      'Materials',
+      'Utilities',
+      'Communication'
     ];
-    
+
     _sectorSentiment = sectors.map((sector) {
       final sentiment = -0.8 + random.nextDouble() * 1.6;
-      
+
       return {
         'name': sector,
         'sentiment': sentiment,
@@ -280,32 +372,51 @@ class BullRunnrProvider extends BaseProvider {
         'topMover': _getRandomSymbol(),
       };
     }).toList();
-    
+
     // Sort by sentiment
-    _sectorSentiment.sort((a, b) => b.safeDouble('sentiment').compareTo(a.safeDouble('sentiment')));
+    _sectorSentiment.sort((a, b) =>
+        b.safeDouble('sentiment').compareTo(a.safeDouble('sentiment')));
   }
 
   String _getRandomSymbol() {
-    final symbols = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD'];
+    final symbols = [
+      'AAPL',
+      'GOOGL',
+      'MSFT',
+      'AMZN',
+      'TSLA',
+      'META',
+      'NVDA',
+      'AMD'
+    ];
     return symbols[Random().nextInt(symbols.length)];
   }
 
   void _generateSearchResults(String keywords, List<String> symbols) {
     final random = Random();
     final sources = ['Reuters', 'Bloomberg', 'CNBC', 'MarketWatch'];
-    final sentiments = ['VeryBullish', 'Bullish', 'Neutral', 'Bearish', 'VeryBearish'];
-    
+    final sentiments = [
+      'VeryBullish',
+      'Bullish',
+      'Neutral',
+      'Bearish',
+      'VeryBearish'
+    ];
+
     // Generate search results based on keywords and symbols
     _newsArticles = List.generate(20, (index) {
-      final symbol = symbols.isNotEmpty ? symbols[random.nextInt(symbols.length)] : 'MARKET';
+      final symbol = symbols.isNotEmpty
+          ? symbols[random.nextInt(symbols.length)]
+          : 'MARKET';
       final sentiment = sentiments[random.nextInt(sentiments.length)];
       final source = sources[random.nextInt(sources.length)];
-      
+
       return {
         'id': 'search_$index',
         'title': '$keywords: $symbol Market Analysis - $source Report',
         'source': source,
-        'timestamp': DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
+        'timestamp':
+            DateTime.now().subtract(Duration(minutes: random.nextInt(60))),
         'sentiment': sentiment,
         'sentimentScore': _getSentimentScore(sentiment),
         'confidence': 0.6 + random.nextDouble() * 0.4,
@@ -317,8 +428,9 @@ class BullRunnrProvider extends BaseProvider {
     });
 
     // Sort by relevance
-    _newsArticles.sort((a, b) => b.safeDouble('confidence').compareTo(a.safeDouble('confidence')));
-    
+    _newsArticles.sort((a, b) =>
+        b.safeDouble('confidence').compareTo(a.safeDouble('confidence')));
+
     safeNotifyListeners();
   }
 
@@ -340,11 +452,11 @@ class BullRunnrProvider extends BaseProvider {
   double getSymbolSentiment(String symbol) {
     final symbolArticles = getNewsForSymbol(symbol);
     if (symbolArticles.isEmpty) return 0.0;
-    
+
     final totalScore = symbolArticles
         .map((article) => article.safeDouble('sentimentScore'))
         .reduce((a, b) => a + b);
-    
+
     return totalScore / symbolArticles.length;
   }
 

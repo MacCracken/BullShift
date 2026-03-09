@@ -20,15 +20,21 @@ class PromptCard extends StatelessWidget {
     final category = prompt['category'] as String;
     final template = prompt['template'] as String;
     final isSystemPrompt = prompt['isSystemPrompt'] as bool;
-    
+
     Color getCategoryColor() {
       switch (category.toLowerCase()) {
-        case 'marketanalysis': return Colors.blue;
-        case 'strategygeneration': return Colors.green;
-        case 'riskassessment': return Colors.red;
-        case 'sentimentanalysis': return Colors.purple;
-        case 'technicalanalysis': return Colors.orange;
-        default: return Colors.grey;
+        case 'marketanalysis':
+          return Colors.blue;
+        case 'strategygeneration':
+          return Colors.green;
+        case 'riskassessment':
+          return Colors.red;
+        case 'sentimentanalysis':
+          return Colors.purple;
+        case 'technicalanalysis':
+          return Colors.orange;
+        default:
+          return Colors.grey;
       }
     }
 
@@ -43,7 +49,8 @@ class PromptCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: getCategoryColor(),
                     borderRadius: BorderRadius.circular(12),
@@ -60,7 +67,8 @@ class PromptCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 if (isSystemPrompt)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(8),
@@ -77,7 +85,8 @@ class PromptCard extends StatelessWidget {
                   ),
                 const Spacer(),
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.white, size: 16),
+                  icon: const Icon(Icons.more_vert,
+                      color: Colors.white, size: 16),
                   itemBuilder: (context) => [
                     const PopupMenuItem(
                       value: 'execute',

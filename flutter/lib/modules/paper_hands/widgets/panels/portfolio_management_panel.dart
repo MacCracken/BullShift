@@ -6,7 +6,7 @@ import '../dialogs/portfolio_details_dialog.dart';
 
 class PortfolioManagementPanel extends StatelessWidget {
   final PaperHandsProvider provider;
-  
+
   const PortfolioManagementPanel({
     super.key,
     required this.provider,
@@ -26,7 +26,8 @@ class PortfolioManagementPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.account_balance_wallet, color: Colors.white, size: 20),
+              const Icon(Icons.account_balance_wallet,
+                  color: Colors.white, size: 20),
               const SizedBox(width: 8),
               const Text(
                 '🎮 Paper Portfolios',
@@ -79,9 +80,11 @@ class PortfolioManagementPanel extends StatelessWidget {
                       final portfolio = provider.paperPortfolios[index];
                       return PortfolioCard(
                         portfolio: portfolio,
-                        onSelect: () => provider.selectPortfolio(portfolio['id']),
+                        onSelect: () =>
+                            provider.selectPortfolio(portfolio['id']),
                         onDelete: () => _deletePortfolio(context, portfolio),
-                        onViewDetails: () => _showPortfolioDetails(context, portfolio),
+                        onViewDetails: () =>
+                            _showPortfolioDetails(context, portfolio),
                       );
                     },
                   ),
@@ -122,7 +125,8 @@ class PortfolioManagementPanel extends StatelessWidget {
     );
   }
 
-  void _showPortfolioDetails(BuildContext context, Map<String, dynamic> portfolio) {
+  void _showPortfolioDetails(
+      BuildContext context, Map<String, dynamic> portfolio) {
     showDialog(
       context: context,
       builder: (context) => PortfolioDetailsDialog(portfolio: portfolio),
