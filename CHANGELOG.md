@@ -45,6 +45,24 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 - **SecurityManager fallback** — Linux key derivation now falls back to file-based
   storage (`~/.bullshift/.encryption_key`) when `secret-tool` (libsecret) is
   unavailable (fixes CI test failures)
+- **AGNOS Docker base** — Runtime stage swapped from `debian:bookworm-slim` to
+  `ghcr.io/maccracken/agnosticos:latest`. Gains AGNOS non-root user, tini PID 1,
+  agent-runtime directory structure, marketplace integration paths
+
+### Changed
+- **CalVer format corrected** — All versions now use `YYYY.M.D` (was inconsistently
+  using `YYYY.D.M` and wrong years like `2027.x`). Historical versions consolidated.
+  Fixed across BullShift and AGNOS repos (docs, CI, Rust source)
+- **Dockerfile rebuilt** — Removed references to non-existent `build.rs` and `proto/`
+  directory. Added `benches/` copy. Rust builder uses `rust:bookworm` (latest stable)
+- **Release workflow** — Tag pattern changed from `v*` to `[0-9]*` to match CalVer
+  tags without `v` prefix (e.g., `2026.3.9`)
+- **Version bumped to `2026.3.9`** across VERSION, Cargo.toml, pubspec.yaml, README
+  badge, User-Agent header, API reference docs, bump-version.sh
+
+### Removed
+- **Unused gRPC dependencies** — `tonic`, `prost`, `tonic-build` removed from
+  Cargo.toml (never used in source code)
 
 ### Security
 - Input validation on `record_buy()` / `record_buy_with_date()` — rejects
@@ -59,8 +77,8 @@ All notable changes to BullShift Trading Platform will be documented in this fil
 - 46 new tests: 13 api_server endpoints, 11 multi-currency portfolio, 22 tax lots
 - API server expanded from 10 to 21 endpoints (trading, market data, algo,
   sentiment, alerts, AI)
-- No new Rust dependencies added
-- CalVer format corrected to YYYY.M.D (was inconsistently using wrong formats)
+- Removed `tonic`, `prost`, `tonic-build` dependencies (unused)
+- Docker health check uses `curl` (available from AGNOS base) instead of binary flag
 
 ---
 

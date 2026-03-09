@@ -196,9 +196,9 @@ The BullShift `api_server` binary exposes REST endpoints that SecureYeoman proxi
 - [ ] **`bullshift_alerts`** — Price/trade alerts via GET/POST `/v1/alerts`
 
 ### AGNOS Docker Base Migration
-**Priority:** Medium — depends on AGNOS Alpha (Q2 2026).
+**Status:** Complete — runtime image swapped to `ghcr.io/maccracken/agnosticos:latest`.
 
-- [ ] **Swap runtime stage to `agnos:latest`** — Current Dockerfile uses `debian:bookworm-slim` for the runtime stage. BullShift is already Rust, so the migration is straightforward. Gains: sandboxed trade execution via `agent-runtime`, cryptographic audit chain integration (complements BullShift's existing HMAC-SHA256 audit trail), resource quotas per trading strategy.
+- [x] **Swap runtime stage to AGNOS** — Dockerfile now uses `ghcr.io/maccracken/agnosticos:latest` as runtime base (was `debian:bookworm-slim`). Gains: AGNOS non-root user, tini PID 1, agent-runtime directories, sandbox and marketplace paths ready.
 - [ ] **Audit chain unification** — BullShift's `src/audit/` HMAC chain and AGNOS's cryptographic audit chain can be unified. Forward BullShift audit events to AGNOS audit subsystem for tamper-evident logging at the OS level.
 
 ### WebSocket Streaming + SecureYeoman
