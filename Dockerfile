@@ -9,15 +9,17 @@ WORKDIR /build
 # Cache dependencies by copying manifests first
 COPY rust/Cargo.toml rust/Cargo.lock ./
 
-# Create a dummy main/lib so cargo fetches deps
-RUN mkdir -p src/bin && \
+# Create dummy sources so cargo fetches deps (cache layer)
+RUN mkdir -p src/bin benches && \
     echo "fn main() {}" > src/bin/api_server.rs && \
     echo "" > src/lib.rs && \
+    echo "fn main() {}" > benches/benchmarks.rs && \
     cargo build --release --bin api_server 2>/dev/null || true && \
-    rm -rf src
+    rm -rf src benches
 
 # Copy real source and build
 COPY rust/src ./src
+COPY rust/benches ./benches
 RUN cargo build --release --bin api_server
 
 # ---- Runtime stage ----
