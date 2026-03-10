@@ -5,12 +5,15 @@
 //!
 //! # Configuration (env vars)
 //!
-//! | Variable           | Default   | Description                                    |
-//! |--------------------|-----------|------------------------------------------------|
-//! | `ALPACA_API_KEY`   | required  | Alpaca API key ID                              |
-//! | `ALPACA_API_SECRET`| required  | Alpaca API secret key                          |
-//! | `ALPACA_SANDBOX`   | `true`    | Set to `false` for live (non-paper) trading    |
-//! | `BULLSHIFT_PORT`   | `8787`    | TCP port the server listens on                 |
+//! | Variable                    | Default   | Description                                    |
+//! |-----------------------------|-----------|------------------------------------------------|
+//! | `ALPACA_API_KEY`            | required  | Alpaca API key ID                              |
+//! | `ALPACA_API_SECRET`         | required  | Alpaca API secret key                          |
+//! | `ALPACA_SANDBOX`            | `true`    | Set to `false` for live (non-paper) trading    |
+//! | `BULLSHIFT_PORT`            | `8787`    | TCP port the server listens on                 |
+//! | `AGNOS_AGENT_REGISTRY_URL`  | —         | AGNOS daimon URL for agent registration (8090) |
+//! | `AGNOS_AUDIT_URL`           | —         | AGNOS daimon URL for audit forwarding (8090)   |
+//! | `AGNOS_LLM_GATEWAY_URL`    | —         | AGNOS hoosh LLM Gateway URL (8088)             |
 //!
 //! # Endpoints
 //!
@@ -45,6 +48,7 @@ use axum::{
     routing::{delete, get, post},
     Json, Router,
 };
+use bullshift_core::agnos::AgnosAgentRegistration;
 use bullshift_core::ai_bridge::{AIProvider, AIProviderType, BearlyManaged};
 use bullshift_core::algo::{AlgoEngine, AlgoParameters, AlgoStrategyType};
 use bullshift_core::monitoring::{AlertCondition, AlertManager, AlertRule, AlertSeverity};
@@ -138,10 +142,34 @@ async fn main() {
         .route("/v1/ai/chat", post(chat_handler))
         .with_state(state);
 
+    // Register with AGNOS daimon if AGNOS_AGENT_REGISTRY_URL is set
+    let agnos_handle = if let Some(registration) = AgnosAgentRegistration::from_env(port) {
+        Some(registration.start().await)
+    } else {
+        None
+    };
+
     let addr = format!("0.0.0.0:{}", port);
     log::info!("BullShift API server listening on {}", addr);
     let listener = TcpListener::bind(&addr).await.expect("Failed to bind");
-    axum::serve(listener, app).await.expect("Server error");
+
+    // Serve with graceful shutdown support for AGNOS deregistration
+    let server = axum::serve(listener, app).with_graceful_shutdown(shutdown_signal());
+    if let Err(e) = server.await {
+        log::error!("Server error: {}", e);
+    }
+
+    // Deregister from AGNOS on shutdown
+    if let Some(handle) = agnos_handle {
+        handle.shutdown().await;
+    }
+}
+
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to listen for ctrl-c");
+    log::info!("Shutdown signal received");
 }
 
 // ---------------------------------------------------------------------------

@@ -71,6 +71,9 @@ pub struct AuditConfig {
     pub emit_to_secureyeoman: bool,
     pub secureyeoman_url: String,
     pub secureyeoman_api_key: Option<String>,
+    /// When set, audit events are forwarded to the AGNOS daimon audit subsystem
+    /// via `POST {agnos_audit_url}/v1/audit/forward`.
+    pub agnos_audit_url: Option<String>,
 }
 
 impl Default for AuditConfig {
@@ -80,6 +83,7 @@ impl Default for AuditConfig {
             emit_to_secureyeoman: false,
             secureyeoman_url: "http://localhost:18789".to_string(),
             secureyeoman_api_key: None,
+            agnos_audit_url: std::env::var("AGNOS_AUDIT_URL").ok(),
         }
     }
 }
@@ -159,6 +163,11 @@ impl AuditTrail {
         // Emit to SecureYeoman if configured
         if self.config.emit_to_secureyeoman {
             self.emit_to_secureyeoman(&entry).await;
+        }
+
+        // Forward to AGNOS daimon audit subsystem if configured
+        if self.config.agnos_audit_url.is_some() {
+            self.emit_to_agnos(&entry).await;
         }
 
         Ok(entry_id)
@@ -295,6 +304,35 @@ impl AuditTrail {
             }
             Err(e) => {
                 log::warn!("Failed to emit audit entry to SecureYeoman: {}", e);
+            }
+        }
+    }
+
+    /// Forward audit events to the AGNOS daimon audit subsystem for tamper-evident
+    /// logging at the OS level. Posts to `POST {base_url}/v1/audit/forward`.
+    async fn emit_to_agnos(&self, entry: &AuditEntry) {
+        let base_url = match &self.config.agnos_audit_url {
+            Some(url) => url,
+            None => return,
+        };
+
+        let url = format!("{}/v1/audit/forward", base_url);
+
+        let req = self
+            .client
+            .post(&url)
+            .header("x-agent-id", "bullshift")
+            .json(entry);
+
+        match req.send().await {
+            Ok(resp) if resp.status().is_success() => {
+                log::debug!("Audit entry {} forwarded to AGNOS daimon", entry.id);
+            }
+            Ok(resp) => {
+                log::warn!("AGNOS audit forwarding returned {}", resp.status());
+            }
+            Err(e) => {
+                log::warn!("Failed to forward audit entry to AGNOS: {}", e);
             }
         }
     }
@@ -641,6 +679,43 @@ mod tests {
             .filter(|e| e.actor == "user:bob")
             .collect();
         assert_eq!(bob_entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_agnos_audit_config_from_env() {
+        // When AGNOS_AUDIT_URL is not set, config should have None
+        let config = AuditConfig {
+            agnos_audit_url: None,
+            ..Default::default()
+        };
+        let mut trail = AuditTrail::new(b"test-signing-key-for-bullshift!!", config);
+
+        // Should still record fine without AGNOS
+        let id = trail
+            .record(
+                AuditEventType::SystemEvent,
+                "system",
+                "test",
+                "test",
+                serde_json::json!({}),
+            )
+            .await
+            .unwrap();
+        assert!(!id.is_nil());
+        assert_eq!(trail.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_agnos_audit_config_with_url() {
+        let config = AuditConfig {
+            agnos_audit_url: Some("http://localhost:8090".to_string()),
+            ..Default::default()
+        };
+        let trail = AuditTrail::new(b"test-signing-key-for-bullshift!!", config);
+        assert_eq!(
+            trail.config.agnos_audit_url.as_deref(),
+            Some("http://localhost:8090")
+        );
     }
 
     #[test]

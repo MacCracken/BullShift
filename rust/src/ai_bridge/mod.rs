@@ -173,10 +173,18 @@ pub struct BearlyManaged {
     prompts: HashMap<Uuid, AIPrompt>,
     responses: std::collections::VecDeque<AIResponse>,
     security_manager: crate::security::SecurityManager,
+    /// When set, all LLM calls are routed through the AGNOS hoosh LLM Gateway
+    /// instead of direct API calls. The gateway handles token accounting and
+    /// provider routing. Typically `http://localhost:8088`.
+    agnos_llm_gateway_url: Option<String>,
 }
 
 impl BearlyManaged {
     pub fn new(security_manager: crate::security::SecurityManager) -> Self {
+        let agnos_llm_gateway_url = std::env::var("AGNOS_LLM_GATEWAY_URL").ok();
+        if let Some(ref url) = agnos_llm_gateway_url {
+            log::info!("AGNOS LLM Gateway enabled: {}", url);
+        }
         Self {
             client: Client::new(),
             providers: HashMap::new(),
@@ -185,6 +193,7 @@ impl BearlyManaged {
             prompts: HashMap::new(),
             responses: std::collections::VecDeque::with_capacity(1000),
             security_manager,
+            agnos_llm_gateway_url,
         }
     }
 
@@ -383,13 +392,21 @@ impl BearlyManaged {
         provider_with_key.api_key = decrypted_key;
         let provider = &provider_with_key;
 
-        let response = match provider.provider_type {
-            AIProviderType::OpenAI => self.send_openai_request(provider, prompt).await,
-            AIProviderType::Anthropic => self.send_anthropic_request(provider, prompt).await,
-            AIProviderType::Ollama => self.send_ollama_request(provider, prompt).await,
-            AIProviderType::LocalLLM => self.send_local_llm_request(provider, prompt).await,
-            AIProviderType::SecureYeoman => self.send_secureyeoman_request(provider, prompt).await,
-            AIProviderType::Custom => self.send_custom_request(provider, prompt).await,
+        // Route through AGNOS hoosh LLM Gateway if configured
+        let response = if let Some(ref gateway_url) = self.agnos_llm_gateway_url {
+            self.send_via_agnos_gateway(gateway_url, provider, prompt)
+                .await
+        } else {
+            match provider.provider_type {
+                AIProviderType::OpenAI => self.send_openai_request(provider, prompt).await,
+                AIProviderType::Anthropic => self.send_anthropic_request(provider, prompt).await,
+                AIProviderType::Ollama => self.send_ollama_request(provider, prompt).await,
+                AIProviderType::LocalLLM => self.send_local_llm_request(provider, prompt).await,
+                AIProviderType::SecureYeoman => {
+                    self.send_secureyeoman_request(provider, prompt).await
+                }
+                AIProviderType::Custom => self.send_custom_request(provider, prompt).await,
+            }
         };
 
         let response_time = start_time.elapsed().as_millis() as u64;
@@ -412,6 +429,45 @@ impl BearlyManaged {
                 timestamp: Utc::now(),
             }),
         }
+    }
+
+    /// Route an AI request through the AGNOS hoosh LLM Gateway.
+    /// The gateway handles provider routing, token accounting, and rate limiting.
+    /// Uses OpenAI-compatible chat/completions format with `x-agent-id` header.
+    async fn send_via_agnos_gateway(
+        &self,
+        gateway_url: &str,
+        provider: &AIProvider,
+        prompt: &str,
+    ) -> Result<AIResponse, BullShiftError> {
+        let url = format!("{}/v1/chat/completions", gateway_url);
+
+        let body = serde_json::json!({
+            "model": provider.model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": provider.max_tokens,
+            "temperature": provider.temperature
+        });
+
+        let result = self
+            .post_ai_request(
+                provider,
+                &url,
+                &body,
+                vec![("x-agent-id", "bullshift".to_string())],
+            )
+            .await?;
+
+        // Parse OpenAI-compatible response format from the gateway
+        let content = result["choices"][0]["message"]["content"]
+            .as_str()
+            .or_else(|| result["response"].as_str())
+            .or_else(|| result["content"].as_str())
+            .ok_or_else(|| {
+                BullShiftError::AiBridge("Invalid AGNOS gateway response format".to_string())
+            })?;
+        let tokens_used = result["usage"]["total_tokens"].as_u64().unwrap_or(0) as u32;
+        Ok(self.build_ai_response(provider, content, tokens_used, 0.0))
     }
 
     // Generic connection test — sends GET to the given health URL

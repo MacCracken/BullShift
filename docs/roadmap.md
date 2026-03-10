@@ -199,12 +199,35 @@ The BullShift `api_server` binary exposes REST endpoints that SecureYeoman proxi
 **Status:** Complete — runtime image swapped to `ghcr.io/maccracken/agnosticos:latest`.
 
 - [x] **Swap runtime stage to AGNOS** — Dockerfile now uses `ghcr.io/maccracken/agnosticos:latest` as runtime base (was `debian:bookworm-slim`). Gains: AGNOS non-root user, tini PID 1, agent-runtime directories, sandbox and marketplace paths ready.
-- [ ] **Audit chain unification** — BullShift's `src/audit/` HMAC chain and AGNOS's cryptographic audit chain can be unified. Forward BullShift audit events to AGNOS audit subsystem for tamper-evident logging at the OS level.
+- [x] **Audit chain unification** — `AuditConfig` gains `agnos_audit_url` field (auto-populated from `AGNOS_AUDIT_URL` env var). When set, every audit entry is forwarded to AGNOS daimon via `POST {url}/v1/audit/forward` with `x-agent-id: bullshift` header. Reuses existing `AuditEntry` format (`src/audit/mod.rs`).
 
 ### WebSocket Streaming + SecureYeoman
 **Priority:** Low — enhancement opportunity.
 
 - [ ] **Real-time price/trade events in SecureYeoman dashboard** — BullShift's WebSocket streaming server (5 channel types) could feed SecureYeoman's Agent World or a custom dashboard widget. Requires SecureYeoman WebSocket transport (tracked in SecureYeoman roadmap under "WebSocket Mode for AI Providers").
+
+---
+
+## AGNOS Marketplace Onboarding (Not Started)
+
+### Focus: Package BullShift as an installable .agnos-agent marketplace app
+
+**Status:** Not started — recipe updated in AGNOS repo, BullShift-side tasks below.
+
+| Item | Effort | Status | Description |
+|------|--------|--------|-------------|
+| Build Flutter Linux bundle | 1 hour | Not started | Run `cd flutter && flutter build linux --release` to produce `build/linux/x64/release/bundle/`. Commit the build script invocation (not the artifacts). Verify the bundle runs standalone on Linux |
+| Add app icon | 30 min | Not started | Create `flutter/assets/icon/bullshift.png` (256x256 minimum) and `bullshift.svg`. Include in Flutter `pubspec.yaml` assets and copy to `$PKG/usr/share/icons/` in the recipe install step |
+| Audit chain forwarding to AGNOS | 2 hours | Complete | `AuditConfig.agnos_audit_url` (from `AGNOS_AUDIT_URL` env var) forwards entries to `POST {url}/v1/audit/forward` with `x-agent-id: bullshift` (`src/audit/mod.rs`) |
+| Agent registration with daimon | 1 hour | Complete | `AgnosAgentRegistration` in `src/agnos/mod.rs` — registers via `POST /v1/agents/register` on startup, heartbeats every 30s, deregisters on graceful shutdown. Env var: `AGNOS_AGENT_REGISTRY_URL` |
+| LLM calls through hoosh | 1 hour | Complete | `BearlyManaged` checks `AGNOS_LLM_GATEWAY_URL` env var. When set, all AI requests route through `POST {gateway}/v1/chat/completions` with `x-agent-id: bullshift` header (`src/ai_bridge/mod.rs`) |
+| Verify sandbox in AGNOS | 2 hours | Not started | Test the app inside AGNOS with Landlock/seccomp sandbox active. Verify broker API connections work through the allowed hosts list. Verify data dir persistence across restarts |
+
+**AGNOS-side work (done):**
+- Recipe updated to `2026.3.9` with correct binary name (`api_server` → `bullshift-api`)
+- Broker API hosts added to sandbox allowed list (Alpaca, Tradier, Robinhood, Schwab, Coinbase, Kraken, Webull, Binance)
+- `agpkg pack-flutter` command uncommented and ready
+- Wayland requirements declared (core, xdg-shell)
 
 ---
 
