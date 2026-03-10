@@ -80,10 +80,7 @@ impl AgnosAgentRegistration {
             ],
         };
 
-        let url = format!(
-            "{}/v1/agents/register",
-            registration.registry_url
-        );
+        let url = format!("{}/v1/agents/register", registration.registry_url);
         match registration
             .client
             .post(&url)
@@ -93,7 +90,10 @@ impl AgnosAgentRegistration {
             .await
         {
             Ok(resp) if resp.status().is_success() => {
-                log::info!("Registered with AGNOS daimon at {}", registration.registry_url);
+                log::info!(
+                    "Registered with AGNOS daimon at {}",
+                    registration.registry_url
+                );
             }
             Ok(resp) => {
                 log::warn!("AGNOS agent registration returned {}", resp.status());
