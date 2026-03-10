@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="bull" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e2b714"/>
+      <stop offset="100%" stop-color="#f5c842"/>
+    </linearGradient>
+    <linearGradient id="chart" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00c853"/>
+      <stop offset="100%" stop-color="#69f0ae"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect x="4" y="4" width="248" height="248" rx="48" ry="48" fill="url(#bg)" stroke="#2a2a4a" stroke-width="2"/>
+  <!-- Bull horns -->
+  <path d="M80 65 Q60 40 50 55 Q45 65 55 80 L85 95" fill="url(#bull)" stroke="#c9a000" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M176 65 Q196 40 206 55 Q211 65 201 80 L171 95" fill="url(#bull)" stroke="#c9a000" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Bull head -->
+  <ellipse cx="128" cy="110" rx="50" ry="40" fill="url(#bull)" stroke="#c9a000" stroke-width="2"/>
+  <!-- Bull snout -->
+  <ellipse cx="128" cy="130" rx="28" ry="18" fill="#d4a017" stroke="#c9a000" stroke-width="1.5"/>
+  <!-- Nostrils -->
+  <ellipse cx="118" cy="133" rx="5" ry="4" fill="#1a1a2e" opacity="0.6"/>
+  <ellipse cx="138" cy="133" rx="5" ry="4" fill="#1a1a2e" opacity="0.6"/>
+  <!-- Eyes -->
+  <circle cx="108" cy="105" r="6" fill="#1a1a2e"/>
+  <circle cx="148" cy="105" r="6" fill="#1a1a2e"/>
+  <circle cx="110" cy="103" r="2" fill="#fff"/>
+  <circle cx="150" cy="103" r="2" fill="#fff"/>
+  <!-- Chart line (uptrend) -->
+  <polyline points="40,210 75,200 100,190 120,205 145,175 170,180 195,155 220,140"
+    fill="none" stroke="url(#chart)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Chart glow -->
+  <polyline points="40,210 75,200 100,190 120,205 145,175 170,180 195,155 220,140"
+    fill="none" stroke="#69f0ae" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.15"/>
+  <!-- Arrow tip on chart -->
+  <polygon points="220,140 210,138 215,148" fill="#69f0ae"/>
+  <!-- Candlesticks (small, decorative) -->
+  <line x1="75" y1="195" x2="75" y2="208" stroke="#00c853" stroke-width="2" stroke-linecap="round"/>
+  <rect x="72" y="197" width="6" height="6" fill="#00c853" rx="1"/>
+  <line x1="145" y1="168" x2="145" y2="182" stroke="#00c853" stroke-width="2" stroke-linecap="round"/>
+  <rect x="142" y="170" width="6" height="8" fill="#00c853" rx="1"/>
+  <line x1="195" y1="148" x2="195" y2="162" stroke="#ff5252" stroke-width="2" stroke-linecap="round"/>
+  <rect x="192" y="152" width="6" height="6" fill="#ff5252" rx="1"/>
+  <!-- Text: BS monogram -->
+  <text x="128" y="235" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="22" fill="#69f0ae" opacity="0.7">BULLSHIFT</text>
+</svg>

@@ -215,6 +215,25 @@ case "${1:-}" in
     "package")
         create_package
         ;;
+    "agnos")
+        print_status "Building for AGNOS marketplace packaging..."
+        check_prerequisites
+        build_rust
+        setup_flutter
+        build_flutter
+        print_status "Copying icon assets for AGNOS packaging..."
+        mkdir -p dist/agnos/icons
+        cp flutter/assets/icons/bullshift.png dist/agnos/icons/
+        cp flutter/assets/icons/bullshift.svg dist/agnos/icons/
+        cp -r flutter/build/linux/x64/release/bundle dist/agnos/bullshift
+        cp rust/target/release/api_server dist/agnos/bullshift-api 2>/dev/null || \
+            cp rust/target/release/libbullshift_core.so dist/agnos/ 2>/dev/null || true
+        print_status "AGNOS build artifacts ready in dist/agnos/"
+        print_status "  dist/agnos/bullshift/       — Flutter Linux bundle"
+        print_status "  dist/agnos/bullshift-api     — API server binary"
+        print_status "  dist/agnos/icons/            — App icons (PNG + SVG)"
+        print_status "Run 'agpkg pack-flutter' from the AGNOS repo to complete packaging."
+        ;;
     "")
         main
         ;;
@@ -223,6 +242,7 @@ case "${1:-}" in
         echo "  clean   - Remove all build artifacts"
         echo "  test    - Run tests only"
         echo "  package - Create distribution package"
+        echo "  agnos   - Build for AGNOS marketplace packaging"
         echo "  (no args) - Full build process"
         exit 1
         ;;

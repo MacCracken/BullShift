@@ -1,8 +1,8 @@
 # BullShift Roadmap
 
-**Version:** 2026.3.9
+**Version:** 2026.3.10
 **Versioning:** CalVer `YYYY.M.D` (patches as `YYYY.M.D-N`)
-**Last Updated:** March 9, 2026
+**Last Updated:** March 10, 2026
 
 ---
 
@@ -208,23 +208,23 @@ The BullShift `api_server` binary exposes REST endpoints that SecureYeoman proxi
 
 ---
 
-## AGNOS Marketplace Onboarding (Not Started)
+## AGNOS Marketplace Onboarding (In Progress)
 
 ### Focus: Package BullShift as an installable .agnos-agent marketplace app
 
-**Status:** Not started — recipe updated in AGNOS repo, BullShift-side tasks below.
+**Status:** In progress — 5 of 6 items complete. Sandbox verification pending (requires AGNOS environment).
 
 | Item | Effort | Status | Description |
 |------|--------|--------|-------------|
-| Build Flutter Linux bundle | 1 hour | Not started | Run `cd flutter && flutter build linux --release` to produce `build/linux/x64/release/bundle/`. Commit the build script invocation (not the artifacts). Verify the bundle runs standalone on Linux |
-| Add app icon | 30 min | Not started | Create `flutter/assets/icon/bullshift.png` (256x256 minimum) and `bullshift.svg`. Include in Flutter `pubspec.yaml` assets and copy to `$PKG/usr/share/icons/` in the recipe install step |
+| Build Flutter Linux bundle | 1 hour | Complete | `build.sh agnos` target produces Flutter Linux bundle, API server binary, and icon assets in `dist/agnos/`. Bundle path: `flutter/build/linux/x64/release/bundle/` |
+| Add app icon | 30 min | Complete | `flutter/assets/icons/bullshift.png` (256x256) and `bullshift.svg` created. Declared in `pubspec.yaml` assets. `build.sh agnos` copies to `dist/agnos/icons/` for AGNOS recipe `$PKG/usr/share/icons/` install step |
 | Audit chain forwarding to AGNOS | 2 hours | Complete | `AuditConfig.agnos_audit_url` (from `AGNOS_AUDIT_URL` env var) forwards entries to `POST {url}/v1/audit/forward` with `x-agent-id: bullshift` (`src/audit/mod.rs`) |
 | Agent registration with daimon | 1 hour | Complete | `AgnosAgentRegistration` in `src/agnos/mod.rs` — registers via `POST /v1/agents/register` on startup, heartbeats every 30s, deregisters on graceful shutdown. Env var: `AGNOS_AGENT_REGISTRY_URL` |
 | LLM calls through hoosh | 1 hour | Complete | `BearlyManaged` checks `AGNOS_LLM_GATEWAY_URL` env var. When set, all AI requests route through `POST {gateway}/v1/chat/completions` with `x-agent-id: bullshift` header (`src/ai_bridge/mod.rs`) |
-| Verify sandbox in AGNOS | 2 hours | Not started | Test the app inside AGNOS with Landlock/seccomp sandbox active. Verify broker API connections work through the allowed hosts list. Verify data dir persistence across restarts |
+| Verify sandbox in AGNOS | 2 hours | Ready to test | Verification script at `scripts/verify-agnos-sandbox.sh`. Tests: AGNOS env detection, binary accessibility, data dir persistence, broker API connectivity (8 hosts), daimon/audit/LLM gateway endpoints, API server smoke test. Run inside AGNOS to complete |
 
 **AGNOS-side work (done):**
-- Recipe updated to `2026.3.9` with correct binary name (`api_server` → `bullshift-api`)
+- Recipe updated to `2026.3.10` with correct binary name (`api_server` → `bullshift-api`)
 - Broker API hosts added to sandbox allowed list (Alpaca, Tradier, Robinhood, Schwab, Coinbase, Kraken, Webull, Binance)
 - `agpkg pack-flutter` command uncommented and ready
 - Wayland requirements declared (core, xdg-shell)
@@ -243,6 +243,7 @@ The BullShift `api_server` binary exposes REST endpoints that SecureYeoman proxi
 
 | Version | Date | Status |
 |---------|------|--------|
+| 2026.3.10 | 2026-03-10 | Released |
 | 2026.3.9 | 2026-03-09 | Released |
 | 2026.3.5 | 2026-03-05 | Released |
 | 2026.2.22 | 2026-02-22 | Released |

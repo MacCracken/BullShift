@@ -51,4 +51,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/
+    - assets/icons/bullshift.svg
+    - assets/icons/bullshift.png
     - assets/images/
