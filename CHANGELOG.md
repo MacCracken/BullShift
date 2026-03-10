@@ -2,6 +2,25 @@
 
 All notable changes to BullShift Trading Platform will be documented in this file.
 
+## [2026.3.10] - 2026-03-10
+
+### Added
+- **App icon** — `flutter/assets/icons/bullshift.png` (256x256) and `bullshift.svg`.
+  Gold bull head with green uptrend chart on dark background. Declared in
+  `pubspec.yaml` assets for Flutter and AGNOS marketplace packaging
+- **AGNOS build target** — `build.sh agnos` produces Flutter Linux bundle, API
+  server binary, and icon assets in `dist/agnos/` for `agpkg pack-flutter`
+- **AGNOS sandbox verification script** — `scripts/verify-agnos-sandbox.sh` with
+  6-section test suite: AGNOS env detection, binary accessibility, data dir
+  persistence, broker API connectivity (8 hosts), daimon/audit/LLM gateway
+  endpoints, API server smoke test
+
+### Changed
+- Version bumped to `2026.3.10` across VERSION, Cargo.toml, pubspec.yaml, README
+- `cargo fmt` fixes in `rust/src/agnos/mod.rs` (format macro + log macro line width)
+
+---
+
 ## [2026.3.9] - 2026-03-09
 
 ### Added
@@ -224,4 +243,4 @@ Features from earlier alpha/beta releases included:
 
 For older releases, please refer to the git history.
 
-*Last Updated: March 9, 2026*
+*Last Updated: March 10, 2026*
