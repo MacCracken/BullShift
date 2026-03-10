@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class PaperTradeCard extends StatelessWidget {
   final Map<String, dynamic> trade;
@@ -10,12 +11,12 @@ class PaperTradeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = trade['symbol'] as String;
-    final side = trade['side'] as String;
-    final quantity = trade['quantity'] as double;
-    final entryPrice = trade['entryPrice'] as double;
-    final exitPrice = trade['exitPrice'] as double?;
-    final pnl = trade['pnl'] as double?;
+    final symbol = trade.safeString('symbol');
+    final side = trade.safeString('side');
+    final quantity = trade.safeDouble('quantity');
+    final entryPrice = trade.safeDouble('entryPrice');
+    final exitPrice = trade['exitPrice'] != null ? trade.safeDouble('exitPrice') : null;
+    final pnl = trade['pnl'] != null ? trade.safeDouble('pnl') : null;
     final sideColor = side == 'Buy' ? Colors.green : Colors.red;
     final pnlColor = (pnl ?? 0.0) >= 0 ? Colors.green : Colors.red;
 

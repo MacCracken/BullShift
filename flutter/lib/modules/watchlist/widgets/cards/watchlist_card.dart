@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class WatchlistCard extends StatelessWidget {
   final Map<String, dynamic> item;
@@ -16,11 +17,11 @@ class WatchlistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = item['symbol'] as String;
-    final currentPrice = item['currentPrice'] as double;
-    final dayChange = item['dayChange'] as double;
-    final dayChangePercent = item['dayChangePercent'] as double;
-    final volume = item['volume'] as int;
+    final symbol = item.safeString('symbol');
+    final currentPrice = item.safeDouble('currentPrice');
+    final dayChange = item.safeDouble('dayChange');
+    final dayChangePercent = item.safeDouble('dayChangePercent');
+    final volume = item.safeInt('volume');
     final isPositive = dayChange >= 0;
 
     return Card(
@@ -174,10 +175,10 @@ class SearchResultTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = result['symbol'] as String;
-    final name = result['name'] as String? ?? '$symbol Inc.';
-    final exchange = result['exchange'] as String? ?? 'NASDAQ';
-    final type = result['type'] as String? ?? 'Stock';
+    final symbol = result.safeString('symbol');
+    final name = result.safeString('name', '$symbol Inc.');
+    final exchange = result.safeString('exchange', 'NASDAQ');
+    final type = result.safeString('type', 'Stock');
 
     return Card(
       color: const Color(0xFF37474F),

@@ -47,23 +47,13 @@ Tracked in SecureYeoman roadmap Phase 145. Registration happens in `packages/mcp
 
 ---
 
-## Code Quality (From Audit)
-
-Remaining items from the [2026-03 code audit](development/code-audit-2026-03.md). Pick up opportunistically.
-
-| Item | Description |
-|------|-------------|
-| Error type migration | Migrate Rust APIs from `Result<T, String>` to `Result<T, BullShiftError>` (`src/error.rs` exists, not yet used throughout) |
-| Charting decomposition | Decompose `flutter/lib/widgets/advanced_charting_widget.dart` (2491 lines) into smaller widgets |
-| Safe cast migration | Migrate ~50 provider cast locations to use `safe_cast.dart` extensions (`flutter/lib/services/safe_cast.dart`) |
-
 ---
 
 ## Release History
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 2026.3.10 | 2026-03-10 | AGNOS marketplace onboarding (icon, build target, sandbox script), cargo fmt fixes |
+| 2026.3.10 | 2026-03-10 | AGNOS marketplace onboarding (icon, build target, sandbox script), cargo fmt fixes, safe cast migration complete (150+ casts across 24 files), code audit items closed (error types, charting decomposition, safe casts all confirmed complete) |
 | 2026.3.9 | 2026-03-09 | MCP API endpoints (market data, algo, sentiment, alerts), multi-currency portfolio, tax lot tracking, AGNOS Docker base + audit forwarding + agent registration + LLM gateway |
 | 2026.3.5 | 2026-03-05 | AI bridge (SecureYeoman, Anthropic, Ollama), SY deep integration, trading extensions, production deployment, platform extensions, WebSocket streaming |
 | 2026.2.22 | 2026-02-22 | REST API server for MCP integration |

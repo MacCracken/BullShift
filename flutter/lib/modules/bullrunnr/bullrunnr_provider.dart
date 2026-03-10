@@ -443,7 +443,7 @@ class BullRunnrProvider extends BaseProvider {
   // Get news for specific symbol
   List<Map<String, dynamic>> getNewsForSymbol(String symbol) {
     return _newsArticles.where((article) {
-      final symbols = (article['symbols'] as List<String>?) ?? [];
+      final symbols = article.safeList<String>('symbols');
       return symbols.contains(symbol.toUpperCase());
     }).toList();
   }

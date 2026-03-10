@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class PromptCard extends StatelessWidget {
   final Map<String, dynamic> prompt;
@@ -16,10 +17,10 @@ class PromptCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = prompt['name'] as String;
-    final category = prompt['category'] as String;
-    final template = prompt['template'] as String;
-    final isSystemPrompt = prompt['isSystemPrompt'] as bool;
+    final name = prompt.safeString('name');
+    final category = prompt.safeString('category');
+    final template = prompt.safeString('template');
+    final isSystemPrompt = prompt.safeBool('isSystemPrompt');
 
     Color getCategoryColor() {
       switch (category.toLowerCase()) {

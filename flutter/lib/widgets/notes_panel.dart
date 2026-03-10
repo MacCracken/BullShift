@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core_trading/trading_provider.dart';
+import '../services/safe_cast.dart';
 
 class NotesPanel extends StatefulWidget {
   final String symbol;
@@ -255,9 +256,9 @@ class NoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final noteText = note['note'] as String;
+    final noteText = note.safeString('note');
     final timestamp = note['timestamp'] as DateTime;
-    final tags = (note['tags'] as List<String>?) ?? [];
+    final tags = note.safeList<String>('tags');
 
     return Card(
       color: const Color(0xFF37474F),

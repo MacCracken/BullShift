@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 import '../../../watchlist/watchlist_provider.dart';
 
 class HeatMapTile extends StatelessWidget {
@@ -13,8 +14,8 @@ class HeatMapTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = data['symbol'] as String;
-    final heat = (data['heat'] as double).clamp(0.0, 1.0);
+    final symbol = data.safeString('symbol');
+    final heat = data.safeDouble('heat').clamp(0.0, 1.0);
 
     Color getHeatColor() {
       if (heat >= 0.8) return Colors.red.shade900;

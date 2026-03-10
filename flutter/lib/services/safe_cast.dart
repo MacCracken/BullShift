@@ -30,4 +30,18 @@ extension SafeMapCast on Map<String, dynamic> {
     if (v is bool) return v;
     return fallback;
   }
+
+  List<T> safeList<T>(String key, [List<T> fallback = const []]) {
+    final v = this[key];
+    if (v is List) return v.whereType<T>().toList();
+    return fallback;
+  }
+
+  Map<String, dynamic> safeMap(String key,
+      [Map<String, dynamic> fallback = const {}]) {
+    final v = this[key];
+    if (v is Map<String, dynamic>) return v;
+    if (v is Map) return Map<String, dynamic>.from(v);
+    return fallback;
+  }
 }

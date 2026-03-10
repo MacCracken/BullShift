@@ -1,6 +1,7 @@
 import 'dart:math';
 import '../../services/base_provider.dart';
 import '../../services/ai_bridge_service.dart';
+import '../../services/safe_cast.dart';
 
 class BearlyManagedProvider extends BaseProvider {
   List<Map<String, dynamic>> _aiProviders = [];
@@ -234,7 +235,7 @@ class BearlyManagedProvider extends BaseProvider {
         }
 
         // Build the final prompt with variable substitution
-        String finalPrompt = prompt['template'] as String;
+        String finalPrompt = prompt.safeString('template');
         for (final entry in variables.entries) {
           finalPrompt = finalPrompt.replaceAll('{{${entry.key}}}', entry.value);
         }
@@ -248,11 +249,11 @@ class BearlyManagedProvider extends BaseProvider {
 
         try {
           final chatResult = await _aiBridge.chat(
-            providerId: provider['id'] as String,
+            providerId: provider.safeString('id'),
             prompt: finalPrompt,
           );
-          response = chatResult['response'] as String? ?? '';
-          tokensUsed = (chatResult['tokens_used'] as num?)?.toInt() ?? 0;
+          response = chatResult.safeString('response');
+          tokensUsed = chatResult.safeInt('tokens_used');
           responseTimeMs = stopwatch.elapsedMilliseconds;
           cost = tokensUsed * 0.002; // rough estimate
         } catch (_) {
@@ -506,7 +507,7 @@ class BearlyManagedProvider extends BaseProvider {
   }
 
   String _generateAIResponse(Map<String, dynamic> prompt, Map<String, dynamic> variables) {
-    final category = prompt['category'] as String;
+    final category = prompt.safeString('category');
     final random = Random();
 
     switch (category) {
@@ -683,12 +684,12 @@ The AI system successfully processed the request and provided a comprehensive re
     
     return {
       'totalRequests': providerResponses.length,
-      'totalTokens': providerResponses.map((r) => r['tokensUsed'] as int).fold(0, (a, b) => a + b),
-      'totalCost': providerResponses.map((r) => r['cost'] as double).fold(0.0, (a, b) => a + b),
+      'totalTokens': providerResponses.map((r) => r.safeInt('tokensUsed')).fold(0, (a, b) => a + b),
+      'totalCost': providerResponses.map((r) => r.safeDouble('cost')).fold(0.0, (a, b) => a + b),
       'successRate': providerResponses.isEmpty ? 0.0 : 
         providerResponses.where((r) => r['success']).length / providerResponses.length,
       'avgResponseTime': providerResponses.isEmpty ? 0.0 :
-        providerResponses.map((r) => r['responseTimeMs'] as int).reduce((a, b) => a + b) / providerResponses.length,
+        providerResponses.map((r) => r.safeInt('responseTimeMs')).reduce((a, b) => a + b) / providerResponses.length,
     };
   }
 }

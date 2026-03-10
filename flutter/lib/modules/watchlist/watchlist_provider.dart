@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../services/base_provider.dart';
 import '../../services/rust_trading_engine.dart';
+import '../../services/safe_cast.dart';
 
 class WatchlistProvider extends BaseProvider {
   List<Map<String, dynamic>> _watchlist = [];
@@ -107,11 +108,11 @@ class WatchlistProvider extends BaseProvider {
         await Future.delayed(const Duration(seconds: 1)); // Simulate API call
 
         for (int i = 0; i < _watchlist.length; i++) {
-          final symbol = _watchlist[i]['symbol'] as String;
+          final symbol = _watchlist[i].safeString('symbol');
           final updatedData = await _fetchSymbolData(symbol);
           if (updatedData != null) {
             // Preserve the previous price for change calculation
-            final previousPrice = _watchlist[i]['currentPrice'] as double;
+            final previousPrice = _watchlist[i].safeDouble('currentPrice');
             updatedData['previousPrice'] = previousPrice;
             _watchlist[i] = updatedData;
           }
@@ -141,16 +142,16 @@ class WatchlistProvider extends BaseProvider {
     Map<String, dynamic>? topLoser;
 
     for (final item in _watchlist) {
-      final price = item['currentPrice'] as double;
-      final change = item['dayChange'] as double;
+      final price = item.safeDouble('currentPrice');
+      final change = item.safeDouble('dayChange');
       totalValue += price;
       totalChange += change;
 
-      if (topGainer == null || change > (topGainer['dayChange'] as double)) {
+      if (topGainer == null || change > topGainer.safeDouble('dayChange')) {
         topGainer = item;
       }
 
-      if (topLoser == null || change < (topLoser['dayChange'] as double)) {
+      if (topLoser == null || change < topLoser.safeDouble('dayChange')) {
         topLoser = item;
       }
     }
@@ -269,24 +270,24 @@ class WatchlistProvider extends BaseProvider {
   void _sortWatchlist() {
     switch (_sortBy) {
       case 'symbol':
-        _watchlist.sort((a, b) => _sortAscending 
-            ? (a['symbol'] as String).compareTo(b['symbol'] as String)
-            : (b['symbol'] as String).compareTo(a['symbol'] as String));
+        _watchlist.sort((a, b) => _sortAscending
+            ? a.safeString('symbol').compareTo(b.safeString('symbol'))
+            : b.safeString('symbol').compareTo(a.safeString('symbol')));
         break;
       case 'price':
-        _watchlist.sort((a, b) => _sortAscending 
-            ? (a['currentPrice'] as double).compareTo(b['currentPrice'] as double)
-            : (b['currentPrice'] as double).compareTo(a['currentPrice'] as double));
+        _watchlist.sort((a, b) => _sortAscending
+            ? a.safeDouble('currentPrice').compareTo(b.safeDouble('currentPrice'))
+            : b.safeDouble('currentPrice').compareTo(a.safeDouble('currentPrice')));
         break;
       case 'change':
-        _watchlist.sort((a, b) => _sortAscending 
-            ? (a['dayChange'] as double).compareTo(b['dayChange'] as double)
-            : (b['dayChange'] as double).compareTo(a['dayChange'] as double));
+        _watchlist.sort((a, b) => _sortAscending
+            ? a.safeDouble('dayChange').compareTo(b.safeDouble('dayChange'))
+            : b.safeDouble('dayChange').compareTo(a.safeDouble('dayChange')));
         break;
       case 'volume':
-        _watchlist.sort((a, b) => _sortAscending 
-            ? (a['volume'] as int).compareTo(b['volume'] as int)
-            : (b['volume'] as int).compareTo(a['volume'] as int));
+        _watchlist.sort((a, b) => _sortAscending
+            ? a.safeInt('volume').compareTo(b.safeInt('volume'))
+            : b.safeInt('volume').compareTo(a.safeInt('volume')));
         break;
     }
   }
@@ -324,12 +325,12 @@ class WatchlistProvider extends BaseProvider {
   Future<bool> importWatchlist(Map<String, dynamic> data) async {
     try {
       if (data['watchlist'] is List) {
-        final importedWatchlist = data['watchlist'] as List;
+        final importedWatchlist = data.safeList<dynamic>('watchlist');
         int added = 0;
         
         for (final item in importedWatchlist) {
           if (item is Map && item['symbol'] is String) {
-            if (await addToWatchlist(item['symbol'] as String)) {
+            if (await addToWatchlist((item as Map<String, dynamic>).safeString('symbol'))) {
               added++;
             }
           }
@@ -369,10 +370,10 @@ class WatchlistProvider extends BaseProvider {
         // Simulate price update
         final random = Random();
         final priceChange = (-2.0 + random.nextDouble() * 4.0); // -2% to +2%
-        final currentPrice = item['currentPrice'] as double;
+        final currentPrice = item.safeDouble('currentPrice');
         final newPrice = currentPrice * (1 + priceChange / 100);
-        final dayChange = item['dayChange'] as double + (newPrice - currentPrice);
-        final previousPrice = item['previousPrice'] as double;
+        final dayChange = item.safeDouble('dayChange') + (newPrice - currentPrice);
+        final previousPrice = item.safeDouble('previousPrice');
         final dayChangePercent = ((newPrice - previousPrice) / previousPrice) * 100;
         
         // Update the item
@@ -383,7 +384,7 @@ class WatchlistProvider extends BaseProvider {
           'dayChangePercent': dayChangePercent,
           'previousPrice': currentPrice,
           'timestamp': DateTime.now(),
-          'volume': (item['volume'] as int) + random.nextInt(10000),
+          'volume': item.safeInt('volume') + random.nextInt(10000),
         };
       }
       
@@ -399,7 +400,7 @@ class WatchlistProvider extends BaseProvider {
     try {
       // This would connect to the Rust WebSocket stream
       // For now, we'll simulate with timer-based updates
-      final symbols = _watchlist.map((item) => item['symbol'] as String).toList();
+      final symbols = _watchlist.map((item) => item.safeString('symbol')).toList();
       
       // In real implementation:
       // await _rustEngine.connectToMarketData(symbols);
@@ -413,18 +414,18 @@ class WatchlistProvider extends BaseProvider {
   // Handle incoming WebSocket data
   void handleMarketDataUpdate(Map<String, dynamic> data) {
     try {
-      final symbol = data['symbol'] as String?;
-      if (symbol == null) return;
-      
+      final symbol = data.safeString('symbol');
+      if (symbol.isEmpty) return;
+
       // Find the item in watchlist
       final index = _watchlist.indexWhere((item) => item['symbol'] == symbol);
       if (index == -1) return;
-      
+
       final item = _watchlist[index];
-      final currentPrice = item['currentPrice'] as double;
+      final currentPrice = item.safeDouble('currentPrice');
       final newPrice = (data['price'] as num?)?.toDouble() ?? currentPrice;
-      final volume = (data['volume'] as num?)?.toInt() ?? item['volume'] as int;
-      final previousPrice = item['previousPrice'] as double;
+      final volume = (data['volume'] as num?)?.toInt() ?? item.safeInt('volume');
+      final previousPrice = item.safeDouble('previousPrice');
       final dayChange = newPrice - previousPrice;
       final dayChangePercent = (dayChange / previousPrice) * 100;
       

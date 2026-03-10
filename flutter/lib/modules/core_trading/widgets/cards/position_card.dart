@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../trading_provider.dart';
 import '../../../watchlist/watchlist_provider.dart';
+import '../../../../services/safe_cast.dart';
 
 class PositionCard extends StatelessWidget {
   final Map<String, dynamic> position;
@@ -10,7 +11,7 @@ class PositionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pnl = position['unrealizedPnl'] as double;
+    final pnl = position.safeDouble('unrealizedPnl');
     final pnlColor = pnl >= 0 ? Colors.green : Colors.red;
     final tradingProvider = context.read<TradingProvider>();
     final watchlistProvider = context.read<WatchlistProvider>();
@@ -25,7 +26,7 @@ class PositionCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  position['symbol'] as String,
+                  position.safeString('symbol'),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,

@@ -1,5 +1,6 @@
 import '../../services/base_provider.dart';
 import '../../services/rust_trading_engine.dart';
+import '../../services/safe_cast.dart';
 
 class TradingProvider extends BaseProvider {
   final RustTradingEngine _rustEngine;
@@ -255,7 +256,7 @@ class TradingProvider extends BaseProvider {
     final allTags = <String>{};
     for (final notes in _symbolNotes.values) {
       for (final note in notes) {
-        final tags = (note['tags'] as List<String>?) ?? [];
+        final tags = note.safeList<String>('tags');
         allTags.addAll(tags);
       }
     }
@@ -268,8 +269,8 @@ class TradingProvider extends BaseProvider {
 
     for (final entry in _symbolNotes.entries) {
       for (final note in entry.value) {
-        final noteText = (note['note'] as String).toLowerCase();
-        final tags = (note['tags'] as List<String>?) ?? [];
+        final noteText = note.safeString('note').toLowerCase();
+        final tags = note.safeList<String>('tags');
 
         if (noteText.contains(lowerQuery) ||
             tags.any((tag) => tag.toLowerCase().contains(lowerQuery))) {

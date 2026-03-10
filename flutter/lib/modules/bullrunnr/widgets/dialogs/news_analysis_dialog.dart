@@ -15,7 +15,7 @@ class NewsAnalysisDialog extends StatelessWidget {
     final sentiment = article.safeString('sentiment');
     final score = article.safeDouble('sentimentScore').clamp(-1.0, 1.0);
     final confidence = article.safeDouble('confidence').clamp(0.0, 1.0);
-    final aspects = article['aspects'] as Map<String, dynamic>? ?? {};
+    final aspects = article['aspects'] != null ? article.safeMap('aspects') : <String, dynamic>{};
 
     return AlertDialog(
       title: Text('Sentiment Analysis - ${article['symbol'] ?? 'General'}'),
@@ -43,7 +43,7 @@ class NewsAnalysisDialog extends StatelessWidget {
             const SizedBox(height: 8),
             ...aspects.entries.map(
               (entry) => _buildAspectRow(
-                  entry.key, entry.value as Map<String, dynamic>),
+                  entry.key, entry.value is Map<String, dynamic> ? entry.value as Map<String, dynamic> : <String, dynamic>{}),
             ),
           ],
         ),

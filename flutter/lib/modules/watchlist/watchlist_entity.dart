@@ -1,4 +1,5 @@
 import 'package:objectbox/objectbox.dart';
+import '../../services/safe_cast.dart';
 
 @Entity()
 class WatchlistEntity {
@@ -63,23 +64,23 @@ class WatchlistEntity {
 
   // Constructor for creating from map
   WatchlistEntity.fromMap(Map<String, dynamic> map) {
-    symbol = map['symbol'] as String;
-    currentPrice = (map['currentPrice'] as num).toDouble();
-    dayChange = (map['dayChange'] as num?)?.toDouble() ?? 0.0;
-    dayChangePercent = (map['dayChangePercent'] as num?)?.toDouble() ?? 0.0;
-    volume = (map['volume'] as num?)?.toInt() ?? 0;
-    marketCap = (map['marketCap'] as num?)?.toDouble() ?? 0.0;
+    symbol = map.safeString('symbol');
+    currentPrice = map.safeDouble('currentPrice');
+    dayChange = map.safeDouble('dayChange');
+    dayChangePercent = map.safeDouble('dayChangePercent');
+    volume = map.safeInt('volume');
+    marketCap = map.safeDouble('marketCap');
     timestamp = (map['timestamp'] as DateTime?)?.millisecondsSinceEpoch ??
         DateTime.now().millisecondsSinceEpoch;
-    previousPrice = (map['previousPrice'] as num?)?.toDouble() ?? currentPrice;
-    isActive = (map['isActive'] as bool?) ?? true;
-    sortOrder = (map['sortOrder'] as int?) ?? 0;
-    notes = map['notes'] as String?;
-    category = map['category'] as String?;
-    alertsEnabled = (map['alertsEnabled'] as bool?) ?? false;
-    alertPriceHigh = (map['alertPriceHigh'] as num?)?.toDouble();
-    alertPriceLow = (map['alertPriceLow'] as num?)?.toDouble();
-    alertChangePercent = (map['alertChangePercent'] as num?)?.toDouble();
+    previousPrice = map.containsKey('previousPrice') ? map.safeDouble('previousPrice') : currentPrice;
+    isActive = map.safeBool('isActive', true);
+    sortOrder = map.safeInt('sortOrder');
+    notes = map['notes'] is String ? map['notes'] as String : null;
+    category = map['category'] is String ? map['category'] as String : null;
+    alertsEnabled = map.safeBool('alertsEnabled');
+    alertPriceHigh = map['alertPriceHigh'] is num ? map.safeDouble('alertPriceHigh') : null;
+    alertPriceLow = map['alertPriceLow'] is num ? map.safeDouble('alertPriceLow') : null;
+    alertChangePercent = map['alertChangePercent'] is num ? map.safeDouble('alertChangePercent') : null;
     createdAt = (map['createdAt'] as DateTime?) ?? DateTime.now();
     updatedAt = (map['updatedAt'] as DateTime?) ?? DateTime.now();
   }
@@ -113,23 +114,23 @@ class WatchlistEntity {
   void updateFromMap(Map<String, dynamic> map) {
     if (map.containsKey('currentPrice')) {
       previousPrice = currentPrice;
-      currentPrice = (map['currentPrice'] as num).toDouble();
+      currentPrice = map.safeDouble('currentPrice');
     }
 
     if (map.containsKey('dayChange')) {
-      dayChange = (map['dayChange'] as num).toDouble();
+      dayChange = map.safeDouble('dayChange');
     }
 
     if (map.containsKey('dayChangePercent')) {
-      dayChangePercent = (map['dayChangePercent'] as num).toDouble();
+      dayChangePercent = map.safeDouble('dayChangePercent');
     }
 
     if (map.containsKey('volume')) {
-      volume = (map['volume'] as num).toInt();
+      volume = map.safeInt('volume');
     }
 
     if (map.containsKey('marketCap')) {
-      marketCap = (map['marketCap'] as num).toDouble();
+      marketCap = map.safeDouble('marketCap');
     }
 
     timestamp = DateTime.now().millisecondsSinceEpoch;

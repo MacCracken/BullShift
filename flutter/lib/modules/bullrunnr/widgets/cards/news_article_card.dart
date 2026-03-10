@@ -17,7 +17,7 @@ class NewsArticleCard extends StatelessWidget {
     final timestamp = article['timestamp'] as DateTime;
     final sentiment = article.safeString('sentiment');
     final score = article.safeDouble('sentimentScore').clamp(-1.0, 1.0);
-    final symbols = (article['symbols'] as List<String>?) ?? [];
+    final symbols = article.safeList<String>('symbols');
     final category = article.safeString('category');
 
     Color getSentimentColor() {

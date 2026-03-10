@@ -24,7 +24,7 @@ class AIProviderCard extends StatelessWidget {
     final modelName = provider.safeString('modelName');
     final isConfigured = provider.safeBool('isConfigured');
     final isActive = provider.safeBool('isActive');
-    final lastUsed = provider['lastUsed'] as String?;
+    final lastUsed = provider['lastUsed'] != null ? provider.safeString('lastUsed') : null;
 
     Color getProviderColor() {
       switch (providerType.toLowerCase()) {

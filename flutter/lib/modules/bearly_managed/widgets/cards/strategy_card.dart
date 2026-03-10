@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class StrategyCard extends StatelessWidget {
   final Map<String, dynamic> strategy;
@@ -16,12 +17,12 @@ class StrategyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = strategy['name'] as String;
-    final description = strategy['description'] as String;
-    final strategyType = strategy['type'] as String;
-    final riskLevel = strategy['riskLevel'] as String;
-    final isActive = strategy['isActive'] as bool;
-    final winRate = (strategy['winRate'] as double?) ?? 0.0;
+    final name = strategy.safeString('name');
+    final description = strategy.safeString('description');
+    final strategyType = strategy.safeString('type');
+    final riskLevel = strategy.safeString('riskLevel');
+    final isActive = strategy.safeBool('isActive');
+    final winRate = strategy.safeDouble('winRate');
 
     Color getStrategyColor() {
       switch (strategyType.toLowerCase()) {

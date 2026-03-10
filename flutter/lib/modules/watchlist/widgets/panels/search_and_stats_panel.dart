@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 import '../../watchlist_provider.dart';
 import '../cards/search_result_tile.dart';
 
@@ -103,8 +104,8 @@ class StatsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stats = provider.getWatchlistStats();
-    final topGainer = stats['topGainer'] as Map<String, dynamic>?;
-    final topLoser = stats['topLoser'] as Map<String, dynamic>?;
+    final topGainer = stats['topGainer'] != null ? stats.safeMap('topGainer') : null;
+    final topLoser = stats['topLoser'] != null ? stats.safeMap('topLoser') : null;
 
     return Container(
       margin: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
@@ -169,8 +170,8 @@ class StatsSection extends StatelessWidget {
   }
 
   Widget _buildGainerLoserRow(Map<String, dynamic> item, bool isGainer) {
-    final symbol = item['symbol'] as String;
-    final changePercent = item['dayChangePercent'] as double;
+    final symbol = item.safeString('symbol');
+    final changePercent = item.safeDouble('dayChangePercent');
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

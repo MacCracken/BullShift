@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 import '../../../watchlist/watchlist_provider.dart';
 
 class ShiftAlertCard extends StatelessWidget {
@@ -13,10 +14,10 @@ class ShiftAlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = alert['symbol'] as String;
-    final message = alert['message'] as String;
-    final alertType = alert['type'] as String;
-    final confidence = (alert['confidence'] as double).clamp(0.0, 1.0);
+    final symbol = alert.safeString('symbol');
+    final message = alert.safeString('message');
+    final alertType = alert.safeString('type');
+    final confidence = alert.safeDouble('confidence').clamp(0.0, 1.0);
 
     Color getAlertColor() {
       switch (alertType) {

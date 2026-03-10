@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class PortfolioCard extends StatelessWidget {
   final Map<String, dynamic> portfolio;
@@ -16,11 +17,11 @@ class PortfolioCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = portfolio['name'] as String;
-    final initialBalance = portfolio['initialBalance'] as double;
-    final currentBalance = portfolio['currentBalance'] as double;
-    final winRate = (portfolio['winRate'] as double?) ?? 0.0;
-    final isActive = portfolio['isActive'] as bool;
+    final name = portfolio.safeString('name');
+    final initialBalance = portfolio.safeDouble('initialBalance');
+    final currentBalance = portfolio.safeDouble('currentBalance');
+    final winRate = portfolio.safeDouble('winRate');
+    final isActive = portfolio.safeBool('isActive');
 
     final returnPercentage =
         ((currentBalance - initialBalance) / initialBalance * 100);

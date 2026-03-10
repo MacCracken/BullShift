@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'safe_cast.dart';
 
 /// HTTP client for the BullShift AI provider API endpoints.
 ///
@@ -18,8 +19,8 @@ class AiBridgeService {
   /// List all registered AI providers.
   Future<List<Map<String, dynamic>>> listProviders() async {
     final response = await _dio.get('/v1/ai/providers');
-    final providers = response.data['providers'] as List;
-    return providers.cast<Map<String, dynamic>>();
+    final data = response.data as Map<String, dynamic>;
+    return data.safeList<Map<String, dynamic>>('providers');
   }
 
   /// Add a new AI provider. Returns the new provider ID.
@@ -41,7 +42,8 @@ class AiBridgeService {
       'max_tokens': maxTokens,
       'temperature': temperature,
     });
-    return response.data['id'] as String;
+    final data = response.data as Map<String, dynamic>;
+    return data.safeString('id');
   }
 
   /// Store an encrypted API key for a provider.

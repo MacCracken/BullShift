@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../bearly_managed_provider.dart';
+import '../../../../services/safe_cast.dart';
 
 class ExecutePromptDialog extends StatefulWidget {
   final BearlyManagedProvider provider;
@@ -28,7 +29,7 @@ class _ExecutePromptDialogState extends State<ExecutePromptDialog> {
         .where((p) => p['isActive'] == true)
         .toList();
     if (activeProviders.isNotEmpty) {
-      _selectedProviderId = activeProviders.first['id'];
+      _selectedProviderId = activeProviders.first.safeString('id');
     }
   }
 
@@ -114,8 +115,8 @@ class _ExecutePromptDialogState extends State<ExecutePromptDialog> {
                   ),
                   items: activeProviders.map((provider) {
                     return DropdownMenuItem(
-                      value: provider['id'] as String,
-                      child: Text(provider['name'] as String),
+                      value: provider.safeString('id'),
+                      child: Text(provider.safeString('name')),
                     );
                   }).toList(),
                   onChanged: (value) {

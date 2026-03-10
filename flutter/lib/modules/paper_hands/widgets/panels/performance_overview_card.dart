@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 
 class PerformanceOverviewCard extends StatelessWidget {
   final Map<String, dynamic> portfolio;
@@ -10,12 +11,12 @@ class PerformanceOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalReturn = portfolio['totalReturn'] as double;
-    final totalReturnPercentage = portfolio['totalReturnPercentage'] as double;
-    final winRate = (portfolio['winRate'] as double?) ?? 0.0;
-    final sharpeRatio = (portfolio['sharpeRatio'] as double?) ?? 0.0;
-    final maxDrawdown = (portfolio['maxDrawdown'] as double?) ?? 0.0;
-    final totalTrades = portfolio['totalTrades'] as int;
+    final totalReturn = portfolio.safeDouble('totalReturn');
+    final totalReturnPercentage = portfolio.safeDouble('totalReturnPercentage');
+    final winRate = portfolio.safeDouble('winRate');
+    final sharpeRatio = portfolio.safeDouble('sharpeRatio');
+    final maxDrawdown = portfolio.safeDouble('maxDrawdown');
+    final totalTrades = portfolio.safeInt('totalTrades');
 
     return Card(
       color: const Color(0xFF37474F),

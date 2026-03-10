@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/safe_cast.dart';
 import '../../../watchlist/watchlist_provider.dart';
 
 class MomentumStockCard extends StatelessWidget {
@@ -13,12 +14,12 @@ class MomentumStockCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = stock['symbol'] as String;
-    final score = (stock['score'] as double).clamp(0.0, 1.0);
-    final volumeSpike = stock['volumeSpike'] as double;
-    final priceMomentum = stock['priceMomentum'] as double;
-    final socialSentiment = stock['socialSentiment'] as double;
-    final trendStrength = stock['trendStrength'] as String;
+    final symbol = stock.safeString('symbol');
+    final score = stock.safeDouble('score').clamp(0.0, 1.0);
+    final volumeSpike = stock.safeDouble('volumeSpike');
+    final priceMomentum = stock.safeDouble('priceMomentum');
+    final socialSentiment = stock.safeDouble('socialSentiment');
+    final trendStrength = stock.safeString('trendStrength');
     
     Color getScoreColor() {
       if (score >= 0.8) return Colors.red;
@@ -315,13 +316,13 @@ class AnalysisDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Overall Score: ${(stock['score'] as double * 100).toInt()}%'),
+            Text('Overall Score: ${(stock.safeDouble('score') * 100).toInt()}%'),
             const SizedBox(height: 8),
-            Text('Volume Spike: ${stock['volumeSpike'].toStringAsFixed(2)}x'),
+            Text('Volume Spike: ${stock.safeDouble('volumeSpike').toStringAsFixed(2)}x'),
             const SizedBox(height: 8),
-            Text('Price Momentum: ${(stock['priceMomentum'] as double * 100).toInt()}%'),
+            Text('Price Momentum: ${(stock.safeDouble('priceMomentum') * 100).toInt()}%'),
             const SizedBox(height: 8),
-            Text('Social Sentiment: ${(stock['socialSentiment'] as double * 100).toInt()}%'),
+            Text('Social Sentiment: ${(stock.safeDouble('socialSentiment') * 100).toInt()}%'),
             const SizedBox(height: 8),
             Text('Trend Strength: ${stock['trendStrength']}'),
           ],

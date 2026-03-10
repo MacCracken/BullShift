@@ -1,5 +1,6 @@
 import 'dart:math';
 import '../../services/base_provider.dart';
+import '../../services/safe_cast.dart';
 
 class PaperHandsProvider extends BaseProvider {
   List<Map<String, dynamic>> _paperPortfolios = [];
@@ -184,7 +185,7 @@ class PaperHandsProvider extends BaseProvider {
         final portfolio = _selectedPortfolio!;
 
         // Find open position
-        final positions = portfolio['positions'] as List;
+        final positions = portfolio.safeList<dynamic>('positions');
         final positionIndex = positions.indexWhere(
           (p) => p['symbol'] == symbol && p['status'] == 'Open',
         );
@@ -272,8 +273,8 @@ class PaperHandsProvider extends BaseProvider {
         backtestResult['totalReturnPercentage'] =
             (totalReturn / initialBalance) * 100;
 
-        final totalTrades = backtestResult['totalTrades'] as int;
-        final winRate = backtestResult['winRate'] as double;
+        final totalTrades = backtestResult.safeInt('totalTrades');
+        final winRate = backtestResult.safeDouble('winRate');
         backtestResult['winningTrades'] = (totalTrades * winRate).round();
         backtestResult['losingTrades'] =
             totalTrades - backtestResult['winningTrades'];
@@ -457,8 +458,12 @@ class PaperHandsProvider extends BaseProvider {
     }
 
     // Sort recent trades
-    _recentTrades.sort((a, b) =>
-        (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+    _recentTrades.sort((a, b) {
+      final bTime = b['timestamp'];
+      final aTime = a['timestamp'];
+      if (bTime is DateTime && aTime is DateTime) return bTime.compareTo(aTime);
+      return 0;
+    });
     if (_recentTrades.length > 50) {
       _recentTrades = _recentTrades.take(50).toList();
     }
@@ -509,8 +514,8 @@ class PaperHandsProvider extends BaseProvider {
       backtest['totalReturn'] = totalReturn;
       backtest['totalReturnPercentage'] = (totalReturn / initialBalance) * 100;
 
-      final totalTrades = backtest['totalTrades'] as int;
-      final winRate = backtest['winRate'] as double;
+      final totalTrades = backtest.safeInt('totalTrades');
+      final winRate = backtest.safeDouble('winRate');
       backtest['winningTrades'] = (totalTrades * winRate).round();
       backtest['losingTrades'] = totalTrades - backtest['winningTrades'];
 
@@ -518,8 +523,12 @@ class PaperHandsProvider extends BaseProvider {
     }
 
     // Sort by creation date
-    _backtestResults.sort((a, b) =>
-        (b['createdAt'] as DateTime).compareTo(a['createdAt'] as DateTime));
+    _backtestResults.sort((a, b) {
+      final bTime = b['createdAt'];
+      final aTime = a['createdAt'];
+      if (bTime is DateTime && aTime is DateTime) return bTime.compareTo(aTime);
+      return 0;
+    });
   }
 
   void _loadPortfolioTrades() {
@@ -527,8 +536,12 @@ class PaperHandsProvider extends BaseProvider {
       _recentTrades = _selectedPortfolio!['trades']
           .where((t) => t['status'] == 'Closed')
           .toList();
-      _recentTrades.sort((a, b) =>
-          (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+      _recentTrades.sort((a, b) {
+        final bTime = b['timestamp'];
+        final aTime = a['timestamp'];
+        if (bTime is DateTime && aTime is DateTime) return bTime.compareTo(aTime);
+        return 0;
+      });
     }
   }
 
@@ -613,17 +626,17 @@ class PaperHandsProvider extends BaseProvider {
   }
 
   double _calculatePnl(Map<String, dynamic> position, double exitPrice) {
-    final side = position['side'] as String;
-    final quantity = position['quantity'] as double;
-    final entryPrice = position['entryPrice'] as double;
+    final side = position.safeString('side');
+    final quantity = position.safeDouble('quantity');
+    final entryPrice = position.safeDouble('entryPrice');
 
     return _calculateSimplePnl(side, quantity, entryPrice, exitPrice);
   }
 
   double _calculatePnlPercentage(
       Map<String, dynamic> position, double exitPrice) {
-    final side = position['side'] as String;
-    final entryPrice = position['entryPrice'] as double;
+    final side = position.safeString('side');
+    final entryPrice = position.safeDouble('entryPrice');
 
     return _calculateSimplePnlPercentage(side, entryPrice, exitPrice);
   }
