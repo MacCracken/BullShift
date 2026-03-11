@@ -12,12 +12,19 @@ WORKDIR /build
 COPY rust/Cargo.toml rust/Cargo.lock ./
 
 # Create dummy sources so cargo fetches deps (cache layer)
+# After dep fetch, remove dummy artifacts + fingerprints so cargo
+# fully recompiles when real source is copied in
 RUN mkdir -p src/bin benches && \
     echo "fn main() {}" > src/bin/api_server.rs && \
     echo "" > src/lib.rs && \
     echo "fn main() {}" > benches/benchmarks.rs && \
     cargo build --release --bin api_server 2>/dev/null || true && \
-    rm -rf src benches
+    rm -rf src benches \
+           target/release/api_server \
+           target/release/deps/bullshift_core* \
+           target/release/deps/api_server* \
+           target/release/deps/libbullshift_core* \
+           target/release/.fingerprint/bullshift-core-*
 
 # Copy real source and build
 COPY rust/src ./src
