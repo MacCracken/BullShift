@@ -32,6 +32,9 @@ LABEL org.opencontainers.image.description="High-performance trading platform on
 LABEL org.opencontainers.image.source="https://github.com/MacCracken/BullShift"
 LABEL org.opencontainers.image.licenses="MIT"
 
+USER root
+RUN groupadd -g 1004 bullshift && useradd -u 1004 -g bullshift -m -s /bin/bash bullshift
+
 COPY --from=builder /build/target/release/api_server /usr/local/bin/api_server
 
 ENV RUST_LOG=info
@@ -42,6 +45,6 @@ EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -sf http://localhost:8787/health || exit 1
 
-USER agnos
+USER bullshift
 
 ENTRYPOINT ["/usr/local/bin/api_server"]
